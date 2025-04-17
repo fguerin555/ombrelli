@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { collection, query, where, getDocs } from "firebase/firestore";
-import { db } from "../Firebase";
+import { db } from "../../Firebase";
 import styles from "./ReservationList.module.css";
 
 const getLettiniCount = (parasol) => {

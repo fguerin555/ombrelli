@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { db } from "../Firebase";
+import { db } from "../../Firebase";
 import { collection, addDoc, query, getDocs } from "firebase/firestore";
 import { generateSerialNumber } from "../../utils/bookingUtils/serialNumberGenerator";
 import {
