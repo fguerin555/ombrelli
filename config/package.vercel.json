@@ -6,7 +6,7 @@
       "use": "@vercel/static-build",
       "config": {
         "distDir": "build",
-        "buildCommand": "npm install && npm run build"
+        "buildCommand": "npm run build"
       }
     }
   ],
@@ -18,8 +18,5 @@
       "src": "/.*",
       "dest": "/index.html"
     }
-  ],
-  "engines": {
-    "node": "18.20.5"
-  }
+  ]
 }
