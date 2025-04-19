@@ -1,4 +1,4 @@
-.BeachPlanAfternoonPage {
+.BeachPlan {
   width: 100%;
 }
 
@@ -7,7 +7,7 @@
   justify-content: center;
   align-items: center;
   font-size: 40px;
-  color: Blue;
+  color: Orange;
 }
 
 @media (max-width: 1224px) {
