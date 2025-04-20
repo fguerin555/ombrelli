@@ -67,3 +67,29 @@
 
 /* L'ancienne classe .booked n'est plus nécessaire pour la couleur de fond */
 /* Si vous aviez .cell.booked { ... }, vous pouvez la supprimer ou la commenter */
+@media (max-width: 1224px) {
+  .cell {
+    min-width: 40px; /* Légèrement plus petit */
+    padding: 8px 4px;
+    font-size: 0.75rem;
+  }
+  .beach-plan {
+    padding: 5px; /* Moins de padding */
+  }
+}
+
+@media (max-width: 509px) {
+  .cell {
+    min-width: 35px; /* Encore plus petit */
+    padding: 6px 3px;
+    font-size: 0.7rem;
+  }
+}
+.beach-plan::-webkit-scrollbar {
+  height: 8px; /* Hauteur de la barre de défilement */
+}
+
+.beach-plan::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.2); /* Couleur du "curseur" de défilement */
+  border-radius: 4px;
+}

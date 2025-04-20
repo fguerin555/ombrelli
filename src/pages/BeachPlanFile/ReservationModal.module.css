@@ -10,6 +10,8 @@
   justify-content: center;
   align-items: center;
   z-index: 1000;
+  padding: 15px;
+  box-sizing: border-box;
 }
 
 .modalContent {
@@ -17,14 +19,19 @@
   padding: 20px 30px;
   border-radius: 8px;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-  min-width: 350px;
-  max-width: 90%;
+  width: 100%; /* Prend la largeur du padding de l'overlay */
+  max-width: 500px; /* Limite la largeur sur les grands écrans */
+  max-height: 90vh; /* Limite la hauteur pour éviter qu'il soit trop grand */
+  overflow-y: auto; /* Permet le défilement si le contenu est trop haut */
+  box-sizing: border-box;
 }
 
 .modalContent h2 {
   margin-top: 0;
   margin-bottom: 20px;
   color: #0277bd; /* Bleu un peu plus foncé */
+  text-align: center;
+  font-size: 1.5rem; /* Taille de titre initiale */
 }
 
 .formGroup {
@@ -36,6 +43,7 @@
   margin-bottom: 5px;
   font-weight: bold;
   color: #555;
+  font-size: 0.9rem; /* Taille de label initiale */
 }
 
 .formGroup input[type="text"],
@@ -46,59 +54,123 @@
   padding: 10px;
   border: 1px solid #ccc;
   border-radius: 4px;
-  box-sizing: border-box; /* Important pour que padding ne dépasse pas width */
+  box-sizing: border-box;
+  font-size: 1rem;
 }
 
 .buttonGroup {
-  margin-top: 25px;
   display: flex;
-  justify-content: flex-end;
-  gap: 10px;
+  justify-content: flex-end; /* Aligne les boutons à droite par défaut */
+  gap: 10px; /* Espace entre les boutons */
+  margin-top: 25px;
+  flex-wrap: wrap; /* Permet aux boutons de passer à la ligne si manque de place */
 }
 
+/* Style de base des boutons */
 .buttonGroup button {
-  padding: 10px 15px;
+  padding: 10px 20px;
   border: none;
   border-radius: 4px;
   cursor: pointer;
-  font-weight: bold;
+  font-size: 1rem;
   transition: background-color 0.2s ease, opacity 0.2s ease;
 }
+.buttonGroup button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
 
+/* Styles spécifiques aux boutons */
 .buttonGroup button[type="submit"] {
-  background-color: #0288d1; /* Bleu */
+  background-color: #28a745; /* Vert */
   color: white;
 }
-.buttonGroup button[type="submit"]:hover {
-  background-color: #0277bd;
-}
-.buttonGroup button[type="submit"]:disabled {
-  background-color: #b0bec5;
-  cursor: not-allowed;
-  opacity: 0.7;
+.buttonGroup button[type="submit"]:hover:not(:disabled) {
+  background-color: #218838;
 }
 
-.buttonGroup button[type="button"] {
-  background-color: #eee;
-  color: #333;
+.buttonGroup button[type="button"]:not(.deleteButton) {
+  background-color: #6c757d; /* Gris */
+  color: white;
 }
-.buttonGroup button[type="button"]:hover {
-  background-color: #ddd;
-}
-.buttonGroup button[type="button"]:disabled {
-  cursor: not-allowed;
-  opacity: 0.7;
+.buttonGroup button[type="button"]:not(.deleteButton):hover:not(:disabled) {
+  background-color: #5a6268;
 }
 
 .deleteButton {
-  background-color: #e53935 !important; /* Rouge */
-  color: white !important;
+  background-color: #dc3545; /* Rouge */
+  color: white;
+  margin-right: auto; /* Pousse le bouton supprimer vers la gauche */
 }
-.deleteButton:hover {
-  background-color: #c62828 !important;
+.deleteButton:hover:not(:disabled) {
+  background-color: #c82333;
 }
-.deleteButton:disabled {
-  background-color: #ef9a9a !important;
-  cursor: not-allowed;
-  opacity: 0.7;
+
+/* --- Styles Responsifs --- */
+
+/* Pour tablettes (ex: <= 768px) */
+@media (max-width: 1224px) {
+  .modalContent {
+    padding: 20px; /* Un peu moins de padding */
+    max-width: 90%; /* Permet au modal d'être un peu plus large proportionnellement */
+  }
+  .modalContent h2 {
+    font-size: 1.3rem;
+  }
+  .buttonGroup {
+    justify-content: space-between;
+  }
+
+  /* Pour smartphones (ex: <= 480px) */
+  @media (max-width: 509px) {
+    .modalOverlay {
+      padding: 10px; /* Encore moins de padding autour */
+      /* Assure que le modal est bien centré même si le clavier virtuel apparaît */
+      align-items: flex-start; /* Aligne en haut */
+      padding-top: 5vh; /* Espace en haut */
+    }
+    .modalContent {
+      padding: 15px; /* Moins de padding interne */
+      max-width: 100%; /* Prend toute la largeur disponible (moins le padding de l'overlay) */
+      max-height: 85vh; /* Un peu moins haut pour laisser de la place */
+    }
+    .modalContent h2 {
+      font-size: 1.2rem; /* Titre plus petit */
+    }
+    .formGroup label {
+      font-size: 0.85rem; /* Labels plus petits */
+    }
+    .formGroup input[type="text"],
+    .formGroup input[type="number"],
+    .formGroup input[type="date"],
+    .formGroup select {
+      padding: 8px; /* Inputs un peu moins hauts */
+      font-size: 0.9rem; /* Texte des inputs plus petit */
+    }
+
+    .buttonGroup {
+      flex-direction: column; /* Empile les boutons verticalement */
+      align-items: stretch; /* Étire les boutons sur toute la largeur */
+    }
+    .buttonGroup button {
+      width: 100%; /* Chaque bouton prend toute la largeur */
+      margin-bottom: 10px; /* Espace entre les boutons empilés */
+    }
+    .buttonGroup button:last-child {
+      margin-bottom: 0; /* Pas de marge pour le dernier bouton */
+    }
+    .deleteButton {
+      margin-right: 0; /* Annule la marge qui le poussait à gauche */
+      order: 3; /* Met le bouton supprimer en dernier (optionnel) */
+    }
+    /* Optionnel: Réorganiser l'ordre visuel des boutons */
+    .buttonGroup button[type="button"]:not(.deleteButton) {
+      /* Annuler */
+      order: 2;
+    }
+    .buttonGroup button[type="submit"] {
+      /* Sauvegarder */
+      order: 1;
+    }
+  }
 }
