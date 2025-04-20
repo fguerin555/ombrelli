@@ -1,16 +1,69 @@
-.BeachPlanPage {
+/* /Users/fredericguerin/Desktop/ombrelli/src/pages/BeachPlanFile/BeachPlan.module.css */
+
+.beach-plan {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 20px;
+  background-color: #224449; /* Fond de plan */
+  overflow-x: auto;
   width: 100%;
 }
-.Titre h1 {
+
+.row {
   display: flex;
-  justify-content: center;
-  align-items: center;
-  font-size: 40px;
-  color: rgb(255, 0, 247);
+  flex-direction: row;
+  flex-wrap: nowrap;
+  gap: 4px;
+  overflow-x: auto;
+  width: max-content;
 }
 
-@media (max-width: 1224px) {
-  .h1 {
-    font-size: 20px;
-  }
+.cell {
+  width: 50px;
+  height: 50px;
+  /* --- Fond blanc par défaut pour non réservé --- */
+  background-color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  border: 1px solid #0288d1;
+  border-radius: 4px;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.2s ease;
+  white-space: nowrap;
+  color: #333; /* Couleur de texte pour contraste sur blanc */
 }
+
+/* --- Classe pour Jour Entier --- */
+.bookedFullDay {
+  background-color: #ef9a9a; /* Rouge clair */
+  border-color: #e57373; /* Bordure rouge un peu plus foncée */
+  color: #080000; /* Texte rouge foncé pour contraste */
+}
+
+/* --- Classe pour Après-midi --- */
+.bookedAfternoon {
+  background-color: #ffcc80; /* Orange clair */
+  border-color: #ffb74d; /* Bordure orange un peu plus foncée */
+  color: #0b0401; /* Texte orange foncé pour contraste */
+}
+
+/* --- Classe pour Matin --- */
+.bookedMorning {
+  background-color: #9de8ff; /* Jaune clair */
+  border-color: #589eff; /* Bordure jaune un peu plus foncée */
+  color: #070400; /* Texte jaune/doré foncé pour contraste */
+}
+
+/* Optionnel: style commun pour le texte dans les cellules réservées */
+.bookedFullDay,
+.bookedAfternoon,
+.bookedMorning {
+  font-weight: bold; /* Garder le texte en gras ou ajuster */
+}
+
+/* L'ancienne classe .booked n'est plus nécessaire pour la couleur de fond */
+/* Si vous aviez .cell.booked { ... }, vous pouvez la supprimer ou la commenter */
