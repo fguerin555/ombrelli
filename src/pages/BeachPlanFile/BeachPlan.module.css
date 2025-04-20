@@ -1,13 +1,12 @@
-.BeachPlan {
+.BeachPlanPage {
   width: 100%;
 }
-
 .Titre h1 {
   display: flex;
   justify-content: center;
   align-items: center;
   font-size: 40px;
-  color: Orange;
+  color: rgb(255, 0, 247);
 }
 
 @media (max-width: 1224px) {

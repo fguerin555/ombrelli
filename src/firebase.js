@@ -1,21 +1,23 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
+// import { getAnalytics } from "firebase/analytics";
+import { getFirestore } from "firebase/firestore";
 // TODO: Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries
 
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "AIzaSyCYzvnN0B92BTXOe5ADkn0Eao0gcqou2-0",
-  authDomain: "ombrelli-e333a.firebaseapp.com",
-  projectId: "ombrelli-e333a",
-  storageBucket: "ombrelli-e333a.firebasestorage.app",
-  messagingSenderId: "579907100870",
-  appId: "1:579907100870:web:babe491cd8d0047767f7c7",
-  measurementId: "G-S7SG3QVTFT",
+  apiKey: "your_firebase_api_key_here",
+  authDomain: "your_auth_domain_here",
+  projectId: "your_project_id_here",
+  storageBucket: "your_storage_bucket_here",
+  messagingSenderId: "your_messaging_sender_id_here",
+  appId: "your_app_id_here",
+  measurementId: "your_measurement_id_here",
 };
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
+// const analytics = getAnalytics(app);
+export const db = getFirestore(app);
