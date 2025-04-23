@@ -9,7 +9,24 @@
   overflow-x: auto;
   width: 100%;
 }
+.dateSelector {
+  margin: 15px;
+  padding: 10px;
+  background-color: #f0f0f0;
+  border-radius: 5px;
+  text-align: center;
+}
 
+.dateSelector label {
+  margin-right: 10px;
+  font-weight: bold;
+}
+
+.dateSelector input[type="date"] {
+  padding: 5px;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+}
 .row {
   display: flex;
   flex-direction: row;

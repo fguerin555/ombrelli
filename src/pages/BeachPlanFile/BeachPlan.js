@@ -1,285 +1,407 @@
+// src/pages/BeachPlanFile/BeachPlan.js
 import React, { useState, useEffect, useCallback } from "react";
-import styles from "./BeachPlan.module.css"; // Assurez-vous que ce fichier contient les classes .cell, .bookedFullDay, .bookedAfternoon, .bookedMorning
-import ReservationModal from "./ReservationModal"; // Importer le modal
-import { db } from ".//../../firebase"; // Utilisation du chemin qui fonctionne pour vous
+import styles from "./BeachPlan.module.css";
+import ReservationModal from "./ReservationModal";
+import ReservationList from "../ReservationListFile/ReservationList"; // <-- Importer le nouveau composant
+import { db } from ".//../../firebase";
+// ... (autres imports inchangés)
 import {
   collection,
   doc,
-  setDoc, // Pour mettre à jour (avec merge)
-  getDocs, // Pour charger toutes les réservations
-  deleteDoc, // Pour supprimer
-  query, // Pour construire la requête de chargement
-  addDoc, // Pour créer une nouvelle réservation
-  runTransaction, // Pour le compteur atomique
+  setDoc,
+  getDocs,
+  deleteDoc,
+  query,
+  addDoc,
+  runTransaction,
 } from "firebase/firestore";
 
-// Définition des lignes et colonnes de la grille
+// ... (getTodayString, rows, columns, refs inchangés) ...
+const getTodayString = () => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
 const rows = ["A", "B", "C", "D"];
 const columns = Array.from({ length: 36 }, (_, i) =>
   (i + 1).toString().padStart(2, "0")
 );
 
-// Référence à la collection Firestore pour les réservations
 const reservationsCollectionRef = collection(db, "reservations");
-// Référence au document compteur pour les numéros de série
 const counterDocRef = doc(db, "counters", "reservationCounter");
 
 export default function BeachPlan() {
-  // --- États du composant ---
-  const [reservations, setReservations] = useState({}); // Stocke les réservations chargées { cellCode: reservationData }
-  const [isLoading, setIsLoading] = useState(true); // Indicateur de chargement initial
-  const [isModalOpen, setIsModalOpen] = useState(false); // Contrôle l'ouverture du modal
-  const [selectedCellCode, setSelectedCellCode] = useState(null); // Code de la cellule sélectionnée (ex: "A01")
-  const [currentReservationData, setCurrentReservationData] = useState(null); // Données de la réservation pour le modal (ou null si nouvelle)
-  const [isSaving, setIsSaving] = useState(false); // Indicateur d'opération de sauvegarde/suppression en cours
+  const [allReservations, setAllReservations] = useState([]);
+  const [selectedDate, setSelectedDate] = useState(getTodayString());
+  const [isLoading, setIsLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedCellCode, setSelectedCellCode] = useState(null);
+  const [currentReservationData, setCurrentReservationData] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isCreatingComplementary, setIsCreatingComplementary] = useState(false);
+  // --- NOUVEAU: État pour afficher/masquer la liste ---
+  const [showReservationList, setShowReservationList] = useState(false);
+  // --- FIN NOUVEAU ---
 
-  // --- Fonction pour générer le prochain numéro de série (atomique) ---
+  // ... (getNextSerialNumber, fetchReservations, handleDoubleClick, handleCloseModal, handleSaveReservation, handleDeleteReservation inchangés) ...
   const getNextSerialNumber = useCallback(async () => {
+    // ... (pas de changement ici)
     const yearPrefix = "25"; // Préfixe pour l'année 2025
     try {
       let nextNumber = 1;
-      // Transaction Firestore pour garantir l'atomicité (lecture + écriture)
       await runTransaction(db, async (transaction) => {
         const counterDoc = await transaction.get(counterDocRef);
         if (!counterDoc.exists()) {
-          // Si le compteur n'existe pas, l'initialiser
           console.log("Compteur non trouvé, initialisation à 1.");
           nextNumber = 1;
-          // Crée le document compteur avec la première valeur utilisée
           transaction.set(counterDocRef, { lastNumber: 1 });
         } else {
-          // Si le compteur existe, lire la dernière valeur et l'incrémenter
           const lastNumber = counterDoc.data().lastNumber || 0;
           nextNumber = lastNumber + 1;
-          // Met à jour le compteur avec la nouvelle dernière valeur
           transaction.update(counterDocRef, { lastNumber: nextNumber });
         }
       });
-      // Retourne le numéro de série formaté (ex: "2500001")
       return `${yearPrefix}${nextNumber.toString().padStart(5, "0")}`;
     } catch (error) {
       console.error("Erreur lors de la génération du numéro de série:", error);
-      // Propager l'erreur pour la gérer dans handleSaveReservation
       throw new Error("Impossible de générer le numéro de série.");
     }
-  }, []); // useCallback sans dépendances car les refs sont stables
+  }, []);
 
-  // --- Fonction pour charger toutes les réservations depuis Firestore ---
+  // --- MODIFICATION: fetchReservations charge tout dans un tableau ---
   const fetchReservations = useCallback(async () => {
     setIsLoading(true);
     try {
-      const q = query(reservationsCollectionRef); // Requête simple pour tout récupérer
+      const q = query(reservationsCollectionRef); // Peut être optimisé pour ne charger que les résas visibles
       const querySnapshot = await getDocs(q);
-      const fetchedReservations = {};
-      // Transforme les documents Firestore en un objet clé/valeur { cellCode: data }
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        if (data.cellCode) {
-          // S'assurer que le cellCode existe
-          fetchedReservations[data.cellCode] = { id: doc.id, ...data };
-        } else {
-          console.warn("Réservation sans cellCode trouvée, ID:", doc.id);
-        }
-      });
-      setReservations(fetchedReservations); // Met à jour l'état React
+      const fetchedReservations = querySnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      setAllReservations(fetchedReservations);
     } catch (error) {
       console.error("Erreur lors de la récupération des réservations:", error);
-      alert("Erreur lors du chargement des réservations."); // Informer l'utilisateur
+      alert("Erreur lors du chargement des réservations.");
     } finally {
-      setIsLoading(false); // Termine l'état de chargement
+      setIsLoading(false);
     }
-  }, []); // useCallback sans dépendances car la ref est stable
+  }, []);
 
-  // --- Charger les réservations au premier montage du composant ---
   useEffect(() => {
     fetchReservations();
-  }, [fetchReservations]); // Dépendance à fetchReservations
+  }, [fetchReservations]);
 
-  // --- Gérer le double-clic sur une cellule pour ouvrir le modal ---
+  // --- MODIFICATION: handleDoubleClick prend en compte la date sélectionnée ---
   const handleDoubleClick = (cellCode) => {
     setSelectedCellCode(cellCode);
-    // Récupère les données de réservation existantes depuis l'état local
-    const existingReservation = reservations[cellCode];
-    // Passe les données existantes ou null (pour une nouvelle résa) au modal
-    setCurrentReservationData(existingReservation || null);
-    setIsModalOpen(true); // Ouvre le modal
+
+    // Filtrer les réservations pour cette cellule ET cette date
+    const reservationsForCellOnDate = allReservations.filter(
+      (res) =>
+        res.cellCode === cellCode &&
+        selectedDate >= res.startDate &&
+        selectedDate <= res.endDate
+    );
+
+    const morningRes = reservationsForCellOnDate.find(
+      (res) =>
+        res.condition === "matin" &&
+        res.startDate === selectedDate &&
+        res.endDate === selectedDate
+    );
+    const afternoonRes = reservationsForCellOnDate.find(
+      (res) =>
+        res.condition === "apres-midi" &&
+        res.startDate === selectedDate &&
+        res.endDate === selectedDate
+    );
+    const fullDayRes = reservationsForCellOnDate.find(
+      (res) => res.condition === "jour entier"
+    ); // Peut couvrir plusieurs jours
+
+    let dataForModal = null;
+    setIsCreatingComplementary(false); // Réinitialiser
+
+    if (fullDayRes) {
+      dataForModal = fullDayRes; // Priorité au jour entier
+    } else if (morningRes && afternoonRes) {
+      dataForModal = morningRes; // Si les deux existent, ouvrir le matin par défaut
+    } else if (morningRes) {
+      dataForModal = morningRes;
+      // On pourrait ouvrir pour créer l'après-midi
+      // setIsCreatingComplementary(true); // On pourrait utiliser ça pour pré-remplir le modal
+    } else if (afternoonRes) {
+      dataForModal = afternoonRes;
+      // On pourrait ouvrir pour créer le matin
+      // setIsCreatingComplementary(true);
+    } else {
+      // Aucune réservation pour ce jour spécifique, ouvrir pour une nouvelle
+      dataForModal = null;
+      // Pré-remplir la date sélectionnée pour une nouvelle réservation
+      setCurrentReservationData({
+        startDate: selectedDate,
+        endDate: selectedDate,
+      }); // Passer un objet partiel
+      setIsModalOpen(true);
+      return; // Sortir car on a déjà ouvert le modal
+    }
+
+    setCurrentReservationData(dataForModal);
+    setIsModalOpen(true);
   };
 
-  // --- Fermer le modal et réinitialiser les états associés ---
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setSelectedCellCode(null);
     setCurrentReservationData(null);
-    // Ne pas réinitialiser isSaving ici, car il est géré dans les fonctions save/delete
+    setIsCreatingComplementary(false);
   };
 
-  // --- Sauvegarder une réservation (Création ou Mise à jour) ---
+  // --- MODIFICATION: handleSaveReservation avec vérification de conflit ---
   const handleSaveReservation = async (formData) => {
-    setIsSaving(true); // Démarre l'indicateur de sauvegarde
-    // Extrait cellCode et garde le reste des données
+    setIsSaving(true);
     const { cellCode, ...dataToSave } = formData;
 
     if (!cellCode) {
-      console.error("Tentative de sauvegarde sans cellCode:", formData);
-      alert("Erreur: Le code de la cellule est manquant.");
+      // ... (gestion erreur inchangée)
+      console.error("Tentativo di salvare senza codice d'ombrello:", formData);
+      alert("Errore: Codice ombrello mancante.");
       setIsSaving(false);
       return;
     }
 
+    // --- Vérification de Conflit ---
+    // Chercher les réservations existantes pour la même cellule qui chevauchent les dates
+    const conflictingReservations = allReservations.filter(
+      (res) =>
+        res.cellCode === cellCode &&
+        res.id !== dataToSave.id && // Exclure la réservation en cours de modification
+        // Logique de chevauchement de dates simple (peut être affinée)
+        dataToSave.startDate <= res.endDate &&
+        dataToSave.endDate >= res.startDate
+    );
+
+    let conflictFound = false;
+    for (const existingRes of conflictingReservations) {
+      // Vérifier chaque jour dans la plage de la nouvelle réservation
+      let currentDate = new Date(dataToSave.startDate + "T00:00:00"); // Assurer la comparaison correcte
+      const endDate = new Date(dataToSave.endDate + "T00:00:00");
+
+      while (currentDate <= endDate) {
+        const currentDateStr = currentDate.toISOString().split("T")[0];
+
+        // Vérifier si ce jour est dans la plage de la réservation existante
+        if (
+          currentDateStr >= existingRes.startDate &&
+          currentDateStr <= existingRes.endDate
+        ) {
+          // Conflit si :
+          // 1. L'une est 'jour entier'
+          // 2. Les deux sont 'matin'
+          // 3. Les deux sont 'apres-midi'
+          if (
+            dataToSave.condition === "jour entier" ||
+            existingRes.condition === "jour entier"
+          ) {
+            conflictFound = true;
+            break;
+          }
+          // Conflit uniquement si la date est la même ET les conditions sont incompatibles
+          if (
+            dataToSave.startDate === dataToSave.endDate &&
+            existingRes.startDate === existingRes.endDate &&
+            dataToSave.startDate === existingRes.startDate
+          ) {
+            if (dataToSave.condition === existingRes.condition) {
+              conflictFound = true;
+              break;
+            }
+          } else if (
+            dataToSave.startDate !== dataToSave.endDate ||
+            existingRes.startDate !== existingRes.endDate
+          ) {
+            // Si l'une des réservations couvre plusieurs jours, elle est considérée comme "jour entier" pour la détection de conflit
+            // avec une réservation matin/aprem sur un des jours inclus.
+            conflictFound = true;
+            break;
+          }
+        }
+        // Passer au jour suivant
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+      if (conflictFound) break;
+    }
+
+    if (conflictFound) {
+      alert(
+        "Conflitto ! Una prenotazione esiste già per questo ombrello per la stass data e la stessa condizione"
+      );
+      setIsSaving(false);
+      return;
+    }
+    // --- Fin Vérification de Conflit ---
+
     try {
-      // Assure que cellCode est inclus dans les données finales
       let finalData = { ...dataToSave, cellCode };
 
       if (!finalData.id) {
-        // --- CAS : NOUVELLE réservation ---
+        // Nouvelle réservation
         let serialNumber;
         try {
-          // Générer le numéro de série uniquement pour les nouvelles
           serialNumber = await getNextSerialNumber();
         } catch (serialError) {
-          // Si la génération échoue, arrêter la sauvegarde
-          alert(`Erreur critique: ${serialError.message}`);
+          alert(`Errore durante il salvataggio: ${serialError.message}`);
           setIsSaving(false);
           return;
         }
-        // Ajoute le numéro de série généré aux données
         finalData = { ...finalData, serialNumber };
-
-        // Utilise addDoc pour créer un nouveau document avec un ID unique généré par Firestore
         const docRef = await addDoc(reservationsCollectionRef, finalData);
-        console.log("Nouvelle réservation créée avec ID: ", docRef.id);
-
-        // Met à jour l'état local immédiatement avec la nouvelle réservation et son ID
-        setReservations((prev) => ({
+        console.log("Nuova prenotazione creata con ID: ", docRef.id);
+        // --- MODIFICATION: Mettre à jour le tableau ---
+        setAllReservations((prev) => [
           ...prev,
-          [cellCode]: { id: docRef.id, ...finalData },
-        }));
+          { id: docRef.id, ...finalData },
+        ]);
       } else {
-        // --- CAS : MISE À JOUR d'une réservation existante ---
+        // Mise à jour
         const reservationId = finalData.id;
-        // Référence au document existant via son ID
         const docRef = doc(db, "reservations", reservationId);
-        // Exclut l'ID des données à mettre à jour (il est dans la référence docRef)
         const { id, ...updateData } = finalData;
-
-        // Utilise setDoc avec merge:true pour mettre à jour uniquement les champs modifiés
-        // (ou écraser les champs existants avec les nouvelles valeurs)
         await setDoc(docRef, updateData, { merge: true });
-        console.log("Réservation mise à jour ID: ", reservationId);
-
-        // Met à jour l'état local avec les données modifiées
-        setReservations((prev) => ({
-          ...prev,
-          // Assure de garder l'ID existant avec les données mises à jour
-          [cellCode]: { id: reservationId, ...updateData },
-        }));
+        console.log("Prenotazione aggiornato ID: ", reservationId);
+        // --- MODIFICATION: Mettre à jour le tableau ---
+        setAllReservations((prev) =>
+          prev.map((res) =>
+            res.id === reservationId ? { ...res, ...updateData } : res
+          )
+        );
       }
-
-      handleCloseModal(); // Ferme le modal après succès
+      handleCloseModal();
     } catch (error) {
-      console.error("Erreur lors de la sauvegarde:", error);
-      alert(`Erreur lors de la sauvegarde: ${error.message}`); // Informer l'utilisateur
+      console.error("Errore durante il salvataggio:", error);
+      alert(`Errore durante il salvataggio: ${error.message}`);
     } finally {
-      setIsSaving(false); // Termine l'indicateur de sauvegarde
+      setIsSaving(false);
     }
   };
 
-  // --- Supprimer une réservation ---
+  // --- MODIFICATION: handleDeleteReservation met à jour le tableau ---
   const handleDeleteReservation = async (reservationId) => {
-    // Trouve le cellCode associé à l'ID pour mettre à jour l'état local
-    const cellCodeToDelete = Object.keys(reservations).find(
-      (key) => reservations[key]?.id === reservationId // Ajout de ?. pour sécurité
-    );
-
-    // Vérification si l'ID ou le cellCode sont valides
-    if (!reservationId || !cellCodeToDelete) {
-      console.error(
-        "ID de réservation ou cellCode manquant pour la suppression.",
-        { reservationId, cellCodeToDelete }
-      );
-      alert("Erreur : Impossible de trouver la réservation à supprimer.");
+    if (!reservationId) {
+      alert("Errore : ID di prenotazione mancante per la soppressione.");
       return;
     }
-
-    setIsSaving(true); // Active l'indicateur (partagé avec sauvegarde)
+    setIsSaving(true);
     try {
-      // Référence au document à supprimer
       const docRef = doc(db, "reservations", reservationId);
-      // Supprime le document dans Firestore
       await deleteDoc(docRef);
       console.log("Réservation supprimée ID: ", reservationId);
-
-      // Met à jour l'état local en supprimant l'entrée correspondante
-      setReservations((prev) => {
-        const newState = { ...prev };
-        delete newState[cellCodeToDelete]; // Supprime la clé basée sur cellCode
-        return newState;
-      });
-
-      handleCloseModal(); // Ferme le modal après succès
+      // --- MODIFICATION: Mettre à jour le tableau ---
+      setAllReservations((prev) =>
+        prev.filter((res) => res.id !== reservationId)
+      );
+      handleCloseModal();
     } catch (error) {
-      console.error("Erreur lors de la suppression:", error);
-      alert(`Erreur lors de la suppression: ${error.message}`);
+      console.error("Erreore durante la soppressione:", error);
+      alert(`Errore durante la soppressione: ${error.message}`);
     } finally {
-      setIsSaving(false); // Désactive l'indicateur
+      setIsSaving(false);
     }
   };
 
-  // --- Rendu du composant ---
+  const handleDateChange = (event) => {
+    setSelectedDate(event.target.value);
+  };
 
-  // Affiche un message pendant le chargement initial
+  // --- NOUVEAU: Fonctions pour ouvrir/fermer la liste ---
+  const handleOpenList = () => {
+    setShowReservationList(true);
+  };
+
+  const handleCloseList = () => {
+    setShowReservationList(false);
+  };
+  // --- FIN NOUVEAU ---
+
   if (isLoading) {
-    return <div>Chargement du plan de plage...</div>;
+    return <div>Charicamento Beach Plan...</div>;
   }
 
-  // Rendu principal de la grille et du modal
   return (
     <>
-      {/* Conteneur principal de la grille */}
+      <div className={styles.controlsHeader}>
+        {" "}
+        {/* Optional: Wrapper for controls */}
+        {/* Sélecteur de date */}
+        <div className={styles.dateSelector}>
+          <label htmlFor="planDate">BEACH PLAN per il giorno : </label>
+          <input
+            type="date"
+            id="planDate"
+            value={selectedDate}
+            onChange={handleDateChange}
+            min={getTodayString()}
+          />
+        </div>
+        {/* --- NOUVEAU: Bouton pour afficher la liste --- */}
+        <button onClick={handleOpenList} className={styles.viewListButton}>
+          Visualizza/Stampa Lista
+        </button>
+        {/* --- FIN NOUVEAU --- */}
+      </div>
+
+      {/* Plan de plage */}
       <div className={styles["beach-plan"]}>
-        {/* Itération sur les lignes */}
+        {/* ... (mapping rows/columns inchangé) ... */}
         {rows.map((row) => (
           <div key={row} className={styles.row}>
-            {/* Itération sur les colonnes */}
             {columns.map((col) => {
-              const code = `${row}${col}`; // Code unique de la cellule (ex: "A01")
-              // Récupère la réservation associée à cette cellule depuis l'état
-              const reservation = reservations[code];
+              const code = `${row}${col}`;
+              // --- MODIFICATION: Logique d'affichage basée sur la date sélectionnée ---
+              const reservationsForCellOnDate = allReservations.filter(
+                (res) =>
+                  res.cellCode === code &&
+                  selectedDate >= res.startDate &&
+                  selectedDate <= res.endDate
+              );
 
-              // --- Détermination des classes CSS pour la cellule ---
-              let cellClasses = [styles.cell]; // Commence toujours par la classe de base
+              let cellClasses = [styles.cell];
+              const hasFullDay = reservationsForCellOnDate.some(
+                (res) => res.condition === "jour entier"
+              );
+              // Vérifier spécifiquement pour la date sélectionnée si c'est une résa d'un jour
+              const hasMorning = reservationsForCellOnDate.some(
+                (res) =>
+                  res.condition === "matin" &&
+                  res.startDate === selectedDate &&
+                  res.endDate === selectedDate
+              );
+              const hasAfternoon = reservationsForCellOnDate.some(
+                (res) =>
+                  res.condition === "apres-midi" &&
+                  res.startDate === selectedDate &&
+                  res.endDate === selectedDate
+              );
 
-              if (reservation) {
-                // Si une réservation existe, ajoute la classe basée sur la condition
-                switch (reservation.condition) {
-                  case "jour entier":
-                    cellClasses.push(styles.bookedFullDay); // Classe pour fond rouge
-                    break;
-                  case "apres-midi":
-                    cellClasses.push(styles.bookedAfternoon); // Classe pour fond orange
-                    break;
-                  case "matin":
-                    cellClasses.push(styles.bookedMorning); // Classe pour fond jaune
-                    break;
-                  default:
-                    // Optionnel: Gérer une condition inconnue ou manquante
-                    // Par exemple, appliquer une couleur par défaut pour "réservé"
-                    // cellClasses.push(styles.bookedGeneric);
-                    break;
-                }
+              if (hasFullDay || (hasMorning && hasAfternoon)) {
+                cellClasses.push(styles.bookedFullDay); // Rouge
+              } else if (hasMorning) {
+                cellClasses.push(styles.bookedMorning); // Bleue
+              } else if (hasAfternoon) {
+                cellClasses.push(styles.bookedAfternoon); // Orange
               }
-              // --- Fin de la détermination des classes ---
+              // --- FIN MODIFICATION ---
 
-              // Rendu de la cellule individuelle
               return (
                 <div
                   key={code}
-                  // Applique les classes CSS déterminées (ex: "cell bookedFullDay")
                   className={cellClasses.join(" ")}
-                  // Attache le gestionnaire pour ouvrir le modal au double-clic
                   onDoubleClick={() => handleDoubleClick(code)}
                 >
-                  {code} {/* Affiche le code de la cellule */}
+                  {code}
                 </div>
               );
             })}
@@ -287,16 +409,27 @@ export default function BeachPlan() {
         ))}
       </div>
 
-      {/* Intégration et rendu conditionnel du Modal */}
+      {/* Modal de réservation */}
       <ReservationModal
         isOpen={isModalOpen}
         onClose={handleCloseModal}
         cellCode={selectedCellCode}
-        reservationData={currentReservationData} // Passe les données (ou null)
-        onSave={handleSaveReservation} // Passe la fonction de sauvegarde
-        onDelete={handleDeleteReservation} // Passe la fonction de suppression
-        isSaving={isSaving} // Passe l'état de sauvegarde pour désactiver les boutons
+        reservationData={currentReservationData}
+        onSave={handleSaveReservation}
+        onDelete={handleDeleteReservation}
+        isSaving={isSaving}
+        selectedDateForNew={isCreatingComplementary ? null : selectedDate}
       />
+
+      {/* --- NOUVEAU: Affichage conditionnel de la liste --- */}
+      {showReservationList && (
+        <ReservationList
+          reservations={allReservations}
+          selectedDate={selectedDate}
+          onClose={handleCloseList}
+        />
+      )}
+      {/* --- FIN NOUVEAU --- */}
     </>
   );
 }

@@ -1,17 +1,223 @@
-.ReservationList {
-  width: 100%;
-}
+/* src/pages/BeachPlanFile/ReservationList.module.css */
 
-.Titre h1 {
+.listOverlay {
+  position: fixed; /* Or absolute if needed within a specific container */
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6);
   display: flex;
   justify-content: center;
   align-items: center;
-  font-size: 40px;
-  color: Orange;
+  z-index: 1000; /* Ensure it's above other content */
+  padding: 20px;
 }
 
-@media (max-width: 1224px) {
-  .h1 {
-    font-size: 20px;
+.listContainer {
+  background-color: white;
+  padding: 25px;
+  border-radius: 8px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  width: 90%;
+  max-width: 1200px; /* Adjust as needed */
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.listHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #eee;
+}
+
+.listHeader h2 {
+  margin: 0;
+  font-size: 1.5em;
+  color: #333;
+}
+
+.closeButton,
+.printButton {
+  padding: 8px 15px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9em;
+  margin-left: 10px;
+}
+
+.closeButton {
+  background-color: #ccc;
+  color: #333;
+}
+
+.closeButton:hover {
+  background-color: #bbb;
+}
+
+.printButton {
+  background-color: #007bff;
+  color: white;
+}
+
+.printButton:hover {
+  background-color: #0056b3;
+}
+
+.tableContainer {
+  overflow-y: auto; /* Allow scrolling for the table */
+  flex-grow: 1;
+}
+
+.reservationTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9em;
+}
+
+.reservationTable th,
+.reservationTable td {
+  border: 1px solid #ddd;
+  padding: 10px 12px; /* Increased padding */
+  text-align: left;
+  vertical-align: middle; /* Align text vertically */
+}
+
+.reservationTable th {
+  background-color: #f2f2f2;
+  font-weight: bold;
+  position: sticky; /* Keep headers visible when scrolling */
+  top: 0;
+  z-index: 1;
+}
+
+.reservationTable tbody tr:nth-child(even) {
+  background-color: #f9f9f9;
+}
+
+.reservationTable tbody tr:hover {
+  background-color: #f1f1f1;
+}
+
+/* Style for blank rows */
+.blankRow td {
+  color: #999; /* Lighter text for blank rows */
+  font-style: italic;
+  height: 38px; /* Match height of normal rows approx */
+  /* Add a subtle background or border if needed */
+  /* background-color: #fafafa; */
+}
+.blankRow td:not(:first-child):not(:nth-child(4))::before {
+  content: "..."; /* Indicate empty editable fields */
+  display: block;
+  text-align: center;
+}
+.blankRow td:first-child,
+.blankRow td:nth-child(4) {
+  font-style: normal; /* Keep Ombrello and Periodo normal */
+  color: #555;
+}
+
+/* --- Print Styles --- */
+@media print {
+  body * {
+    visibility: hidden; /* Hide everything */
+  }
+
+  .listOverlay,
+  .listOverlay * {
+    visibility: visible; /* Make the list and its children visible */
+  }
+
+  .listOverlay {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: auto;
+    background-color: white; /* No overlay background */
+    padding: 0;
+    margin: 0;
+    box-shadow: none;
+    border: none;
+    max-height: none;
+    overflow: visible; /* Allow content to flow */
+  }
+
+  .listContainer {
+    width: 100%;
+    max-width: none;
+    box-shadow: none;
+    border-radius: 0;
+    padding: 10mm; /* Add margins for printing */
+    max-height: none;
+    overflow: visible;
+  }
+
+  .listHeader {
+    border-bottom: 1px solid #ccc; /* Keep header separator */
+    padding-bottom: 10px;
+    margin-bottom: 15px;
+  }
+
+  .listHeader h2 {
+    font-size: 16pt; /* Adjust title size */
+  }
+
+  .closeButton,
+  .printButton {
+    display: none; /* Hide buttons when printing */
+  }
+
+  .tableContainer {
+    overflow: visible; /* Don't scroll on print */
+  }
+
+  .reservationTable {
+    font-size: 10pt; /* Adjust font size for print */
+    width: 100%;
+    border-collapse: collapse; /* Ensure borders are clean */
+  }
+
+  .reservationTable th,
+  .reservationTable td {
+    border: 1px solid #666; /* Darker borders for print */
+    padding: 4px 6px; /* Reduce padding for print */
+    color: black; /* Ensure black text */
+    background-color: white !important; /* Override background colors */
+    page-break-inside: avoid; /* Try to keep rows from breaking across pages */
+  }
+
+  .reservationTable th {
+    background-color: #eee !important; /* Light grey for header background */
+    position: static; /* Don't use sticky header for print */
+  }
+
+  .reservationTable thead {
+    display: table-header-group; /* Repeat header on each page */
+  }
+
+  /* Ensure blank rows print reasonably */
+  .blankRow td {
+    color: #333; /* Make text darker for print */
+    font-style: italic;
+  }
+  .blankRow td:not(:first-child):not(:nth-child(4))::before {
+    content: ""; /* Remove the '...' for print, just leave blank */
+  }
+  .blankRow td:first-child,
+  .blankRow td:nth-child(4) {
+    font-style: normal;
+    color: black;
+  }
+
+  @page {
+    size: A4 landscape; /* Or portrait if preferred */
+    margin: 15mm; /* Adjust margins */
   }
 }
