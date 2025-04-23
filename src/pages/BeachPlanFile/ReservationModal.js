@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import styles from "./ReservationModal.module.css";
 
-// ... (fonctions utilitaires inchangées) ...
+// Fonctions utilitaires
 const getTodayString = () => {
   const today = new Date();
   const year = today.getFullYear();
@@ -11,294 +11,371 @@ const getTodayString = () => {
   return `${year}-${month}-${day}`;
 };
 
+// <<--- Utilisé dans useEffect et handleChange
 const capitalizeFirstLetter = (string) => {
   if (!string) return string;
   return string.charAt(0).toUpperCase() + string.slice(1);
+};
+
+// Helper pour formater la date pour l'affichage (ex: DD/MM/YYYY)
+const formatDateForDisplay = (dateString) => {
+  if (!dateString) return "";
+  try {
+    const [year, month, day] = dateString.split("-");
+    return `${day}/${month}/${year}`;
+  } catch (e) {
+    return dateString;
+  }
 };
 
 const ReservationModal = ({
   isOpen,
   onClose,
   cellCode,
-  reservationData, // Peut être null ou un objet partiel { startDate, endDate }
+  reservationData,
   onSave,
   onDelete,
   isSaving,
-  // selectedDateForNew // On peut l'utiliser si besoin, mais géré dans BeachPlan pour l'instant
+  selectedDate, // La date sélectionnée sur le plan
 }) => {
-  const [formData, setFormData] = useState({});
-  const [isNew, setIsNew] = useState(true);
+  const [formData, setFormData] = useState({}); // <<--- setFormData est utilisé dans useEffect/handleChange
+  const [isNew, setIsNew] = useState(true); // <<--- setIsNew est utilisé dans useEffect
   const todayString = getTodayString();
 
+  // State pour la condition du jour spécifique
+  const [singleDayCondition, setSingleDayCondition] = useState(""); // <<--- setSingleDayCondition est utilisé dans useEffect/handleChange
+  const [showSingleDayOptions, setShowSingleDayOptions] = useState(false); // <<--- setShowSingleDayOptions est utilisé dans useEffect/handleChange
+
+  // --- useEffect DÉCOMMENTÉ ---
   useEffect(() => {
     if (isOpen) {
-      const initialData = reservationData || {}; // Utiliser {} si null
+      const initialData = reservationData || {};
       const isActuallyNew = !initialData.id;
-      setIsNew(isActuallyNew);
+      setIsNew(isActuallyNew); // <<--- Utilisation de setIsNew
+      const initialCondition = initialData.condition || "jour entier";
 
       setFormData({
+        // <<--- Utilisation de setFormData
         id: initialData.id || null,
-        nom: capitalizeFirstLetter(initialData.nom || ""),
-        prenom: capitalizeFirstLetter(initialData.prenom || ""),
-        numBeds: Math.min(initialData.numBeds || 2, 3),
+        nom: capitalizeFirstLetter(initialData.nom || ""), // <<--- Utilisation de capitalizeFirstLetter
+        prenom: capitalizeFirstLetter(initialData.prenom || ""), // <<--- Utilisation de capitalizeFirstLetter
+        numBeds: Math.min(
+          initialData.numBeds === undefined ? 2 : initialData.numBeds,
+          3
+        ), // Défaut à 2 lits si undefined
         registiPoltrona: initialData.registiPoltrona || "",
-        // Utiliser les dates pré-remplies si elles existent (pour nouvelle ou existante)
-        startDate: initialData.startDate || todayString,
-        endDate: initialData.endDate || todayString,
-        // Forcer 'jour entier' si les dates sont différentes ou si c'est une résa existante multi-jours
-        condition:
-          initialData.startDate &&
-          initialData.endDate &&
-          initialData.startDate !== initialData.endDate
-            ? "jour entier"
-            : initialData.condition || "jour entier",
+        startDate: initialData.startDate || selectedDate || todayString,
+        endDate: initialData.endDate || selectedDate || todayString,
+        condition: initialCondition,
         serialNumber: initialData.serialNumber || null,
       });
-    }
-  }, [reservationData, isOpen, todayString]);
 
+      // Logique pour afficher la section "For this day"
+      const isEditingExisting = !isActuallyNew;
+      const isMultiDay =
+        initialData.startDate &&
+        initialData.endDate &&
+        initialData.startDate !== initialData.endDate;
+      const isSelectedDateWithinRange =
+        selectedDate &&
+        initialData.startDate &&
+        initialData.endDate &&
+        selectedDate >= initialData.startDate &&
+        selectedDate <= initialData.endDate;
+
+      console.log("--- DEBUG MODAL ---");
+      console.log("Reservation Data (initialData):", initialData);
+      console.log("Selected Date from BeachPlan (selectedDate):", selectedDate);
+      console.log(
+        "Condition 1: isEditingExisting?",
+        isEditingExisting,
+        `(ID: ${initialData?.id})`
+      );
+      console.log(
+        "Condition 2: isMultiDay?",
+        isMultiDay,
+        `(${initialData?.startDate} !== ${initialData?.endDate})`
+      );
+      console.log(
+        "Condition 3: isSelectedDateWithinRange?",
+        isSelectedDateWithinRange,
+        `(${selectedDate} >= ${initialData?.startDate} && ${selectedDate} <= ${initialData?.endDate})`
+      );
+      console.log("--- FIN DEBUG ---");
+
+      if (isEditingExisting && isMultiDay && isSelectedDateWithinRange) {
+        setShowSingleDayOptions(true); // <<--- Utilisation de setShowSingleDayOptions
+        setSingleDayCondition(initialCondition); // <<--- Utilisation de setSingleDayCondition
+      } else {
+        setShowSingleDayOptions(false); // <<--- Utilisation de setShowSingleDayOptions
+        setSingleDayCondition(""); // <<--- Utilisation de setSingleDayCondition
+      }
+    } else {
+      // Reset quand le modal se ferme
+      setShowSingleDayOptions(false); // <<--- Utilisation de setShowSingleDayOptions
+      setSingleDayCondition(""); // <<--- Utilisation de setSingleDayCondition
+    }
+  }, [reservationData, isOpen, todayString, selectedDate]); // Dépendances
+
+  // --- handleChange DÉCOMMENTÉ ---
   const handleChange = (e) => {
     const { name, value, type, valueAsNumber } = e.target;
-    let processedValue = value; // Valeur par défaut
 
-    // --- Logique spécifique pour les champs ---
+    // Gérer le changement de la condition spécifique au jour
+    if (name === "singleDayCondition") {
+      setSingleDayCondition(value); // <<--- Utilisation de setSingleDayCondition
+      return;
+    }
+
+    let processedValue = value;
+    // Logique spécifique pour les champs
     if (name === "registiPoltrona") {
       const upperValue = value.toUpperCase();
       processedValue = ["R", "P", ""].includes(upperValue)
         ? upperValue
-        : formData.registiPoltrona; // Garde l'ancienne si invalide
+        : formData.registiPoltrona; // Utilise formData ici
     } else if (name === "nom" || name === "prenom") {
-      processedValue = capitalizeFirstLetter(value);
+      processedValue = capitalizeFirstLetter(value); // <<--- Utilisation de capitalizeFirstLetter
     } else if (type === "number") {
-      processedValue = isNaN(valueAsNumber) ? formData[name] : valueAsNumber; // Garde l'ancienne si NaN
+      processedValue = isNaN(valueAsNumber) ? formData[name] : valueAsNumber; // Utilise formData ici
       if (name === "numBeds") {
         if (processedValue < 0) processedValue = 0;
         if (processedValue > 3) processedValue = 3;
       }
     }
-    // Pour les dates ou select, la valeur directe est ok
 
-    // --- Mise à jour de l'état ---
     setFormData((prev) => {
+      // <<--- Utilisation de setFormData
       const newState = { ...prev, [name]: processedValue };
 
-      // --- NOUVELLE LOGIQUE: Gérer la condition basée sur les dates ---
+      // Gérer l'ajustement des dates
       if (name === "startDate" || name === "endDate") {
         const newStartDate =
           name === "startDate" ? processedValue : newState.startDate;
         const newEndDate =
           name === "endDate" ? processedValue : newState.endDate;
 
-        // Ajuster endDate si startDate la dépasse
         if (name === "startDate" && newEndDate < newStartDate) {
           newState.endDate = newStartDate;
         }
-        // Ajuster startDate si endDate est avant elle (ne devrait pas arriver avec min)
         if (name === "endDate" && newStartDate > newEndDate) {
-          newState.startDate = newEndDate; // Moins probable
+          newState.startDate = newEndDate;
         }
 
-        // Si les dates (ajustées) sont différentes, forcer 'jour entier'
-        if (newState.startDate !== newState.endDate) {
-          newState.condition = "jour entier";
-        }
-        // Si les dates deviennent identiques, NE PAS changer la condition automatiquement ici
-        // L'utilisateur peut choisir matin/aprem s'il le souhaite
+        // Si les dates globales changent, on cache potentiellement la section jour unique
+        const isMultiDay = newState.startDate !== newState.endDate;
+        const isSelectedDateWithinRange =
+          selectedDate &&
+          selectedDate >= newState.startDate &&
+          selectedDate <= newState.endDate;
+        // isNew est accessible depuis le scope du composant
+        setShowSingleDayOptions(
+          !isNew && isMultiDay && isSelectedDateWithinRange
+        ); // <<--- Utilisation de setShowSingleDayOptions
       }
-
-      // Si la condition est changée en matin/aprem, s'assurer que les dates sont identiques
-      if (
-        name === "condition" &&
-        (processedValue === "matin" || processedValue === "apres-midi")
-      ) {
-        if (newState.startDate !== newState.endDate) {
-          // Si on sélectionne matin/aprem mais que les dates sont différentes,
-          // forcer la date de fin à être égale à la date de début.
-          newState.endDate = newState.startDate;
-        }
-      }
-      // --- FIN NOUVELLE LOGIQUE ---
 
       return newState;
     });
   };
 
+  // --- handleSave DÉCOMMENTÉ ---
   const handleSave = (e) => {
     e.preventDefault();
-    // --- Validation finale ---
+    // Validations
+    if (formData.endDate < formData.startDate) {
+      alert("La data di fine non può essere anteriore alla data di inizio.");
+      return;
+    }
     if (
       formData.numBeds > 3 ||
       formData.numBeds < 0 ||
       isNaN(formData.numBeds)
     ) {
-      alert("Le nombre de lits doit être compris entre 0 et 3.");
+      alert("Il numero di lettini deve essere compreso tra 0 e 3.");
       return;
-    }
-    if (formData.endDate < formData.startDate) {
-      alert("La date de fin ne peut pas être antérieure à la date de début.");
-      return;
-    }
-    // Assurer que matin/aprem n'est que pour un seul jour
-    if (
-      (formData.condition === "matin" || formData.condition === "apres-midi") &&
-      formData.startDate !== formData.endDate
-    ) {
-      alert(
-        "La condition 'Matin' ou 'Après-midi' ne peut être sélectionnée que si la date de début et de fin sont identiques."
-      );
-      // Optionnel: forcer la condition ou bloquer
-      // setFormData(prev => ({...prev, condition: 'jour entier'})); // Forcer
-      return; // Bloquer
     }
 
-    onSave({ ...formData, cellCode });
+    // Préparer les données pour onSave
+    let dataToSend = { ...formData, cellCode };
+
+    if (
+      showSingleDayOptions &&
+      singleDayCondition &&
+      singleDayCondition !== formData.condition
+    ) {
+      dataToSend = {
+        ...dataToSend,
+        modifySingleDay: true,
+        targetDate: selectedDate,
+        targetDateCondition: singleDayCondition,
+      };
+    } else {
+      dataToSend.modifySingleDay = false;
+    }
+
+    onSave(dataToSend); // Appel de la prop onSave
   };
 
+  // --- handleDeleteClick DÉCOMMENTÉ ---
   const handleDeleteClick = () => {
     if (
       window.confirm(
-        `Voulez-vous vraiment supprimer la réservation pour ${cellCode} ?`
+        `Vuoi davvero cancellare la prenotazione per ${cellCode} (N° ${formData.serialNumber}) ?`
       )
     ) {
-      onDelete(formData.id); // Utiliser l'ID du formData
+      onDelete(formData.id); // Appel de la prop onDelete
     }
   };
 
   if (!isOpen) return null;
 
-  // --- Désactiver condition si dates différentes ---
-  const disableConditionChoice = formData.startDate !== formData.endDate;
-
   return (
     <div className={styles.modalOverlay}>
       <div className={styles.modalContent}>
-        <h2>Réservation pour {cellCode}</h2>
-        {/* ... (serialNumber, nom, prenom, numBeds, registiPoltrona inchangés) ... */}
+        <h2>Prenotazione per {cellCode}</h2>
+
         {formData.serialNumber && (
-          <p>Numéro de réservation : {formData.serialNumber}</p>
+          <p className={styles.serialNumber}>
+            Numero di prenotazione : <strong>{formData.serialNumber}</strong>
+          </p>
         )}
+
         <form onSubmit={handleSave}>
-          {/* Champ Nom */}
+          {/* Champs Nom, Prénom, Lits, Registi/Poltrona, Dates */}
           <div className={styles.formGroup}>
             <label htmlFor="nom">Cognome:</label>
             <input
-              type="text"
               id="nom"
               name="nom"
-              value={formData.nom}
+              value={formData.nom || ""}
               onChange={handleChange}
               required
+              autoComplete="family-name"
+              type="text"
             />
           </div>
-          {/* Champ Prénom */}
           <div className={styles.formGroup}>
             <label htmlFor="prenom">Nome:</label>
             <input
-              type="text"
               id="prenom"
               name="prenom"
-              value={formData.prenom}
+              value={formData.prenom || ""}
               onChange={handleChange}
               required
+              autoComplete="given-name"
+              type="text"
             />
           </div>
-          {/* Champ Nombre de lits */}
           <div className={styles.formGroup}>
-            <label htmlFor="numBeds">Numero lettini:</label>
+            <label htmlFor="numBeds">Numero lettini (max 3):</label>
             <input
-              type="number"
               id="numBeds"
               name="numBeds"
-              min="0"
-              max="3"
-              value={formData.numBeds}
+              // Utiliser 2 comme défaut si formData.numBeds est undefined au montage initial
+              value={formData.numBeds === undefined ? 2 : formData.numBeds}
               onChange={handleChange}
               required
+              min="0"
+              max="3"
+              type="number"
             />
           </div>
-          {/* Champ Registi/Poltrona */}
           <div className={styles.formGroup}>
             <label htmlFor="registiPoltrona">
               + Registi (R) / Poltrona (P):
             </label>
             <input
-              type="text"
               id="registiPoltrona"
               name="registiPoltrona"
-              value={formData.registiPoltrona}
+              value={formData.registiPoltrona || ""}
               onChange={handleChange}
               maxLength="1"
-              placeholder="R ou P (optionnel)"
+              placeholder="R o P (opzionale)"
               style={{ textTransform: "uppercase" }}
+              type="text"
             />
           </div>
-          {/* Champ Date début */}
           <div className={styles.formGroup}>
             <label htmlFor="startDate">Primo Giorno:</label>
             <input
-              type="date"
               id="startDate"
               name="startDate"
-              value={formData.startDate}
+              // Assurer une valeur contrôlée même si formData.startDate est initialement undefined
+              value={formData.startDate || ""}
               onChange={handleChange}
               required
               min={todayString}
+              type="date"
             />
           </div>
-          {/* Champ Date fin */}
           <div className={styles.formGroup}>
             <label htmlFor="endDate">Ultimo Giorno:</label>
             <input
-              type="date"
               id="endDate"
               name="endDate"
-              value={formData.endDate}
+              // Assurer une valeur contrôlée
+              value={formData.endDate || ""}
               onChange={handleChange}
               required
               min={formData.startDate || todayString}
+              type="date"
             />
           </div>
-          {/* Champ Condition */}
+
+          {/* Champ Condition (Globale) */}
           <div className={styles.formGroup}>
-            <label htmlFor="condition">Condizione:</label>
+            <label htmlFor="condition">Condizione (Periodo Intero):</label>
             <select
               id="condition"
               name="condition"
-              value={formData.condition}
+              // Assurer une valeur contrôlée
+              value={formData.condition || "jour entier"}
               onChange={handleChange}
               required
-              // --- MODIFICATION: Désactiver si dates différentes ---
-              disabled={disableConditionChoice}
-              title={
-                disableConditionChoice
-                  ? "Matin/Après-midi disponible uniquement si les dates sont identiques"
-                  : ""
-              }
             >
               <option value="jour entier">Whole Day</option>
-              {/* Afficher matin/aprem seulement si les dates sont identiques ou si la condition actuelle est déjà matin/aprem */}
-              {(!disableConditionChoice || formData.condition === "matin") && (
-                <option value="matin">Morning</option>
-              )}
-              {(!disableConditionChoice ||
-                formData.condition === "apres-midi") && (
-                <option value="apres-midi">Afternoon</option>
-              )}
+              <option value="matin">Morning</option>
+              <option value="apres-midi">Afternoon</option>
             </select>
-            {/* Message si désactivé */}
-            {disableConditionChoice && formData.condition !== "jour entier" && (
-              <small
-                style={{ color: "orange", display: "block", marginTop: "5px" }}
-              >
-                Condizione forzata a 'Whole Day' perché le date sono diverse.
-              </small>
-            )}
           </div>
+
+          {/* Section conditionnelle pour jour unique */}
+          {showSingleDayOptions && (
+            <div className={styles.singleDaySection}>
+              <hr />
+              <p>
+                Modifica solo per il giorno:{" "}
+                <strong>{formatDateForDisplay(selectedDate)}</strong>
+              </p>
+              <div className={styles.formGroup}>
+                <label htmlFor="singleDayCondition">
+                  Condizione per questo giorno:
+                </label>
+                <select
+                  id="singleDayCondition"
+                  name="singleDayCondition"
+                  value={singleDayCondition} // Ce state est géré séparément
+                  onChange={handleChange}
+                >
+                  <option value="jour entier">Whole Day</option>
+                  <option value="matin">Morning</option>
+                  <option value="apres-midi">Afternoon</option>
+                </select>
+              </div>
+              <small>
+                Selezionando una condizione diversa qui, la prenotazione
+                originale verrà modificata solo per questa data.
+              </small>
+              <hr />
+            </div>
+          )}
+
           {/* Boutons */}
           <div className={styles.buttonGroup}>
             <button type="button" onClick={onClose} disabled={isSaving}>
               Exit
             </button>
+            {/* isNew est accessible depuis le scope du composant */}
             {!isNew && (
               <button
                 type="button"

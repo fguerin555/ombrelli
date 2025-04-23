@@ -1,214 +1,170 @@
-import React, { useMemo } from "react";
-import "../../Global.css";
-import styles from "./ReservationList.module.css";
+// src/pages/ReservationListFile/ReservationList.js
+import React from "react";
+import styles from "./ReservationList.module.css"; // Assurez-vous d'avoir un fichier CSS
 
-// Helper function to format details
-const formatDetails = (reservation) => {
-  if (!reservation) return ""; // For blank rows
-  const beds = reservation.numBeds || 0;
-  const rp = reservation.registiPoltrona
-    ? ` / ${reservation.registiPoltrona}`
-    : "";
-  return `${beds}${rp}`;
-};
-
-// Helper function for sorting cell codes (A01, A02, ..., B01, ...)
-const sortCellCodes = (a, b) => {
-  const rowA = a.charAt(0);
-  const rowB = b.charAt(0);
-  const numA = parseInt(a.slice(1), 10);
-  const numB = parseInt(b.slice(1), 10);
-
-  if (rowA < rowB) return -1;
-  if (rowA > rowB) return 1;
-  return numA - numB;
-};
-
-const ReservationList = ({ reservations, selectedDate, onClose }) => {
-  const processedRows = useMemo(() => {
+const ReservationList = ({
+  reservations, // Toutes les réservations
+  selectedDate, // La date sélectionnée
+  onClose, // Fonction pour fermer
+  rows, // Les lignes (ex: ['A', 'B', 'C', 'D'])
+  columns, // Les colonnes (ex: ['01', '02', ..., '36'])
+}) => {
+  // Fonction helper pour obtenir les détails d'une réservation pour une demi-journée
+  const getHalfDayReservationDetails = (cellCode, halfDay) => {
     const relevantReservations = reservations.filter(
-      (res) => selectedDate >= res.startDate && selectedDate <= res.endDate
-    );
-
-    const reservationsByCell = {};
-
-    // Group reservations by cellCode for the selected date
-    relevantReservations.forEach((res) => {
-      if (!reservationsByCell[res.cellCode]) {
-        reservationsByCell[res.cellCode] = {
-          morning: null,
-          afternoon: null,
-          fullDay: null,
-        };
-      }
-
-      // Check if it's a single-day reservation for the selected date
-      const isSingleDayOnSelected =
-        res.startDate === selectedDate && res.endDate === selectedDate;
-
-      if (res.condition === "jour entier") {
-        reservationsByCell[res.cellCode].fullDay = res;
-      } else if (res.condition === "matin" && isSingleDayOnSelected) {
-        reservationsByCell[res.cellCode].morning = res;
-      } else if (res.condition === "apres-midi" && isSingleDayOnSelected) {
-        reservationsByCell[res.cellCode].afternoon = res;
-      } else if (
-        res.condition !== "jour entier" &&
-        !isSingleDayOnSelected &&
+      (res) =>
+        res.cellCode === cellCode &&
+        res.startDate && // Vérification existence dates
+        res.endDate &&
         selectedDate >= res.startDate &&
         selectedDate <= res.endDate
-      ) {
-        // If a multi-day reservation is NOT 'jour entier', treat it as full day for listing purposes on intermediate days
-        reservationsByCell[res.cellCode].fullDay = res; // Or handle as error? Assuming multi-day should be 'jour entier'
-      }
-    });
+    );
 
-    const finalRows = [];
+    let foundRes = null;
+    if (halfDay === "matin") {
+      // Cherche une résa 'matin' ou 'jour entier'
+      foundRes = relevantReservations.find(
+        (res) => res.condition === "matin" || res.condition === "jour entier"
+      );
+    } else if (halfDay === "apres-midi") {
+      // Cherche une résa 'apres-midi' ou 'jour entier'
+      foundRes = relevantReservations.find(
+        (res) =>
+          res.condition === "apres-midi" || res.condition === "jour entier"
+      );
+    }
 
-    // Get sorted cell codes
-    const sortedCellCodes = Object.keys(reservationsByCell).sort(sortCellCodes);
+    if (foundRes) {
+      return {
+        nom: foundRes.nom || "",
+        prenom: foundRes.prenom || "",
+        numBeds: foundRes.numBeds !== undefined ? foundRes.numBeds : "", // Affiche vide si undefined
+        serialNumber: foundRes.serialNumber || "",
+        conditionSpecific: foundRes.condition, // Pour savoir si c'était matin/apresmidi/jour entier
+      };
+    } else {
+      // Retourne des champs vides si non réservé
+      return {
+        nom: "",
+        prenom: "",
+        numBeds: "",
+        serialNumber: "",
+        conditionSpecific: null,
+      };
+    }
+  };
 
-    sortedCellCodes.forEach((cellCode) => {
-      const data = reservationsByCell[cellCode];
-      const fullDayRes = data.fullDay;
-      const morningRes = data.morning;
-      const afternoonRes = data.afternoon;
-
-      if (fullDayRes) {
-        // Full day reservation takes precedence
-        finalRows.push({
-          key: `${cellCode}-fullday`,
-          cellCode: cellCode,
-          cognome: fullDayRes.nom || "",
-          nome: fullDayRes.prenom || "",
-          periodo: "Giorno", // Whole Day
-          details: formatDetails(fullDayRes),
-          sortOrder: 2, // Middle sort order for full day
-        });
-      } else {
-        // Handle morning/afternoon
-        const hasMorning = !!morningRes;
-        const hasAfternoon = !!afternoonRes;
-
-        if (hasMorning && hasAfternoon) {
-          // Both exist, add both rows
-          finalRows.push({
-            key: `${cellCode}-morning`,
-            cellCode: cellCode,
-            cognome: morningRes.nom || "",
-            nome: morningRes.prenom || "",
-            periodo: "Mattina", // Morning
-            details: formatDetails(morningRes),
-            sortOrder: 1, // Morning first
-          });
-          finalRows.push({
-            key: `${cellCode}-afternoon`,
-            cellCode: cellCode,
-            cognome: afternoonRes.nom || "",
-            nome: afternoonRes.prenom || "",
-            periodo: "Pomeriggio", // Afternoon
-            details: formatDetails(afternoonRes),
-            sortOrder: 3, // Afternoon last
-          });
-        } else if (hasMorning) {
-          // Only morning exists, add morning row + blank afternoon row
-          finalRows.push({
-            key: `${cellCode}-morning`,
-            cellCode: cellCode,
-            cognome: morningRes.nom || "",
-            nome: morningRes.prenom || "",
-            periodo: "Mattina",
-            details: formatDetails(morningRes),
-            sortOrder: 1,
-          });
-          finalRows.push({
-            // Blank afternoon row
-            key: `${cellCode}-afternoon-blank`,
-            cellCode: cellCode,
-            cognome: "",
-            nome: "",
-            periodo: "Pomeriggio",
-            details: "",
-            isBlank: true, // Flag for styling
-            sortOrder: 3,
-          });
-        } else if (hasAfternoon) {
-          // Only afternoon exists, add blank morning row + afternoon row
-          finalRows.push({
-            // Blank morning row
-            key: `${cellCode}-morning-blank`,
-            cellCode: cellCode,
-            cognome: "",
-            nome: "",
-            periodo: "Mattina",
-            details: "",
-            isBlank: true,
-            sortOrder: 1,
-          });
-          finalRows.push({
-            key: `${cellCode}-afternoon`,
-            cellCode: cellCode,
-            cognome: afternoonRes.nom || "",
-            nome: afternoonRes.prenom || "",
-            periodo: "Pomeriggio",
-            details: formatDetails(afternoonRes),
-            sortOrder: 3,
-          });
-        }
-        // If neither morning nor afternoon (shouldn't happen with current logic if cellCode is in keys), do nothing
-      }
-    });
-
-    // Final sort: primarily by cellCode, secondarily by sortOrder (Mattina -> Giorno -> Pomeriggio)
-    // The main sort is already done by iterating sortedCellCodes. We just need internal order.
-    // The sortOrder property handles the internal order (blank morning, real morning, full day, blank afternoon, real afternoon)
-
-    return finalRows;
-  }, [reservations, selectedDate]);
+  // Formater la date pour l'affichage du titre
+  const formatDate = (dateStr) => {
+    if (!dateStr) return "";
+    try {
+      const [year, month, day] = dateStr.split("-");
+      return `${day}/${month}/${year}`;
+    } catch (e) {
+      return dateStr;
+    }
+  };
 
   return (
     <div className={styles.listOverlay}>
       <div className={styles.listContainer}>
         <div className={styles.listHeader}>
-          <h2>Lista Prenotazioni per il {selectedDate}</h2>
+          <h2>Lista Prenotazioni per il {formatDate(selectedDate)}</h2>
           <button onClick={onClose} className={styles.closeButton}>
             Chiudi
           </button>
           <button onClick={() => window.print()} className={styles.printButton}>
-            Stampa
+            Stampa Lista
           </button>
         </div>
+
         <div className={styles.tableContainer}>
+          {" "}
+          {/* Conteneur pour le défilement */}
           <table className={styles.reservationTable}>
             <thead>
               <tr>
-                <th>Ombrello</th>
+                <th>Ombrellone</th>
+                <th>Condizione</th>
                 <th>Cognome</th>
                 <th>Nome</th>
-                <th>Periodo</th>
-                <th>Dettagli (Lettini / R/P)</th>
+                <th>Lettini</th>
+                <th>N° Pren.</th>
               </tr>
             </thead>
             <tbody>
-              {processedRows.length > 0 ? (
-                processedRows.map((row) => (
-                  <tr
-                    key={row.key}
-                    className={row.isBlank ? styles.blankRow : ""}
-                  >
-                    <td>{row.cellCode}</td>
-                    <td>{row.cognome}</td>
-                    <td>{row.nome}</td>
-                    <td>{row.periodo}</td>
-                    <td>{row.details}</td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="5">
-                    Nessuna prenotazione trovata per questa data.
-                  </td>
-                </tr>
+              {rows.map((row) =>
+                columns.map((col) => {
+                  const cellCode = `${row}${col}`;
+                  const morningDetails = getHalfDayReservationDetails(
+                    cellCode,
+                    "matin"
+                  );
+                  const afternoonDetails = getHalfDayReservationDetails(
+                    cellCode,
+                    "apres-midi"
+                  );
+
+                  // --- LIGNE isCompletelyFree SUPPRIMÉE CAR INUTILISÉE ---
+
+                  // Détermine si c'est réservé toute la journée par la même réservation
+                  const isFullDaySameRes =
+                    morningDetails.serialNumber &&
+                    afternoonDetails.serialNumber &&
+                    morningDetails.serialNumber ===
+                      afternoonDetails.serialNumber &&
+                    morningDetails.conditionSpecific === "jour entier";
+
+                  // Si réservé toute la journée par la même réservation, afficher une seule ligne fusionnée visuellement
+                  if (isFullDaySameRes) {
+                    return (
+                      <tr key={`${cellCode}-FD`} className={styles.bookedRow}>
+                        <td>{cellCode}</td>
+                        <td>Giorno Intero</td>
+                        <td>{morningDetails.nom}</td>
+                        <td>{morningDetails.prenom}</td>
+                        <td>{morningDetails.numBeds}</td>
+                        <td>{morningDetails.serialNumber}</td>
+                      </tr>
+                    );
+                  }
+
+                  // Sinon, afficher les deux lignes (matin et après-midi)
+                  return (
+                    <React.Fragment key={cellCode}>
+                      {/* Ligne Matin */}
+                      <tr
+                        className={
+                          morningDetails.serialNumber
+                            ? styles.bookedRow
+                            : styles.freeRow
+                        }
+                      >
+                        <td>{cellCode}</td>
+                        <td>Mattina</td>
+                        <td>{morningDetails.nom}</td>
+                        <td>{morningDetails.prenom}</td>
+                        <td>{morningDetails.numBeds}</td>
+                        <td>{morningDetails.serialNumber}</td>
+                      </tr>
+                      {/* Ligne Après-midi */}
+                      <tr
+                        className={
+                          afternoonDetails.serialNumber
+                            ? styles.bookedRow
+                            : styles.freeRow
+                        }
+                      >
+                        <td></td> {/* Laisser vide pour alignement visuel */}
+                        <td>Pomeriggio</td>
+                        <td>{afternoonDetails.nom}</td>
+                        <td>{afternoonDetails.prenom}</td>
+                        <td>{afternoonDetails.numBeds}</td>
+                        <td>{afternoonDetails.serialNumber}</td>
+                      </tr>
+                    </React.Fragment>
+                  );
+                })
               )}
             </tbody>
           </table>
