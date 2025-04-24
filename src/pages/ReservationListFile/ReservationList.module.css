@@ -16,8 +16,8 @@
   background-color: white;
   padding: 20px;
   border-radius: 8px;
-  width: 90%;
-  max-width: 1000px; /* Ajustez selon vos besoins */
+  width: 95%; /* Augmenté un peu plus pour les colonnes */
+  max-width: 1200px; /* Augmenté pour potentiellement accommoder les nouvelles colonnes */
   height: 85vh; /* Hauteur de la fenêtre modale */
   display: flex;
   flex-direction: column;
@@ -45,6 +45,7 @@
   border-radius: 4px;
   cursor: pointer;
   font-size: 0.9em;
+  white-space: nowrap; /* Empêche le texte des boutons de passer à la ligne */
 }
 
 .closeButton {
@@ -78,11 +79,28 @@
   vertical-align: middle; /* Alignement vertical */
 }
 
+/* Optionnel: Style spécifique pour la colonne Extra (6ème colonne maintenant) */
+/* .reservationTable th:nth-child(6),
+.reservationTable td:nth-child(6) {
+  text-align: center;
+  min-width: 80px;
+  max-width: 100px;
+} */
+
+/* Optionnel: Style spécifique pour la colonne Cabina (7ème colonne maintenant) */
+/* .reservationTable th:nth-child(7),
+.reservationTable td:nth-child(7) {
+  text-align: center;
+  min-width: 60px;
+  max-width: 80px;
+} */
+
 .reservationTable th {
   background-color: #f2f2f2; /* Fond gris clair pour l'en-tête */
   position: sticky; /* En-tête fixe */
   top: 0; /* Coller en haut du conteneur scrollable */
   z-index: 10;
+  white-space: nowrap; /* Empêche le texte des en-têtes de passer à la ligne */
 }
 
 /* Style pour les lignes réservées */
@@ -90,32 +108,31 @@
   background-color: #e0f7fa; /* Bleu très clair */
 }
 .bookedRow td {
-  font-weight: normal; /* ou bold si vous préférez */
+  font-weight: normal;
 }
 
-/* Style pour les lignes libres (optionnel, peut rester blanc) */
+/* Style pour les lignes libres */
 .freeRow {
   background-color: #ffffff;
 }
-/* Rendre les cellules de données vides un peu plus visibles pour l'écriture */
-.freeRow td:nth-child(n + 3):nth-child(-n + 5) {
-  /* Cible Cognome, Nome, Lettini */
-  /* background-color: #f9f9f9; /* Très léger gris pour indiquer la zone d'écriture */
-  /* min-height: 1.2em; /* Assurer une hauteur minimale */
-  color: #aaa; /* Griser légèrement le texte par défaut (s'il y en avait) */
+/* Griser les cellules vides des lignes libres pour indiquer qu'il n'y a pas de données */
+.freeRow td:nth-child(n + 3):not(:first-child) {
+  color: #dedcdcdd; /* Griser légèrement */
 }
-.freeRow td:nth-child(n + 3):nth-child(-n + 5)::before {
-  content: "."; /* Ajoute un point pour visualiser la cellule vide */
-  color: transparent; /* Rend le point invisible mais occupe l'espace */
+/* Utiliser un pseudo-élément pour assurer une hauteur minimale visuelle même si vide */
+.freeRow td:empty::before {
+  content: "-"; /* Ou "\00a0" pour un espace insécable */
+  color: #eee; /* Très léger pour être à peine visible */
   display: inline-block;
-  width: 0;
 }
 
-/* Style pour la deuxième ligne (après-midi) pour l'indentation visuelle */
-.reservationTable tr:nth-child(even) td:first-child {
-  margin-left: 1px;
-  /* color: transparent; /* Cache le code ombrellone sur la 2ème ligne */
+/* --- CORRECTION APPLIQUÉE ICI --- */
+/* Règle pour masquer la première cellule des lignes "Après-midi" */
+.afternoonRow td:first-child {
+  color: transparent; /* Masque le contenu (texte ou vide) */
+  user-select: none; /* Empêche la sélection */
 }
+/* --- FIN CORRECTION --- */
 
 /* Styles pour l'impression */
 @media print {
@@ -136,6 +153,7 @@
     box-shadow: none;
     border: none;
     overflow: visible; /* Empêche le scroll sur l'impression */
+    z-index: auto; /* Reset z-index */
   }
   .listContainer {
     width: 100%;
@@ -144,9 +162,15 @@
     box-shadow: none;
     padding: 5px;
     overflow: visible;
+    border-radius: 0;
   }
   .listHeader {
     border-bottom: 1px solid #000;
+    padding-bottom: 5px;
+    margin-bottom: 10px;
+  }
+  .listHeader h2 {
+    font-size: 12pt; /* Taille raisonnable pour l'impression */
   }
   .closeButton,
   .printButton {
@@ -161,14 +185,19 @@
     border: 1px solid #666; /* Bordures plus visibles pour l'impression */
     font-size: 8pt; /* Taille plus petite pour tenir sur la page */
     padding: 4px;
+    vertical-align: top; /* Aligner en haut pour les longues cellules */
+    word-break: break-word; /* Permet de couper les mots longs si nécessaire */
   }
   .reservationTable th {
-    background-color: #eee;
+    background-color: #eee !important; /* Fond gris pour en-tête (important pour surcharger) */
     position: static; /* Pas de sticky à l'impression */
+    print-color-adjust: exact; /* Force l'impression des couleurs */
+    -webkit-print-color-adjust: exact;
+    white-space: normal; /* Permet au texte de l'en-tête de passer à la ligne */
   }
   .bookedRow {
-    background-color: #f0f0f0 !important; /* Fond gris pour réservé (important pour surcharger) */
-    print-color-adjust: exact; /* Force l'impression des couleurs de fond */
+    background-color: #f0f0f0 !important; /* Fond gris pour réservé */
+    print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
   }
   .freeRow {
@@ -176,10 +205,22 @@
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
   }
-  .freeRow td:nth-child(n + 3):nth-child(-n + 5)::before {
-    content: "."; /* Ajoute un point pour visualiser la cellule vide */
-    color: transparent; /* Rend le point invisible mais occupe l'espace */
-    display: inline-block;
-    width: 0;
+  /* Cacher le contenu des cellules vides des lignes libres à l'impression */
+  .freeRow td:nth-child(n + 3):not(:first-child) {
+    color: #555; /* Rendre le texte (s'il y en a) normalement visible */
   }
+  .freeRow td:empty::before {
+    content: ""; /* Ne pas afficher le "-" à l'impression */
+  }
+
+  /* --- CORRECTION IMPRESSION APPLIQUÉE ICI --- */
+  /* Règle d'impression pour masquer la première cellule des lignes "Après-midi" */
+  .afternoonRow td:first-child {
+    color: transparent !important; /* Masque le contenu (important pour surcharger) */
+    /* Optionnel: masquer les bordures si souhaité pour l'impression */
+    /* border-left-color: transparent !important; */
+    /* border-top-color: transparent !important; */
+    /* border-bottom-color: #666 !important; */ /* Garder la bordure basse */
+  }
+  /* --- FIN CORRECTION IMPRESSION --- */
 }

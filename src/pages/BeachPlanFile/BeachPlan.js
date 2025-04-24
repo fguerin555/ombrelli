@@ -27,13 +27,23 @@ const getTodayString = () => {
 
 // Helper pour ajouter/soustraire des jours (important pour le split)
 const addDays = (dateStr, days) => {
-  const parts = dateStr.split("-");
-  const date = new Date(parts[0], parts[1] - 1, parts[2]); // Mois est 0-indexé
-  date.setDate(date.getDate() + days);
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+  if (!dateStr) return null; // Gérer le cas où dateStr est null/undefined
+  try {
+    const parts = dateStr.split("-");
+    const date = new Date(
+      parseInt(parts[0], 10),
+      parseInt(parts[1], 10) - 1,
+      parseInt(parts[2], 10)
+    ); // Mois est 0-indexé
+    date.setDate(date.getDate() + days);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  } catch (e) {
+    console.error("Erreur dans addDays avec dateStr:", dateStr, e);
+    return null; // Retourner null en cas d'erreur de parsing
+  }
 };
 
 const rows = ["A", "B", "C", "D"];
@@ -54,7 +64,7 @@ export default function BeachPlan() {
   const [isSaving, setIsSaving] = useState(false);
   const [showReservationList, setShowReservationList] = useState(false);
 
-  // Fonction pour obtenir le prochain numéro de série
+  // Fonction pour obtenir le prochain numéro de série (inchangée)
   const getNextSerialNumber = useCallback(async () => {
     const yearPrefix = new Date().getFullYear().toString().slice(-2);
     try {
@@ -77,7 +87,7 @@ export default function BeachPlan() {
     }
   }, []);
 
-  // Fonction pour charger toutes les réservations
+  // Fonction pour charger toutes les réservations (inchangée)
   const fetchReservations = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -92,6 +102,8 @@ export default function BeachPlan() {
         ...res,
         startDate: res.startDate || "", // Gérer les cas undefined/null
         endDate: res.endDate || "", // Gérer les cas undefined/null
+        // Assurer que cabina existe, même si null
+        cabina: res.cabina !== undefined ? res.cabina : null,
       }));
       setAllReservations(sanitizedReservations);
     } catch (error) {
@@ -107,22 +119,20 @@ export default function BeachPlan() {
     fetchReservations();
   }, [fetchReservations]);
 
-  // --- CORRIGÉ: handleDoubleClick avec logique de filtrage ---
+  // handleDoubleClick (inchangé)
   const handleDoubleClick = (cellCode) => {
     setSelectedCellCode(cellCode);
-
-    // Filtrer les réservations pour cette cellule à la date sélectionnée
     const reservationsForCellOnDate = Array.isArray(allReservations)
       ? allReservations.filter(
           (res) =>
             res.cellCode === cellCode &&
+            res.startDate && // Vérifier existence dates
+            res.endDate &&
             selectedDate >= res.startDate &&
             selectedDate <= res.endDate
         )
       : [];
 
-    // Trouver une réservation existante pour pré-remplir le modal
-    // Priorité: Jour entier > Matin > Après-midi
     const fullDayRes = reservationsForCellOnDate.find(
       (res) => res.condition === "jour entier"
     );
@@ -134,28 +144,26 @@ export default function BeachPlan() {
     );
 
     let dataForModal = null;
-    if (fullDayRes) {
-      dataForModal = fullDayRes;
-    } else if (morningRes) {
-      // Si seulement matin existe, on le prend
-      dataForModal = morningRes;
-    } else if (afternoonRes) {
-      // Si seulement après-midi existe, on le prend
-      dataForModal = afternoonRes;
-    } else {
-      // Aucune réservation existante pour cette cellule à cette date
-      // Préparer les données pour une NOUVELLE réservation
+    if (fullDayRes) dataForModal = fullDayRes;
+    else if (morningRes) dataForModal = morningRes;
+    else if (afternoonRes) dataForModal = afternoonRes;
+    else {
       dataForModal = {
         nom: "",
         prenom: "",
-        numBeds: 2, // Valeur par défaut
+        numBeds: 2,
         registiPoltrona: "",
-        startDate: selectedDate, // Date sélectionnée comme début/fin par défaut
+        startDate: selectedDate,
         endDate: selectedDate,
-        condition: "jour entier", // Condition par défaut
+        condition: "jour entier",
         serialNumber: null,
-        id: null, // Important pour indiquer que c'est une nouvelle réservation
+        id: null,
+        cabina: null, // Initialiser cabina à null pour les nouvelles résas
       };
+    }
+    // S'assurer que cabina est bien défini (même si null) dans les données existantes
+    if (dataForModal && dataForModal.cabina === undefined) {
+      dataForModal.cabina = null;
     }
 
     setCurrentReservationData(dataForModal);
@@ -169,48 +177,53 @@ export default function BeachPlan() {
     setCurrentReservationData(null);
   };
 
-  // --- MODIFIÉ: handleSaveReservation pour gérer le SPLIT ---
-  const handleSaveReservation = async (formData) => {
+  // --- MODIFIÉ: handleSaveReservation pour gérer cabina ---
+  const handleSaveReservation = async (formDataFromModal) => {
     setIsSaving(true);
+    // Destructure pour séparer les infos de contrôle du reste des données
     const {
       cellCode,
       modifySingleDay,
       targetDate,
       targetDateCondition,
-      ...dataToSave
-    } = formData;
+      id: reservationId, // Renommer id pour clarté
+      ...dataToSave // Contient nom, prenom, numBeds, dates, condition, serialNumber, ET cabina
+    } = formDataFromModal;
 
     if (!cellCode) {
-      console.error("Tentativo di salvare senza codice d'ombrello:", formData);
+      console.error(
+        "Tentativo di salvare senza codice d'ombrello:",
+        formDataFromModal
+      );
       alert("Errore: Codice ombrello mancante.");
       setIsSaving(false);
       return;
     }
 
     // --- CAS 1: Modification d'un seul jour (SPLIT) ---
-    if (modifySingleDay && targetDate && targetDateCondition && dataToSave.id) {
+    if (modifySingleDay && targetDate && targetDateCondition && reservationId) {
       console.log(
         `Tentativo di split per ${cellCode} il ${targetDate} con condizione ${targetDateCondition}`
       );
-      const originalReservationId = dataToSave.id;
       let targetDaySerialNumber = null;
       let afterSerialNumber = null;
 
       try {
         // Générer les numéros de série nécessaires AVANT la transaction
         targetDaySerialNumber = await getNextSerialNumber();
+        // Vérifier si une période "après" existera pour générer son numéro
         const originalResCheck = allReservations.find(
-          (res) => res.id === originalReservationId
+          (res) => res.id === reservationId
         );
         if (originalResCheck && originalResCheck.endDate > targetDate) {
           afterSerialNumber = await getNextSerialNumber();
         }
 
-        const newReservations = [];
-        const updatesToOriginal = { deleted: false, endDate: null };
+        const newReservationsForState = []; // Pour màj état local
+        const updatesToOriginalForState = { deleted: false, endDate: null }; // Pour màj état local
 
         await runTransaction(db, async (transaction) => {
-          const originalDocRef = doc(db, "reservations", originalReservationId);
+          const originalDocRef = doc(db, "reservations", reservationId);
           const originalDoc = await transaction.get(originalDocRef);
 
           if (!originalDoc.exists()) {
@@ -218,17 +231,19 @@ export default function BeachPlan() {
           }
           const originalData = originalDoc.data();
 
-          // --- Vérification de Conflit pour le jour cible ---
-          let conflictFound = false;
-          const existingReservationsOnTargetDate = allReservations.filter(
+          // --- Vérification de Conflit pour le jour cible (Ombrellone) ---
+          let conflictFoundOmbrellone = false;
+          const existingOmbrelloneOnTargetDate = allReservations.filter(
             (res) =>
               res.cellCode === cellCode &&
-              res.id !== originalReservationId &&
+              res.id !== reservationId && // Exclure l'originale
+              res.startDate &&
+              res.endDate &&
               targetDate >= res.startDate &&
               targetDate <= res.endDate
           );
 
-          for (const existingRes of existingReservationsOnTargetDate) {
+          for (const existingRes of existingOmbrelloneOnTargetDate) {
             if (
               targetDateCondition === "jour entier" ||
               existingRes.condition === "jour entier" ||
@@ -237,46 +252,56 @@ export default function BeachPlan() {
               (targetDateCondition === "apres-midi" &&
                 existingRes.condition === "apres-midi")
             ) {
-              conflictFound = true;
+              conflictFoundOmbrellone = true;
               break;
             }
           }
-          if (conflictFound) {
+          if (conflictFoundOmbrellone) {
             throw new Error(
-              `Conflitto rilevato per ${cellCode} il ${targetDate} con la condizione ${targetDateCondition}.`
+              `Conflitto ombrellone rilevato per ${cellCode} il ${targetDate} con la condizione ${targetDateCondition}.`
             );
           }
-          // --- Fin Vérification Conflit ---
+          // --- Fin Vérification Conflit Ombrellone ---
 
           // --- Logique de Split ---
 
           // 1. Réservation pour le jour cible
+          // Utilise les données de base de l'original, mais écrase avec les infos spécifiques du jour cible
+          // y compris la cabina qui a été déterminée par le modal pour ce jour/condition spécifique
           const targetDayData = {
-            ...originalData,
-            startDate: targetDate,
-            endDate: targetDate,
-            condition: targetDateCondition,
-            serialNumber: targetDaySerialNumber,
-            cellCode: cellCode, // Assurer que cellCode est bien là
-            createdAt: originalData.createdAt || serverTimestamp(),
-            modifiedAt: serverTimestamp(),
+            ...originalData, // Base
+            ...dataToSave, // Ecrase avec nom, prenom, numBeds, registi, cabina du formulaire
+            startDate: targetDate, // Spécifique au jour
+            endDate: targetDate, // Spécifique au jour
+            condition: targetDateCondition, // Spécifique au jour
+            serialNumber: targetDaySerialNumber, // Nouveau numéro
+            cellCode: cellCode, // Assurer présence
+            createdAt: originalData.createdAt || serverTimestamp(), // Conserver création originale
+            modifiedAt: serverTimestamp(), // Nouvelle modification
           };
+          // Supprimer l'id car c'est un nouveau document
+          delete targetDayData.id;
           const targetDayDocRef = doc(collection(db, "reservations"));
           transaction.set(targetDayDocRef, targetDayData);
-          newReservations.push({ id: targetDayDocRef.id, ...targetDayData });
+          newReservationsForState.push({
+            id: targetDayDocRef.id,
+            ...targetDayData,
+          });
           console.log(
             "Split: Creata prenotazione per giorno target",
             targetDayData.serialNumber
           );
 
-          // 2. Gérer la période AVANT le jour cible
+          // 2. Gérer la période AVANT le jour cible (si elle existe)
           if (originalData.startDate < targetDate) {
             const newEndDate = addDays(targetDate, -1);
+            if (!newEndDate)
+              throw new Error("Erreur calcul date fin période 'avant'.");
             transaction.update(originalDocRef, {
               endDate: newEndDate,
               modifiedAt: serverTimestamp(),
             });
-            updatesToOriginal.endDate = newEndDate;
+            updatesToOriginalForState.endDate = newEndDate; // Pour màj état local
             console.log(
               "Split: Aggiornata prenotazione originale (prima)",
               originalData.serialNumber,
@@ -284,29 +309,35 @@ export default function BeachPlan() {
               newEndDate
             );
           } else {
+            // Si le jour cible EST la date de début originale, l'originale sera supprimée (ou écrasée si endDate = startDate)
             console.log("Split: Giorno target è startDate originale.");
           }
 
-          // 3. Gérer la période APRÈS le jour cible
+          // 3. Gérer la période APRÈS le jour cible (si elle existe)
           if (originalData.endDate > targetDate) {
-            if (!afterSerialNumber) {
+            if (!afterSerialNumber)
               throw new Error(
                 "Numero di serie mancante per il periodo 'dopo'."
               );
-            }
             const newStartDate = addDays(targetDate, 1);
+            if (!newStartDate)
+              throw new Error("Erreur calcul date début période 'après'.");
+
+            // La période "après" hérite de TOUTES les données originales (y compris la cabina originale)
             const afterData = {
               ...originalData,
-              startDate: newStartDate,
-              endDate: originalData.endDate,
-              serialNumber: afterSerialNumber,
-              cellCode: cellCode, // Assurer que cellCode est bien là
-              createdAt: originalData.createdAt || serverTimestamp(),
-              modifiedAt: serverTimestamp(),
+              startDate: newStartDate, // Nouvelle date début
+              endDate: originalData.endDate, // Date fin originale
+              serialNumber: afterSerialNumber, // Nouveau numéro
+              cellCode: cellCode, // Assurer présence
+              createdAt: originalData.createdAt || serverTimestamp(), // Conserver création originale
+              modifiedAt: serverTimestamp(), // Nouvelle modification
             };
+            // Supprimer l'id car c'est un nouveau document
+            delete afterData.id;
             const afterDocRef = doc(collection(db, "reservations"));
             transaction.set(afterDocRef, afterData);
-            newReservations.push({ id: afterDocRef.id, ...afterData });
+            newReservationsForState.push({ id: afterDocRef.id, ...afterData });
             console.log(
               "Split: Creata prenotazione per periodo dopo",
               afterData.serialNumber,
@@ -317,12 +348,30 @@ export default function BeachPlan() {
             console.log("Split: Giorno target è endDate originale.");
           }
 
-          // 4. Supprimer l'originale si elle a été entièrement remplacée OU si targetDate était startDate
-          if (originalData.startDate === targetDate) {
+          // 4. Supprimer l'originale si elle a été entièrement remplacée
+          // (c'est-à-dire si la période "avant" n'existe pas car targetDate était startDate)
+          // OU si la période "après" n'existe pas non plus (targetDate était endDate)
+          // ET que la période "avant" n'a pas été créée non plus.
+          // En gros, si on n'a PAS mis à jour l'endDate de l'original (updatesToOriginalForState.endDate est null)
+          // ET qu'il n'y a pas de période "après" (originalData.endDate <= targetDate)
+          // alors l'originale est complètement couverte par le nouveau jour cible et peut être supprimée.
+          if (
+            !updatesToOriginalForState.endDate &&
+            originalData.endDate <= targetDate
+          ) {
             transaction.delete(originalDocRef);
-            updatesToOriginal.deleted = true;
+            updatesToOriginalForState.deleted = true; // Pour màj état local
             console.log(
-              "Split: Prenotazione originale eliminata perché sostituita.",
+              "Split: Prenotazione originale eliminata perché completamente sostituita.",
+              originalData.serialNumber
+            );
+          } else if (!updatesToOriginalForState.endDate) {
+            // Cas où targetDate = startDate mais il y a une période après.
+            // L'originale est remplacée par la période "après", on la supprime.
+            transaction.delete(originalDocRef);
+            updatesToOriginalForState.deleted = true; // Pour màj état local
+            console.log(
+              "Split: Prenotazione originale eliminata perché startDate = targetDate.",
               originalData.serialNumber
             );
           }
@@ -331,18 +380,17 @@ export default function BeachPlan() {
         // --- Mise à jour de l'état local ---
         setAllReservations((prev) => {
           let newState = [...prev];
-
-          if (updatesToOriginal.deleted) {
-            newState = newState.filter(
-              (res) => res.id !== originalReservationId
-            );
-          } else if (updatesToOriginal.endDate) {
-            // Vérifier si endDate a été mis à jour
+          // Supprimer l'original si marqué comme supprimé
+          if (updatesToOriginalForState.deleted) {
+            newState = newState.filter((res) => res.id !== reservationId);
+          }
+          // Mettre à jour l'original si son endDate a changé
+          else if (updatesToOriginalForState.endDate) {
             newState = newState.map((res) =>
-              res.id === originalReservationId
+              res.id === reservationId
                 ? {
                     ...res,
-                    endDate: updatesToOriginal.endDate,
+                    endDate: updatesToOriginalForState.endDate,
                     modifiedAt: new Date(), // Simuler timestamp local
                   }
                 : res
@@ -351,9 +399,11 @@ export default function BeachPlan() {
           // Ajouter les nouvelles réservations créées
           newState = [
             ...newState,
-            ...newReservations.map((nr) => ({ ...nr, modifiedAt: new Date() })), // Simuler timestamp local
+            ...newReservationsForState.map((nr) => ({
+              ...nr,
+              modifiedAt: new Date(),
+            })), // Simuler timestamp local
           ];
-
           return newState;
         });
         console.log("Split completato con successo.");
@@ -368,47 +418,77 @@ export default function BeachPlan() {
       // --- CAS 2: Sauvegarde Normale (Nouvelle ou Mise à jour globale) ---
     } else {
       console.log(`Tentativo di salvataggio normale per ${cellCode}`);
-      // --- Vérification de Conflit Globale ---
+      // --- Vérification de Conflit Globale (Ombrellone ET Cabine) ---
       let conflictFound = false;
-      const checkStartDate = new Date(dataToSave.startDate + "T00:00:00Z"); // Utiliser UTC pour éviter les pbs de fuseau horaire
-      const checkEndDate = new Date(dataToSave.endDate + "T00:00:00Z");
-      let currentDate = new Date(checkStartDate);
+      let conflictMessage = "";
 
-      while (currentDate <= checkEndDate) {
-        const currentDateStr = currentDate.toISOString().split("T")[0];
-        const existingReservationsOnDate = allReservations.filter(
-          (res) =>
-            res.cellCode === cellCode &&
-            res.id !== dataToSave.id && // Exclure la réservation en cours de modif
-            res.startDate &&
-            res.endDate && // S'assurer que les dates existent
-            currentDateStr >= res.startDate &&
-            currentDateStr <= res.endDate
-        );
+      // Vérifier uniquement si les dates sont valides
+      if (
+        dataToSave.startDate &&
+        dataToSave.endDate &&
+        dataToSave.startDate <= dataToSave.endDate
+      ) {
+        const checkStartDate = new Date(dataToSave.startDate + "T00:00:00Z");
+        const checkEndDate = new Date(dataToSave.endDate + "T00:00:00Z");
+        let currentDate = new Date(checkStartDate);
 
-        for (const existingRes of existingReservationsOnDate) {
-          if (
-            dataToSave.condition === "jour entier" ||
-            existingRes.condition === "jour entier" ||
-            (dataToSave.condition === "matin" &&
-              existingRes.condition === "matin") ||
-            (dataToSave.condition === "apres-midi" &&
-              existingRes.condition === "apres-midi")
-          ) {
-            conflictFound = true;
-            alert(
-              `Conflitto rilevato per ${cellCode} il ${currentDateStr} con la prenotazione N° ${
+        while (currentDate <= checkEndDate && !conflictFound) {
+          const currentDateStr = currentDate.toISOString().split("T")[0];
+
+          // Filtrer les réservations existantes pour la date courante (excluant celle en cours de modif si elle a un ID)
+          const existingReservationsOnDate = allReservations.filter(
+            (res) =>
+              res.id !== reservationId && // Exclure la réservation en cours de modif
+              res.startDate &&
+              res.endDate && // S'assurer que les dates existent
+              currentDateStr >= res.startDate &&
+              currentDateStr <= res.endDate
+          );
+
+          for (const existingRes of existingReservationsOnDate) {
+            // 1. Vérifier conflit Ombrellone
+            if (existingRes.cellCode === cellCode) {
+              if (
+                dataToSave.condition === "jour entier" ||
+                existingRes.condition === "jour entier" ||
+                (dataToSave.condition === "matin" &&
+                  existingRes.condition === "matin") ||
+                (dataToSave.condition === "apres-midi" &&
+                  existingRes.condition === "apres-midi")
+              ) {
+                conflictFound = true;
+                conflictMessage = `Conflitto Ombrellone ${cellCode} rilevato il ${currentDateStr} con la prenotazione N° ${
+                  existingRes.serialNumber || existingRes.id
+                }.`;
+                break; // Sortir de la boucle interne
+              }
+            }
+            // 2. Vérifier conflit Cabine (seulement si une cabine est demandée ET assignée pour la nouvelle/modif)
+            if (
+              dataToSave.cabina &&
+              existingRes.cabina &&
+              dataToSave.cabina === existingRes.cabina
+            ) {
+              conflictFound = true;
+              conflictMessage = `Conflitto Cabina ${
+                dataToSave.cabina
+              } rilevato il ${currentDateStr} con la prenotazione N° ${
                 existingRes.serialNumber || existingRes.id
-              }.`
-            );
-            break;
-          }
-        }
-        if (conflictFound) break;
-        currentDate.setDate(currentDate.getDate() + 1);
+              }.`;
+              break; // Sortir de la boucle interne
+            }
+          } // Fin boucle sur existingReservationsOnDate
+
+          currentDate.setDate(currentDate.getDate() + 1); // Passer au jour suivant
+        } // Fin boucle while sur les dates
+      } else if (dataToSave.startDate > dataToSave.endDate) {
+        conflictFound = true; // Considérer comme un conflit si les dates sont invalides
+        conflictMessage =
+          "La data di fine non può essere anteriore alla data di inizio.";
       }
 
       if (conflictFound) {
+        alert(conflictMessage);
         setIsSaving(false);
         return;
       }
@@ -416,13 +496,15 @@ export default function BeachPlan() {
 
       // --- Logique de sauvegarde Add/Set ---
       try {
+        // Préparer les données finales pour Firestore
+        // Inclut nom, prenom, numBeds, dates, condition, serialNumber (si existant), ET cabina (peut être null)
         let finalData = {
-          ...dataToSave,
+          ...dataToSave, // Contient déjà cabina
           cellCode,
           modifiedAt: serverTimestamp(),
         };
 
-        if (!finalData.id) {
+        if (!reservationId) {
           // Nouvelle réservation
           const serialNumber = await getNextSerialNumber();
           finalData = {
@@ -430,29 +512,30 @@ export default function BeachPlan() {
             serialNumber,
             createdAt: serverTimestamp(),
           };
-          delete finalData.id; // Supprimer l'id null
+          // 'id' n'est pas dans finalData ici
           const docRef = await addDoc(reservationsCollectionRef, finalData);
           console.log("Nuova prenotazione creata con ID: ", docRef.id);
+          // Mise à jour état local
           setAllReservations((prev) => [
             ...prev,
             {
-              id: docRef.id,
-              ...finalData,
+              id: docRef.id, // Ajouter l'ID retourné par Firestore
+              ...finalData, // Contient serialNumber et cabina
               createdAt: new Date(), // Simuler timestamp local
               modifiedAt: new Date(), // Simuler timestamp local
             },
           ]);
         } else {
-          // Mise à jour globale
-          const reservationId = finalData.id;
+          // Mise à jour globale d'une réservation existante
           const docRef = doc(db, "reservations", reservationId);
-          const { id, ...updateData } = finalData; // Exclure l'ID
-          await setDoc(docRef, updateData, { merge: true });
+          // 'id' n'est pas nécessaire dans les données à écrire avec setDoc
+          await setDoc(docRef, finalData, { merge: true }); // Utiliser merge:true est une bonne pratique
           console.log("Prenotazione aggiornato ID: ", reservationId);
+          // Mise à jour état local
           setAllReservations((prev) =>
             prev.map((res) =>
               res.id === reservationId
-                ? { ...res, ...updateData, modifiedAt: new Date() } // Simuler timestamp local
+                ? { ...res, ...finalData, modifiedAt: new Date() } // Fusionner les nouvelles données (incluant cabina)
                 : res
             )
           );
@@ -467,19 +550,33 @@ export default function BeachPlan() {
     }
   }; // --- Fin handleSaveReservation ---
 
-  // Fonction de suppression (inchangée, mais ajout d'une alerte si id manque)
-  const handleDeleteReservation = async (reservationId) => {
-    if (!reservationId) {
+  // Fonction de suppression (inchangée)
+  const handleDeleteReservation = async (reservationIdToDelete) => {
+    if (!reservationIdToDelete) {
       alert("Impossibile eliminare: ID prenotazione mancante.");
       return;
     }
+    // Confirmation supplémentaire
+    const reservationToDelete = allReservations.find(
+      (res) => res.id === reservationIdToDelete
+    );
+    const confirmMessage = reservationToDelete
+      ? `Vuoi davvero cancellare la prenotazione per ${
+          reservationToDelete.cellCode
+        } (N° ${reservationToDelete.serialNumber || "N/A"}) ?`
+      : `Vuoi davvero cancellare questa prenotazione (ID: ${reservationIdToDelete}) ?`;
+
+    if (!window.confirm(confirmMessage)) {
+      return; // Annuler si l'utilisateur clique sur "Annuler"
+    }
+
     setIsSaving(true);
     try {
-      const docRef = doc(db, "reservations", reservationId);
+      const docRef = doc(db, "reservations", reservationIdToDelete);
       await deleteDoc(docRef);
-      console.log("Réservation supprimée ID: ", reservationId);
+      console.log("Réservation supprimée ID: ", reservationIdToDelete);
       setAllReservations((prev) =>
-        prev.filter((res) => res.id !== reservationId)
+        prev.filter((res) => res.id !== reservationIdToDelete)
       );
       handleCloseModal(); // Fermer le modal après suppression réussie
     } catch (error) {
@@ -503,9 +600,62 @@ export default function BeachPlan() {
     setShowReservationList(false);
   };
 
-  if (isLoading) {
-    return <div>Caricamento Beach Plan...</div>;
-  }
+  // Affichage du plan (inchangé)
+  const renderBeachPlan = () => {
+    if (isLoading) {
+      return <div>Caricamento Beach Plan...</div>;
+    }
+    return (
+      <div className={styles["beach-plan"]}>
+        {rows.map((row) => (
+          <div key={row} className={styles.row}>
+            {columns.map((col) => {
+              const code = `${row}${col}`;
+              const reservationsForCellOnDate = Array.isArray(allReservations)
+                ? allReservations.filter(
+                    (res) =>
+                      res.cellCode === code &&
+                      res.startDate &&
+                      res.endDate &&
+                      selectedDate >= res.startDate &&
+                      selectedDate <= res.endDate
+                  )
+                : [];
+
+              const isFullDay = reservationsForCellOnDate.some(
+                (res) => res.condition === "jour entier"
+              );
+              const isMorning = reservationsForCellOnDate.some(
+                (res) => res.condition === "matin"
+              );
+              const isAfternoon = reservationsForCellOnDate.some(
+                (res) => res.condition === "apres-midi"
+              );
+
+              let cellClasses = [styles.cell];
+              if (isFullDay || (isMorning && isAfternoon)) {
+                cellClasses.push(styles.bookedFullDay);
+              } else if (isMorning) {
+                cellClasses.push(styles.bookedMorning);
+              } else if (isAfternoon) {
+                cellClasses.push(styles.bookedAfternoon);
+              }
+
+              return (
+                <div
+                  key={code}
+                  className={cellClasses.join(" ")}
+                  onDoubleClick={() => handleDoubleClick(code)}
+                >
+                  {code}
+                </div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+    );
+  };
 
   return (
     <>
@@ -525,63 +675,9 @@ export default function BeachPlan() {
         </button>
       </div>
 
-      {/* --- CORRIGÉ: Plan de plage avec logique de rendu --- */}
-      <div className={styles["beach-plan"]}>
-        {rows.map((row) => (
-          <div key={row} className={styles.row}>
-            {columns.map((col) => {
-              const code = `${row}${col}`;
+      {renderBeachPlan()}
 
-              // Filtrer les réservations pour cette cellule à la date sélectionnée
-              // Ajout d'une vérification Array.isArray pour la robustesse
-              const reservationsForCellOnDate = Array.isArray(allReservations)
-                ? allReservations.filter(
-                    (res) =>
-                      res.cellCode === code &&
-                      res.startDate && // Vérifier que les dates existent
-                      res.endDate &&
-                      selectedDate >= res.startDate &&
-                      selectedDate <= res.endDate
-                  )
-                : []; // Si allReservations n'est pas un tableau, retourne un tableau vide
-
-              // Vérifier les conditions pour cette cellule à cette date
-              const isFullDay = reservationsForCellOnDate.some(
-                (res) => res.condition === "jour entier"
-              );
-              const isMorning = reservationsForCellOnDate.some(
-                (res) => res.condition === "matin"
-              );
-              const isAfternoon = reservationsForCellOnDate.some(
-                (res) => res.condition === "apres-midi"
-              );
-
-              // Déterminer les classes CSS pour la cellule
-              let cellClasses = [styles.cell];
-              if (isFullDay || (isMorning && isAfternoon)) {
-                // Si jour entier OU matin ET après-midi sont réservés
-                cellClasses.push(styles.bookedFullDay);
-              } else if (isMorning) {
-                cellClasses.push(styles.bookedMorning);
-              } else if (isAfternoon) {
-                cellClasses.push(styles.bookedAfternoon);
-              }
-
-              return (
-                <div
-                  key={code}
-                  className={cellClasses.join(" ")}
-                  onDoubleClick={() => handleDoubleClick(code)} // Utilise la fonction corrigée
-                >
-                  {code}
-                </div>
-              );
-            })}
-          </div>
-        ))}
-      </div>
-
-      {/* Modal de réservation - PASSAGE DE selectedDate */}
+      {/* Modal de réservation - PASSAGE DE allReservations */}
       <ReservationModal
         isOpen={isModalOpen}
         onClose={handleCloseModal}
@@ -590,14 +686,15 @@ export default function BeachPlan() {
         onSave={handleSaveReservation} // Utilise la fonction modifiée
         onDelete={handleDeleteReservation}
         isSaving={isSaving}
-        selectedDate={selectedDate} // Prop essentielle pour le modal
+        selectedDate={selectedDate}
+        allReservations={allReservations} // <-- PROP AJOUTÉE ICI
       />
 
       {/* Affichage conditionnel de la liste (inchangé) */}
       {showReservationList && (
         <ReservationList
           reservations={allReservations}
-          selectedDate={selectedDate} // Passer la date sélectionnée si nécessaire pour le filtrage/affichage
+          selectedDate={selectedDate}
           onClose={handleCloseList}
           rows={rows}
           columns={columns}

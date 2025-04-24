@@ -34,6 +34,18 @@
   font-size: 1.5rem; /* Taille de titre initiale */
 }
 
+.serialNumber {
+  /* Style ajouté pour le numéro de série */
+  text-align: center;
+  margin-bottom: 15px;
+  color: #333;
+  font-size: 0.9em;
+}
+.serialNumber strong {
+  font-weight: bold;
+  color: #000;
+}
+
 .formGroup {
   margin-bottom: 15px;
 }
@@ -56,6 +68,29 @@
   border-radius: 4px;
   box-sizing: border-box;
   font-size: 1rem;
+}
+
+/* Style pour la checkbox cabine pour qu'elle ne prenne pas 100% */
+.formGroup input[type="checkbox"] {
+  width: auto; /* Taille naturelle */
+  margin-right: 5px; /* Petit espace à droite */
+  vertical-align: middle; /* Aligner avec le texte */
+}
+
+/* Styles pour l'info cabine et l'erreur */
+.assignedCabinInfo {
+  font-style: italic;
+  color: #555;
+  margin-left: 5px; /* Espace après la checkbox ou le label */
+  vertical-align: middle;
+}
+
+.errorText {
+  color: #d9534f !important; /* Rouge pour l'erreur, important pour surcharger .assignedCabinInfo si besoin */
+  font-weight: bold; /* Rendre l'erreur plus visible */
+  font-style: normal; /* Annuler l'italique si appliqué via .assignedCabinInfo */
+  /* Optionnel: ajuster la marge si nécessaire */
+  /* margin-top: 5px; */
 }
 
 .buttonGroup {
@@ -106,10 +141,38 @@
   background-color: #c82333;
 }
 
+/* Section pour modification jour unique */
+.singleDaySection {
+  border-top: 1px solid #eee;
+  border-bottom: 1px solid #eee;
+  padding: 15px 0;
+  margin: 20px 0;
+  background-color: #f8f9fa; /* Léger fond pour distinguer */
+  padding-left: 15px; /* Indentation */
+  padding-right: 15px;
+  border-radius: 4px;
+}
+.singleDaySection p {
+  margin-top: 0;
+  font-weight: bold;
+  color: #333;
+}
+.singleDaySection small {
+  display: block;
+  margin-top: 10px;
+  color: #666;
+  font-size: 0.85em;
+}
+.singleDaySection hr {
+  /* Cache les hr si on utilise le padding/border du conteneur */
+  display: none;
+}
+
 /* --- Styles Responsifs --- */
 
 /* Pour tablettes (ex: <= 768px) */
 @media (max-width: 1224px) {
+  /* Ajusté pour correspondre à votre code */
   .modalContent {
     padding: 20px; /* Un peu moins de padding */
     max-width: 90%; /* Permet au modal d'être un peu plus large proportionnellement */
@@ -120,57 +183,58 @@
   .buttonGroup {
     justify-content: space-between;
   }
+} /* Fin @media (max-width: 1224px) */
 
-  /* Pour smartphones (ex: <= 480px) */
-  @media (max-width: 509px) {
-    .modalOverlay {
-      padding: 10px; /* Encore moins de padding autour */
-      /* Assure que le modal est bien centré même si le clavier virtuel apparaît */
-      align-items: flex-start; /* Aligne en haut */
-      padding-top: 5vh; /* Espace en haut */
-    }
-    .modalContent {
-      padding: 15px; /* Moins de padding interne */
-      max-width: 100%; /* Prend toute la largeur disponible (moins le padding de l'overlay) */
-      max-height: 85vh; /* Un peu moins haut pour laisser de la place */
-    }
-    .modalContent h2 {
-      font-size: 1.2rem; /* Titre plus petit */
-    }
-    .formGroup label {
-      font-size: 0.85rem; /* Labels plus petits */
-    }
-    .formGroup input[type="text"],
-    .formGroup input[type="number"],
-    .formGroup input[type="date"],
-    .formGroup select {
-      padding: 8px; /* Inputs un peu moins hauts */
-      font-size: 0.9rem; /* Texte des inputs plus petit */
-    }
-
-    .buttonGroup {
-      flex-direction: column; /* Empile les boutons verticalement */
-      align-items: stretch; /* Étire les boutons sur toute la largeur */
-    }
-    .buttonGroup button {
-      width: 100%; /* Chaque bouton prend toute la largeur */
-      margin-bottom: 10px; /* Espace entre les boutons empilés */
-    }
-    .buttonGroup button:last-child {
-      margin-bottom: 0; /* Pas de marge pour le dernier bouton */
-    }
-    .deleteButton {
-      margin-right: 0; /* Annule la marge qui le poussait à gauche */
-      order: 3; /* Met le bouton supprimer en dernier (optionnel) */
-    }
-    /* Optionnel: Réorganiser l'ordre visuel des boutons */
-    .buttonGroup button[type="button"]:not(.deleteButton) {
-      /* Annuler */
-      order: 2;
-    }
-    .buttonGroup button[type="submit"] {
-      /* Sauvegarder */
-      order: 1;
-    }
+/* Pour smartphones (ex: <= 480px) */
+@media (max-width: 509px) {
+  /* Ajusté pour correspondre à votre code */
+  .modalOverlay {
+    padding: 10px; /* Encore moins de padding autour */
+    /* Assure que le modal est bien centré même si le clavier virtuel apparaît */
+    align-items: flex-start; /* Aligne en haut */
+    padding-top: 5vh; /* Espace en haut */
   }
-}
+  .modalContent {
+    padding: 15px; /* Moins de padding interne */
+    max-width: 100%; /* Prend toute la largeur disponible (moins le padding de l'overlay) */
+    max-height: 85vh; /* Un peu moins haut pour laisser de la place */
+  }
+  .modalContent h2 {
+    font-size: 1.2rem; /* Titre plus petit */
+  }
+  .formGroup label {
+    font-size: 0.85rem; /* Labels plus petits */
+  }
+  .formGroup input[type="text"],
+  .formGroup input[type="number"],
+  .formGroup input[type="date"],
+  .formGroup select {
+    padding: 8px; /* Inputs un peu moins hauts */
+    font-size: 0.9rem; /* Texte des inputs plus petit */
+  }
+
+  .buttonGroup {
+    flex-direction: column; /* Empile les boutons verticalement */
+    align-items: stretch; /* Étire les boutons sur toute la largeur */
+  }
+  .buttonGroup button {
+    width: 100%; /* Chaque bouton prend toute la largeur */
+    margin-bottom: 10px; /* Espace entre les boutons empilés */
+  }
+  .buttonGroup button:last-child {
+    margin-bottom: 0; /* Pas de marge pour le dernier bouton */
+  }
+  .deleteButton {
+    margin-right: 0; /* Annule la marge qui le poussait à gauche */
+    order: 3; /* Met le bouton supprimer en dernier (optionnel) */
+  }
+  /* Optionnel: Réorganiser l'ordre visuel des boutons */
+  .buttonGroup button[type="button"]:not(.deleteButton) {
+    /* Annuler */
+    order: 2;
+  }
+  .buttonGroup button[type="submit"] {
+    /* Sauvegarder */
+    order: 1;
+  }
+} /* Fin @media (max-width: 509px) */
