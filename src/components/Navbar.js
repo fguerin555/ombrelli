@@ -11,7 +11,7 @@ const Navbar = () => {
           <Link to="/Beachplan">Beach Plan</Link>
         </li>
         <li>
-          <Link to="/daybyday">Day by Day</Link>
+          <Link to="/query">Query</Link>
         </li>
         <li>
           <Link to="/beachplanperiod">Beach Plan Period</Link>

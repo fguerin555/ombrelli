@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import "./Global.css";
 import BeachPlan from "./pages/BeachPlanFile/BeachPlan";
 import ReservationList from "./pages/ReservationListFile/ReservationList";
-import DaybyDay from "./pages/DaybyDayFile/DaybyDay";
+import Query from "./pages/QueryFile/Query";
 import CodBarreReader from "./pages/CodBarreReaderFile/CodBarreReader";
 import BeachPlanPeriod from "./pages/BeachPlanPeriodFile/BeachPlanPeriod";
 
@@ -22,7 +22,7 @@ const App = () => {
 
           <Route path="/codbarrereader" element={<CodBarreReader />} />
           <Route path="/beachplanperiod" element={<BeachPlanPeriod />} />
-          <Route path="/daybyday" element={<DaybyDay />} />
+          <Route path="/query" element={<Query />} />
         </Routes>
       </div>
     </Router>

@@ -560,7 +560,7 @@ const ReservationModal = ({
           {/* Boutons d'action */}
           <div className={styles.buttonGroup}>
             <button type="button" onClick={onClose} disabled={isSaving}>
-              Annulla
+              Esci
             </button>
             {/* Afficher Supprimer seulement si ce n'est pas une nouvelle réservation */}
             {!isNew && (
