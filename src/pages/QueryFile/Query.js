@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { db } from "../../firebase"; // Assurez-vous que le chemin est correct
+import React, { useState } from "react"; // useEffect n'est plus nécessaire ici a priori
+import { db } from "../../firebase";
 import {
   collection,
   query,
@@ -7,238 +7,163 @@ import {
   getDocs,
   Timestamp,
 } from "firebase/firestore";
+// import BeachPlan from "../BeachPlanFile/BeachPlan"; // <-- SUPPRIMÉ : On n'importe plus BeachPlan
 import "../../Global.css";
 import styles from "./Query.module.css";
 
-// Helper function pour obtenir toutes les dates entre deux dates (inclusives) en UTC
+// --- Constantes pour la grille interne ---
+const QUERY_GRID_ROWS = ["A", "B", "C", "D"];
+const QUERY_GRID_COLS = 36;
+
+// Helper function pour les dates (inchangée)
 const getDatesInRange = (startDateStr, endDateStr) => {
   const dates = [];
   try {
-    // Parse les chaînes d'entrée comme dates UTC à minuit
     const [startYear, startMonth, startDay] = startDateStr
       .split("-")
       .map(Number);
     const [endYear, endMonth, endDay] = endDateStr.split("-").map(Number);
-
-    // Crée des objets Date représentant minuit UTC
     let currentDate = new Date(Date.UTC(startYear, startMonth - 1, startDay));
     const finalDate = new Date(Date.UTC(endYear, endMonth - 1, endDay));
-
-    // Vérifie la validité et l'ordre des dates
     if (isNaN(currentDate.getTime()) || isNaN(finalDate.getTime())) {
-      console.error(
-        "Date invalide détectée dans getDatesInRange (NaN):",
-        startDateStr,
-        endDateStr
-      );
-      return []; // Retourne vide si une date est invalide
+      console.error("Date invalide (NaN):", startDateStr, endDateStr);
+      return [];
     }
     if (currentDate > finalDate) {
-      console.error(
-        "Date de début après date de fin dans getDatesInRange:",
-        startDateStr,
-        endDateStr
-      );
-      return []; // Retourne vide si l'ordre est incorrect
+      console.error("Date début après fin:", startDateStr, endDateStr);
+      return [];
     }
-
-    // Boucle tant que currentDate (UTC) est <= finalDate (UTC)
     while (currentDate <= finalDate) {
-      // Formate la date UTC actuelle en chaîne YYYY-MM-DD
       dates.push(currentDate.toISOString().split("T")[0]);
-
-      // Incrémente le jour en utilisant les méthodes UTC pour éviter les pbs de fuseau horaire
       currentDate.setUTCDate(currentDate.getUTCDate() + 1);
     }
   } catch (error) {
-    console.error(
-      "Erreur dans getDatesInRange:",
-      error,
-      "avec dates:",
-      startDateStr,
-      endDateStr
-    );
-    return []; // Retourne un tableau vide en cas d'erreur inattendue
+    console.error("Erreur getDatesInRange:", error, startDateStr, endDateStr);
+    return [];
   }
-  console.log(`getDatesInRange(${startDateStr}, ${endDateStr}) =>`, dates); // Log pour vérifier la sortie
+  console.log(`getDatesInRange(${startDateStr}, ${endDateStr}) =>`, dates);
   return dates;
 };
 
 const Query = () => {
-  const [codeParasol, setCodeParasol] = useState(""); // Input state still uses 'codeParasol'
+  // États pour le formulaire DANS LE MODAL (inchangés)
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [condition, setCondition] = useState("all"); // 'all', 'reserved', 'not_reserved'
-  const [results, setResults] = useState(null); // null: pas de recherche, []: aucun résultat, [...]: résultats
+  const [condition, setCondition] = useState("all");
+
+  // États pour le fonctionnement général et le modal (inchangés)
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedParasol, setSelectedParasol] = useState(null);
+
+  // États pour les résultats et le chargement/erreurs (inchangés)
+  const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [searchParams, setSearchParams] = useState(null); // Pour afficher les paramètres de recherche avec les résultats
+  const [searchParams, setSearchParams] = useState(null);
 
-  const handleSearch = async (e) => {
-    e.preventDefault(); // Empêche le rechargement de la page
-    setError(null); // Réinitialiser l'erreur au début
+  // --- Gère le double-clic sur une cellule de la GRILLE INTERNE ---
+  const handleCellDoubleClick = (cellCode) => {
+    console.log("Query Grid: Cell double-clicked:", cellCode);
+    setSelectedParasol(cellCode);
+    setStartDate(""); // Réinitialise les dates pour la nouvelle requête
+    setEndDate("");
+    setCondition("all");
+    setError(null); // Efface les erreurs précédentes du modal ou globales
+    setResults(null); // Efface les résultats précédents
+    setIsModalOpen(true); // Ouvre le modal de requête
+  };
 
-    // --- Validation du Code Parasol (input value) ---
-    const parasolRegex = /^[A-D](0[1-9]|[1-2][0-9]|3[0-6])$/i; // i = insensible à la casse
-    const normalizedCodeParasol = codeParasol.trim().toUpperCase(); // Normaliser avant de tester
+  // --- Fonction de recherche (déclenchée par le modal) --- (inchangée)
+  const handleSearch = async (
+    searchStartDate,
+    searchEndDate,
+    searchCondition
+  ) => {
+    // La validation est maintenant faite dans le handleSubmit du modal avant d'appeler handleSearch
 
-    if (!parasolRegex.test(normalizedCodeParasol)) {
-      setError(
-        "Codice Ombrello sbagliato usa A01-A36, B01-B36, C01-C36, D01-D36."
-      );
-      setResults(null);
-      setLoading(false); // Assurez-vous que le chargement s'arrête
-      return; // Arrêter la fonction ici
-    }
-    // --- Fin Validation ---
-
-    // Validation des dates
-    if (!startDate || !endDate) {
-      setError("insérire les due date");
-      setResults(null);
-      return;
-    }
-    // Utilisation de l'approche UTC pour la comparaison des dates d'entrée
-    const startInputDate = new Date(startDate + "T00:00:00Z");
-    const endInputDate = new Date(endDate + "T00:00:00Z");
-
-    if (isNaN(startInputDate.getTime()) || isNaN(endInputDate.getTime())) {
-      setError("Formato data sbagliato.");
-      setResults(null);
-      return;
-    }
-
-    if (startInputDate > endInputDate) {
-      setError("La data inizio non può essere posteroire a la data fine.");
-      setResults(null);
-      return;
-    }
-
+    setIsModalOpen(false);
     setLoading(true);
-    setResults(null); // Réinitialise les résultats précédents
-    // Sauvegarde les paramètres AVEC le code normalisé pour l'affichage
+    setError(null);
+    setResults(null);
+
     setSearchParams({
-      codeParasol: normalizedCodeParasol, // Garde le nom de l'input pour l'affichage
-      startDate,
-      endDate,
-      condition,
+      codeParasol: selectedParasol,
+      startDate: searchStartDate,
+      endDate: searchEndDate,
+      condition: searchCondition,
     });
 
     try {
-      // 1. Récupérer TOUTES les réservations pour le 'cellCode' donné (normalisé)
       const reservationsRef = collection(db, "reservations");
-      // --- CORRECTION ICI ---
       const q = query(
         reservationsRef,
-        where("cellCode", "==", normalizedCodeParasol) // Utilise le nom de champ correct "cellCode"
+        where("cellCode", "==", selectedParasol)
       );
-      // --- FIN CORRECTION ---
 
       const querySnapshot = await getDocs(q);
       const fetchedReservations = [];
-      // Log avec le nom de champ correct pour la clarté
-      console.log(
-        `Recherche Firestore pour cellCode: ${normalizedCodeParasol}`
-      );
+      console.log(`Recherche Firestore pour cellCode: ${selectedParasol}`);
       querySnapshot.forEach((doc) => {
         const data = doc.data();
-        // Log avec le nom de champ correct
-        console.log("Document Firestore brut:", doc.id, data);
-
         let resStartDate, resEndDate;
         try {
-          // Conversion en objets Date JS (préférer .toDate() pour Timestamps)
-          // Si ce sont des strings YYYY-MM-DD, les traiter comme UTC
           resStartDate =
             data.startDate instanceof Timestamp
-              ? data.startDate.toDate() // .toDate() retourne un objet Date JS standard
-              : new Date(data.startDate + "T00:00:00Z"); // Traiter string comme UTC
-
+              ? data.startDate.toDate()
+              : new Date(data.startDate + "T00:00:00Z");
           resEndDate =
             data.endDate instanceof Timestamp
               ? data.endDate.toDate()
-              : new Date(data.endDate + "T00:00:00Z"); // Traiter string comme UTC
-
-          // Vérifier si les dates sont valides APRÈS conversion
+              : new Date(data.endDate + "T00:00:00Z");
           if (isNaN(resStartDate.getTime()) || isNaN(resEndDate.getTime())) {
             console.warn(
-              "Dates invalides après conversion pour doc:",
+              "Dates invalides:",
               doc.id,
-              "Dates brutes:",
               data.startDate,
               data.endDate
             );
-            return; // Ne pas ajouter cette réservation si les dates sont invalides
+            return;
           }
-
+          // Log avec les noms de champs Firestore corrects
           console.log("Réservation traitée:", {
             id: doc.id,
-            cellCode: data.cellCode, // Utiliser data.cellCode ici aussi pour la cohérence du log
+            cellCode: data.cellCode,
             startDate: resStartDate.toISOString().split("T")[0],
             endDate: resEndDate.toISOString().split("T")[0],
+            prenom: data.prenom,
+            nom: data.nom,
           });
-
           fetchedReservations.push({
             id: doc.id,
-            ...data, // Garder les données originales si besoin
-            startDate: resStartDate, // Stocker les dates comme objets Date
+            ...data,
+            startDate: resStartDate,
             endDate: resEndDate,
           });
         } catch (conversionError) {
           console.error(
-            "Erreur de conversion de date pour doc:",
+            "Erreur conversion date:",
             doc.id,
             data,
             conversionError
           );
         }
       });
-      console.log(
-        "Total réservations trouvées et traitées pour ce cellCode:", // Mise à jour du log
-        fetchedReservations.length
-      );
+      console.log("Total réservations trouvées:", fetchedReservations.length);
 
-      // 2. Générer la liste de toutes les dates (YYYY-MM-DD) dans la période demandée par l'utilisateur (en utilisant la fonction UTC)
-      const requestedDates = getDatesInRange(startDate, endDate);
-
-      // Vérifier si getDatesInRange a retourné des dates
+      const requestedDates = getDatesInRange(searchStartDate, searchEndDate);
       if (requestedDates.length === 0) {
-        console.error(
-          "getDatesInRange n'a retourné aucune date. Vérifiez les dates d'entrée et les logs de la fonction."
-        );
-        if (startInputDate <= endInputDate) {
-          setError(
-            "Erreur interne lors de la génération de la plage de dates."
-          );
-        } else {
-          setError(
-            "La date de début ne peut pas être postérieure à la date de fin."
-          );
-        }
-        setResults([]); // Mettre un tableau vide pour indiquer "aucun résultat" plutôt que null
+        setError("Errore nella generazione dell'intervallo di date.");
+        setResults([]);
         setLoading(false);
         return;
       }
 
-      // 3. Déterminer le statut (Libero/Prenotato) pour chaque date demandée
-      console.log(
-        "Début du mappage pour dailyStatus sur les dates:",
-        requestedDates
-      );
       let dailyStatus = requestedDates.map((dateStr) => {
-        // Créer la date du jour à vérifier (à minuit UTC)
         const [year, month, day] = dateStr.split("-").map(Number);
-        const currentDateUTC = new Date(Date.UTC(year, month - 1, day)); // Minuit UTC
-        // --- LOG DÉTAILLÉ POUR LE JOUR COURANT ---
-        console.log(
-          `\n--- Vérification pour le jour : ${dateStr} (UTC: ${currentDateUTC.toISOString()}) ---`
-        );
-
+        const currentDateUTC = new Date(Date.UTC(year, month - 1, day));
         let isReserved = false;
-        let reservationFound = false; // Flag pour voir si on trouve la réservation attendue
-
+        let reservationDetails = null;
         for (const reservation of fetchedReservations) {
-          // Convertir les dates de début/fin de réservation en minuit UTC pour une comparaison fiable
           const resStartUTC = new Date(
             Date.UTC(
               reservation.startDate.getUTCFullYear(),
@@ -253,195 +178,241 @@ const Query = () => {
               reservation.endDate.getUTCDate()
             )
           );
-
-          // --- LOG DÉTAILLÉ POUR CHAQUE RÉSERVATION COMPARÉE ---
-          console.log(`  Comparaison avec Réservation ID: ${reservation.id}`);
-          console.log(
-            `    Reservation Start UTC: ${resStartUTC.toISOString()}`
-          );
-          console.log(`    Reservation End UTC:   ${resEndUTC.toISOString()}`);
-
-          // Comparaison en utilisant les timestamps UTC
           const comparisonResult =
             currentDateUTC.getTime() >= resStartUTC.getTime() &&
             currentDateUTC.getTime() <= resEndUTC.getTime();
-
-          console.log(
-            `    Current >= Start? : ${
-              currentDateUTC.getTime() >= resStartUTC.getTime()
-            } (${currentDateUTC.getTime()} >= ${resStartUTC.getTime()})`
-          );
-          console.log(
-            `    Current <= End?   : ${
-              currentDateUTC.getTime() <= resEndUTC.getTime()
-            } (${currentDateUTC.getTime()} <= ${resEndUTC.getTime()})`
-          );
-          console.log(`    => Résultat Comparaison: ${comparisonResult}`);
-          // --- FIN LOG DÉTAILLÉ ---
-
           if (comparisonResult) {
-            console.log(
-              `    MATCH TROUVÉ! ${dateStr} est dans la réservation ${reservation.id}.`
-            );
             isReserved = true;
-            reservationFound = true; // On a trouvé la réservation
-            break; // Ce jour est couvert par au moins une réservation
+            // Lire depuis 'prenom' et 'nom'
+            reservationDetails = {
+              firstName: reservation.prenom || "N/A",
+              lastName: reservation.nom || "N/A",
+            };
+            break;
           }
         }
-
-        // --- LOG APRÈS AVOIR VÉRIFIÉ TOUTES LES RÉSERVATIONS POUR CE JOUR ---
-        if (!reservationFound && fetchedReservations.length > 0) {
-          console.log(`  Aucune réservation trouvée ne couvre ${dateStr}.`);
-        } else if (fetchedReservations.length === 0) {
-          console.log(`  Aucune réservation à vérifier pour ${dateStr}.`);
-        }
-        console.log(
-          `--- Statut final pour ${dateStr}: ${
-            isReserved ? "Prenotato" : "Libero"
-          } ---`
-        );
-        // --- FIN LOG ---
-
-        return { date: dateStr, status: isReserved ? "Prenotato" : "Libero" };
+        return {
+          date: dateStr,
+          status: isReserved ? "Prenotato" : "Libero",
+          customer: isReserved ? reservationDetails : null,
+        };
       });
-      console.log("Statut journalier avant filtre:", dailyStatus);
 
-      // 4. Filtrer les résultats selon la condition choisie
-      if (condition === "reserved") {
+      if (searchCondition === "reserved") {
         dailyStatus = dailyStatus.filter((day) => day.status === "Prenotato");
-      } else if (condition === "not_reserved") {
+      } else if (searchCondition === "not_reserved") {
         dailyStatus = dailyStatus.filter((day) => day.status === "Libero");
       }
-      // Si condition === 'all', on ne filtre pas
 
       console.log("Statut journalier après filtre:", dailyStatus);
       setResults(dailyStatus);
     } catch (err) {
       console.error("Erreur lors de la recherche Firestore:", err);
-      setError(
-        "Une erreur est survenue lors de la recherche. Vérifiez la console pour plus de détails."
-      );
-      setResults(null); // Erreur -> pas de résultat affiché
+      setError("Une erreur est survenue lors de la recherche.");
+      setResults(null);
     } finally {
       setLoading(false);
     }
   };
 
+  // Fonction pour obtenir le label de la condition (inchangée)
   const getConditionLabel = () => {
     switch (searchParams?.condition) {
       case "reserved":
-        return "Prenotato"; // Traduction
+        return "Prenotato";
       case "not_reserved":
-        return "Libero"; // Traduction
+        return "Libero";
       default:
-        return "Tutti"; // Traduction
+        return "Tutti";
     }
   };
 
+  // --- Composant Modal de Requête --- (inchangé)
+  const QueryModal = () => {
+    const [modalStartDate, setModalStartDate] = useState(startDate);
+    const [modalEndDate, setModalEndDate] = useState(endDate);
+    const [modalCondition, setModalCondition] = useState(condition);
+    // État d'erreur spécifique au modal
+    const [modalError, setModalError] = useState(null);
+
+    const handleSubmit = (e) => {
+      e.preventDefault();
+      setModalError(null); // Reset error on new submit attempt
+
+      // --- Validation des dates DANS le modal ---
+      if (!modalStartDate || !modalEndDate) {
+        setModalError("Inserire le due date.");
+        return;
+      }
+      const startInputDate = new Date(modalStartDate + "T00:00:00Z");
+      const endInputDate = new Date(modalEndDate + "T00:00:00Z");
+
+      if (isNaN(startInputDate.getTime()) || isNaN(endInputDate.getTime())) {
+        setModalError("Formato data sbagliato.");
+        return;
+      }
+      if (startInputDate > endInputDate) {
+        setModalError(
+          "La data inizio non può essere posteriore alla data fine."
+        );
+        return;
+      }
+      // --- Fin Validation ---
+
+      // Si validation OK, met à jour les états principaux et lance la recherche
+      setStartDate(modalStartDate);
+      setEndDate(modalEndDate);
+      setCondition(modalCondition);
+      handleSearch(modalStartDate, modalEndDate, modalCondition);
+    };
+
+    return (
+      <div className={styles.modalOverlay}>
+        <div className={styles.modalContent}>
+          <h2>Interrogazione per Ombrellone: {selectedParasol}</h2>
+          {/* Affiche l'erreur spécifique au modal ici */}
+          {modalError && <p className={styles.modalError}>{modalError}</p>}
+          <form onSubmit={handleSubmit}>
+            <div className={styles.formGroup}>
+              <label htmlFor="modalStartDate">Data Inizio:</label>
+              <input
+                type="date"
+                id="modalStartDate"
+                value={modalStartDate}
+                onChange={(e) => {
+                  setModalStartDate(e.target.value);
+                  setModalError(null);
+                }}
+                required
+              />
+            </div>
+            <div className={styles.formGroup}>
+              <label htmlFor="modalEndDate">Data Fine:</label>
+              <input
+                type="date"
+                id="modalEndDate"
+                value={modalEndDate}
+                onChange={(e) => {
+                  setModalEndDate(e.target.value);
+                  setModalError(null);
+                }}
+                required
+              />
+            </div>
+            <div className={styles.formGroup}>
+              <label htmlFor="modalCondition">Condizione:</label>
+              <select
+                id="modalCondition"
+                value={modalCondition}
+                onChange={(e) => {
+                  setModalCondition(e.target.value);
+                  setModalError(null);
+                }}
+              >
+                <option value="all">Tutti (Libero / Prenotato)</option>
+                <option value="reserved">Solo Prenotato</option>
+                <option value="not_reserved">Solo Libero</option>
+              </select>
+            </div>
+            <div className={styles.modalActions}>
+              <button type="submit" className={styles.searchButton}>
+                Cerca
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsModalOpen(false);
+                  setError(null); /* Efface aussi l'erreur globale */
+                }}
+                className={styles.cancelButton}
+              >
+                Annulla
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  };
+
+  // --- NOUVEAU : Fonction pour rendre la grille de requête ---
+  const renderQueryGrid = () => {
+    return (
+      <div className={styles.queryGridContainer}>
+        {" "}
+        {/* Nouveau conteneur pour la grille */}
+        {QUERY_GRID_ROWS.map((rowLabel) => (
+          <div key={rowLabel} className={styles.queryRow}>
+            {" "}
+            {/* Nouvelle classe pour la rangée */}
+            {Array.from({ length: QUERY_GRID_COLS }).map((_, index) => {
+              const col = index + 1;
+              const cellCode = `${rowLabel}${String(col).padStart(2, "0")}`;
+              return (
+                <div
+                  key={cellCode}
+                  className={styles.queryCell} // Nouvelle classe pour la cellule (toujours blanche)
+                  onDoubleClick={() => handleCellDoubleClick(cellCode)}
+                  title={`Interroga Ombrellone ${cellCode}`} // Info-bulle
+                >
+                  {cellCode}
+                </div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  // --- Rendu principal du composant Query ---
   return (
     <div className={styles.queryContainer}>
       <div className={styles.titre}>
-        <h1>Interrogazione Prenotazioni</h1> {/* Traduction */}
+        <h1>Interrogazione Prenotazioni</h1>
+        <p>
+          Doppio click su un ombrellone per definire il periodo della ricerca.
+        </p>
       </div>
 
-      <form onSubmit={handleSearch} className={styles.queryForm}>
-        <div className={styles.formGroup}>
-          {/* L'input garde le label "Code Parasol" pour l'utilisateur */}
-          <label htmlFor="codeParasol">Codice Ombrellone:</label>{" "}
-          {/* Traduction */}
-          <input
-            type="text"
-            id="codeParasol" // L'id peut rester codeParasol
-            value={codeParasol} // Lié à l'état codeParasol
-            onChange={(e) => setCodeParasol(e.target.value)}
-            placeholder="Es: A01" // Traduction
-            required
-            pattern="^[a-dA-D](0[1-9]|[1-2][0-9]|3[0-6])$"
-            title="Formato: A01-A36, B01-B36, C01-C36, D01-D36" // Traduction
-          />
-        </div>
+      {/* Affiche la grille de requête interne */}
+      {renderQueryGrid()}
 
-        <div className={styles.formGroup}>
-          <label htmlFor="startDate">Data Inizio:</label> {/* Traduction */}
-          <input
-            type="date"
-            id="startDate"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            required
-          />
-        </div>
+      {/* Affiche le modal si isModalOpen est true */}
+      {isModalOpen && <QueryModal />}
 
-        <div className={styles.formGroup}>
-          <label htmlFor="endDate">Data Fine:</label> {/* Traduction */}
-          <input
-            type="date"
-            id="endDate"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            required
-          />
-        </div>
-
-        <div className={styles.formGroup}>
-          <label htmlFor="condition">Condizione:</label> {/* Traduction */}
-          <select
-            id="condition"
-            value={condition}
-            onChange={(e) => setCondition(e.target.value)}
-          >
-            <option value="all">Tutti (Libero / Prenotato)</option>{" "}
-            {/* Traduction */}
-            <option value="reserved">Solo Prenotato</option> {/* Traduction */}
-            <option value="not_reserved">Solo Libero</option> {/* Traduction */}
-          </select>
-        </div>
-
-        <button
-          type="submit"
-          disabled={loading}
-          className={styles.searchButton}
-        >
-          {loading ? "Ricerca..." : "Cerca"} {/* Traduction */}
-        </button>
-      </form>
-
-      {error && <p className={styles.error}>{error}</p>}
-
-      {/* Indicateur de chargement plus visible */}
+      {/* Indicateur de chargement global */}
       {loading && (
         <div className={styles.loadingIndicator}>
-          <p>Caricamento risultati...</p> {/* Traduction */}
+          <p>Caricamento risultati...</p>
         </div>
       )}
 
+      {/* Affichage de l'erreur globale (si pas de chargement et modal fermé) */}
+      {!loading && !isModalOpen && error && (
+        <p className={styles.error}>{error}</p>
+      )}
+
       {/* Section des résultats */}
-      {!loading && results && searchParams && (
+      {!loading && !isModalOpen && results && searchParams && (
         <div className={styles.resultsContainer}>
           <h2>
-            {/* Utiliser searchParams.codeParasol qui est la valeur normalisée de l'input */}
-            Risultati per {searchParams.codeParasol} {/* Traduction */}
+            Risultati per {searchParams.codeParasol}
             <span className={styles.dateRange}>
               {" "}
-              (dal {searchParams.startDate} al {searchParams.endDate}){" "}
-              {/* Traduction */}
+              (dal {searchParams.startDate} al {searchParams.endDate})
             </span>
           </h2>
-
-          {/* Affichage de la condition si elle n'est pas 'all' */}
           {searchParams.condition !== "all" && (
             <p className={styles.conditionHeader}>
-              Visualizzazione giorni con stato: {/* Traduction */}
+              Visualizzazione giorni con stato:{" "}
               <strong>{getConditionLabel()}</strong>
             </p>
           )}
-
-          {/* Gérer le cas où results est un tableau vide après filtrage */}
           {results.length === 0 ? (
             <p className={styles.noResults}>
               Nessuna data corrisponde alla condizione '{getConditionLabel()}'
               per l'ombrellone {searchParams.codeParasol} tra il{" "}
-              {/* Traduction */}
               {searchParams.startDate} e il {searchParams.endDate}.
             </p>
           ) : (
@@ -455,8 +426,14 @@ const Query = () => {
                       : styles.libero
                   }
                 >
-                  {/* Afficher la date et le statut */}
-                  {item.date}: <strong>{item.status}</strong>
+                  <div>
+                    {item.date}: <strong>{item.status}</strong>
+                  </div>
+                  {item.status === "Prenotato" && item.customer && (
+                    <span className={styles.customerName}>
+                      {item.customer.firstName} {item.customer.lastName}
+                    </span>
+                  )}
                 </li>
               ))}
             </ul>
