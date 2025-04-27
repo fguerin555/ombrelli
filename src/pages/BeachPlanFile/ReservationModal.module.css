@@ -1,4 +1,4 @@
-/* src/pages/BeachPlanFile/ReservationModal.module.css */
+/* /Users/fredericguerin/Desktop/ombrelli/src/pages/BeachPlanFile/ReservationModal.module.css */
 .modalOverlay {
   position: fixed;
   top: 0;
@@ -92,6 +92,60 @@
   /* Optionnel: ajuster la marge si nécessaire */
   /* margin-top: 5px; */
 }
+
+/* --- Ajout des styles manquants pour .formRow et .actionChoiceSection --- */
+/* Ligne pour mettre des champs côte à côte */
+.formRow {
+  display: flex;
+  gap: 20px; /* Espace entre les éléments dans la ligne */
+  align-items: flex-start; /* Aligne les labels en haut */
+}
+
+.formRow .formGroup {
+  flex: 1; /* Permet aux groupes de partager l'espace équitablement */
+  min-width: 0; /* Empêche le dépassement dans flexbox */
+}
+
+/* Section Choix d'Action (Mode 'view') */
+.actionChoiceSection {
+  text-align: center;
+  padding: 20px 0;
+  border-top: 1px solid #eee;
+  border-bottom: 1px solid #eee;
+  margin-top: 15px;
+  margin-bottom: 25px;
+  background-color: #f8f9fa; /* Léger fond gris */
+  border-radius: 4px;
+}
+
+.actionChoiceSection p {
+  margin: 10px 0;
+  color: #333;
+}
+
+.buttonGroupChoice {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.choiceButton {
+  padding: 10px 18px;
+  border: 1px solid #007bff;
+  background-color: #fff;
+  color: #007bff;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s ease-in-out;
+}
+
+.choiceButton:hover {
+  background-color: #007bff;
+  color: #fff;
+}
+/* --- Fin Ajout --- */
 
 .buttonGroup {
   display: flex;
@@ -238,3 +292,13 @@
     order: 1;
   }
 } /* Fin @media (max-width: 509px) */
+
+/* --- Indicateur de Chargement --- */
+/* (Simple paragraphe, peut être stylisé davantage si nécessaire) */
+.modalContent p:only-child {
+  /* Style si c'est le seul élément (ex: "Caricamento...") */
+  text-align: center;
+  padding: 30px 0;
+  color: #666;
+  font-style: italic;
+}

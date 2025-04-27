@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from "react";
+// src/pages/BeachPlanPeriodFile/BeachPlanPeriod.js
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import FullCalendar from "@fullcalendar/react";
 import resourceTimelinePlugin from "@fullcalendar/resource-timeline";
 import interactionPlugin from "@fullcalendar/interaction";
@@ -14,6 +15,7 @@ import {
   Box,
   Typography,
   MenuItem,
+  useTheme,
 } from "@mui/material";
 import "../../Global.css";
 import {
@@ -28,7 +30,11 @@ import { db } from "../../firebase";
 
 // --- Fonctions Utilitaires ---
 
-// MODIFIÉ: ID Pomeriggio cambiato in _P per forzare l'ordinamento alfabetico M < P
+const capitalizeFirstLetter = (string) => {
+  if (!string) return "";
+  return string.charAt(0).toUpperCase() + string.slice(1).toLowerCase();
+};
+
 const generateResources = () => {
   const letters = ["A", "B", "C", "D"];
   const resources = [];
@@ -40,15 +46,13 @@ const generateResources = () => {
         id: cellCode,
         title: cellCode,
       });
-      // Mattina (prima)
       resources.push({
-        id: `${cellCode}_M`, // ID Mattina
+        id: `${cellCode}_M`,
         parentId: cellCode,
         title: "Mattina",
       });
-      // Pomeriggio (dopo, con ID _P)
       resources.push({
-        id: `${cellCode}_P`, // ID Pomeriggio cambiato in _P
+        id: `${cellCode}_P`,
         parentId: cellCode,
         title: "Pomer.",
       });
@@ -57,14 +61,13 @@ const generateResources = () => {
   return resources;
 };
 
-// Funzione colore (invariata, usa ancora 'apres-midi' come valore)
 const getColorForCondition = (condition) => {
   switch (condition) {
     case "jour entier":
       return "red";
     case "matin":
       return "blue";
-    case "apres-midi": // Il valore in Firestore/logica interna è ancora 'apres-midi'
+    case "apres-midi":
       return "orange";
     default:
       return "grey";
@@ -89,12 +92,15 @@ const addDays = (dateStr, days) => {
 };
 // --- Fin Fonctions Utilitaires ---
 
+// --- Constantes ---
+const INITIAL_CALENDAR_DATE = "2025-04-01";
+
 function BeachPlanPeriod() {
+  // ... (états existants) ...
   const [allReservations, setAllReservations] = useState([]);
   const [processedEvents, setProcessedEvents] = useState([]);
   const [filteredEvents, setFilteredEvents] = useState([]);
   const [selectedResourceBase, setSelectedResourceBase] = useState("");
-  const [selectedConditionValue, setSelectedConditionValue] = useState(""); // 'matin' ou 'apres-midi'
   const [selectedDate, setSelectedDate] = useState("");
   const [formData, setFormData] = useState({
     nom: "",
@@ -108,6 +114,13 @@ function BeachPlanPeriod() {
   const [queryStartDate, setQueryStartDate] = useState("");
   const [queryEndDate, setQueryEndDate] = useState("");
 
+  const theme = useTheme();
+  const searchBarRef = useRef(null);
+  const [searchBarHeight, setSearchBarHeight] = useState(0);
+  const [calendarHeaderHeight, setCalendarHeaderHeight] = useState(60);
+  const calendarRef = useRef(null);
+
+  // ... (processReservationsToEvents) ...
   const processReservationsToEvents = useCallback((reservations) => {
     const events = [];
     reservations.forEach((item) => {
@@ -125,31 +138,31 @@ function BeachPlanPeriod() {
         events.push({
           ...commonProps,
           id: `${item.id}_M`,
-          resourceId: `${item.cellCode}_M`, // Mattina
+          resourceId: `${item.cellCode}_M`,
         });
         events.push({
           ...commonProps,
-          id: `${item.id}_P`, // Pomeriggio usa _P
-          resourceId: `${item.cellCode}_P`, // Pomeriggio usa _P
+          id: `${item.id}_P`,
+          resourceId: `${item.cellCode}_P`,
         });
       } else if (item.condition === "matin") {
         events.push({
           ...commonProps,
           id: `${item.id}_M`,
-          resourceId: `${item.cellCode}_M`, // Mattina
+          resourceId: `${item.cellCode}_M`,
         });
       } else if (item.condition === "apres-midi") {
-        // Il valore è ancora 'apres-midi'
         events.push({
           ...commonProps,
-          id: `${item.id}_P`, // Pomeriggio usa _P
-          resourceId: `${item.cellCode}_P`, // Pomeriggio usa _P
+          id: `${item.id}_P`,
+          resourceId: `${item.cellCode}_P`,
         });
       }
     });
     return events;
   }, []);
 
+  // ... (useEffect pour loadReservations) ...
   useEffect(() => {
     const loadReservations = async () => {
       try {
@@ -176,21 +189,50 @@ function BeachPlanPeriod() {
     loadReservations();
   }, [processReservationsToEvents]);
 
+  // ... (useEffect pour mesurer searchBarHeight) ...
+  useEffect(() => {
+    if (searchBarRef.current) {
+      const resizeObserver = new ResizeObserver((entries) => {
+        for (let entry of entries) {
+          setSearchBarHeight(entry.target.offsetHeight);
+        }
+      });
+      resizeObserver.observe(searchBarRef.current);
+      return () => resizeObserver.disconnect();
+    }
+  }, []);
+
+  // ... (useEffect optionnel pour mesurer calendarHeaderHeight) ...
+  useEffect(() => {
+    const headerElement = document.querySelector(".fc-header-toolbar");
+    if (headerElement) {
+      const measureHeader = () => {
+        const height = headerElement.offsetHeight;
+        if (height > 0) {
+          setCalendarHeaderHeight(height);
+        }
+      };
+      measureHeader();
+      const resizeObserver = new ResizeObserver(measureHeader);
+      resizeObserver.observe(headerElement);
+      return () => resizeObserver.disconnect();
+    }
+  }, [searchBarHeight]);
+
+  // ... (handleDateSelect, handleEventClick, handleSaveReservation, deleteReservation) ...
   const handleDateSelect = (info) => {
-    const resourceId = info.resource.id; // Es: "A01_M" o "A01_P"
+    const resourceId = info.resource.id;
     const baseCode = resourceId.split("_")[0];
-    // Determina il valore della condizione ('matin' o 'apres-midi') basato sull'ID risorsa
     const conditionValue = resourceId.endsWith("_M") ? "matin" : "apres-midi";
 
     setSelectedResourceBase(baseCode);
-    setSelectedConditionValue(conditionValue); // Salva 'matin' o 'apres-midi'
     setSelectedDate(info.startStr);
     setOpen(true);
     setFormData({
       nom: "",
       prenom: "",
       endDate: info.startStr,
-      condition: conditionValue, // Pre-compila con 'matin' o 'apres-midi'
+      condition: conditionValue,
     });
     setSelectedOriginalReservation(null);
   };
@@ -198,7 +240,7 @@ function BeachPlanPeriod() {
   const handleEventClick = (info) => {
     const originalId = info.event.extendedProps?.originalId;
     if (!originalId) {
-      console.error("ID Originale non trovato:", info.event);
+      console.error("ID Original non trouvé:", info.event);
       return;
     }
     const originalRes = allReservations.find((r) => r.id === originalId);
@@ -212,14 +254,14 @@ function BeachPlanPeriod() {
       });
       setSelectedResourceBase(originalRes.cellCode);
       setSelectedDate(originalRes.startDate || "");
-      setSelectedConditionValue(""); // Non rilevante per modifica diretta
       setOpen(true);
     } else {
-      console.error("Originale non trovato per ID:", originalId);
+      console.error("Original non trouvé pour ID:", originalId);
     }
   };
 
   const handleSaveReservation = async () => {
+    // Validation
     if (
       !formData.nom ||
       !formData.prenom ||
@@ -241,11 +283,12 @@ function BeachPlanPeriod() {
       prenom: formData.prenom,
       startDate: selectedDate,
       endDate: formData.endDate,
-      condition: formData.condition, // 'jour entier', 'matin', o 'apres-midi'
+      condition: formData.condition,
       cellCode: cellCodeToSave,
       modifiedAt: new Date(),
     };
 
+    // Conflit
     const hasConflict = allReservations.some((existingRes) => {
       if (
         selectedOriginalReservation &&
@@ -253,8 +296,10 @@ function BeachPlanPeriod() {
       ) {
         return false;
       }
+      if (existingRes.cellCode !== reservationDetails.cellCode) {
+        return false;
+      }
       if (
-        existingRes.cellCode !== reservationDetails.cellCode ||
         !datesOverlap(
           reservationDetails.startDate,
           reservationDetails.endDate,
@@ -292,12 +337,22 @@ function BeachPlanPeriod() {
       return;
     }
 
+    // Sauvegarde
     try {
       let updatedOriginalReservations;
       let reservationToUpdateOrAdd = { ...reservationDetails };
 
       if (selectedOriginalReservation) {
+        // Mise à jour
         const docRef = doc(db, "reservations", selectedOriginalReservation.id);
+        if (selectedOriginalReservation.serialNumber) {
+          reservationToUpdateOrAdd.serialNumber =
+            selectedOriginalReservation.serialNumber;
+        }
+        if (selectedOriginalReservation.createdAt) {
+          reservationToUpdateOrAdd.createdAt =
+            selectedOriginalReservation.createdAt;
+        }
         await updateDoc(docRef, reservationToUpdateOrAdd);
         reservationToUpdateOrAdd.id = selectedOriginalReservation.id;
         updatedOriginalReservations = allReservations.map((res) =>
@@ -306,6 +361,7 @@ function BeachPlanPeriod() {
             : res
         );
       } else {
+        // Ajout
         reservationToUpdateOrAdd.createdAt = new Date();
         const docRef = await addDoc(
           collection(db, "reservations"),
@@ -318,13 +374,15 @@ function BeachPlanPeriod() {
         ];
       }
 
+      // MàJ états
       setAllReservations(updatedOriginalReservations);
       const newProcessedEvents = processReservationsToEvents(
         updatedOriginalReservations
       );
       setProcessedEvents(newProcessedEvents);
-      handleSearch(newProcessedEvents);
+      handleSearch(newProcessedEvents); // Réappliquer filtre
 
+      // Reset modal
       setOpen(false);
       setSelectedOriginalReservation(null);
       setFormData({
@@ -352,7 +410,7 @@ function BeachPlanPeriod() {
           updatedOriginalReservations
         );
         setProcessedEvents(newProcessedEvents);
-        handleSearch(newProcessedEvents);
+        handleSearch(newProcessedEvents); // Réappliquer filtre
         setOpen(false);
         setSelectedOriginalReservation(null);
       } catch (error) {
@@ -362,37 +420,78 @@ function BeachPlanPeriod() {
     }
   };
 
+  // --- handleSearch (CORRIGÉ) ---
   const handleSearch = useCallback(
     (eventsToFilter = processedEvents) => {
+      // let dateFilterApplied = false; // <-- SUPPRIMÉ
+
       if (!queryStartDate || !queryEndDate) {
+        // Dates invalides ou manquantes: afficher tout, pas de navigation
         setFilteredEvents(eventsToFilter);
-        return;
-      }
-      if (queryEndDate < queryStartDate) {
+      } else if (queryEndDate < queryStartDate) {
+        // Dates inversées: afficher tout, pas de navigation
         alert("Data fine ricerca non può precedere data inizio.");
         setFilteredEvents(eventsToFilter);
-        return;
-      }
-      const filtered = eventsToFilter.filter((event) => {
-        const originalData = event.extendedProps?.originalData;
-        if (!originalData) return false;
-        return datesOverlap(
-          originalData.startDate,
-          originalData.endDate,
-          queryStartDate,
-          queryEndDate
+      } else {
+        // Dates valides: filtrer et naviguer
+        // dateFilterApplied = true; // <-- SUPPRIMÉ
+
+        // Filtrer les réservations originales
+        const relevantOriginalIds = new Set(
+          allReservations
+            .filter((res) =>
+              datesOverlap(
+                res.startDate,
+                res.endDate,
+                queryStartDate,
+                queryEndDate
+              )
+            )
+            .map((res) => res.id)
         );
-      });
-      setFilteredEvents(filtered);
+        // Filtrer les événements traités
+        const filtered = eventsToFilter.filter((event) =>
+          relevantOriginalIds.has(event.extendedProps?.originalId)
+        );
+        setFilteredEvents(filtered);
+
+        // Naviguer le calendrier
+        if (calendarRef.current) {
+          try {
+            calendarRef.current.getApi().gotoDate(queryStartDate);
+          } catch (error) {
+            console.error("Erreur lors de la navigation du calendrier:", error);
+          }
+        }
+      }
     },
-    [processedEvents, queryStartDate, queryEndDate]
+    [processedEvents, queryStartDate, queryEndDate, allReservations]
   );
 
   return (
     <div style={{ padding: "20px" }}>
-      {/* Ricerca */}
-      <Box display="flex" alignItems="center" gap={2} mb={3} flexWrap="wrap">
-        <Typography variant="h6">Ricerca per periodo :</Typography>
+      {/* Barre de recherche */}
+      <Box
+        ref={searchBarRef}
+        display="flex"
+        alignItems="center"
+        gap={2}
+        flexWrap="wrap"
+        sx={{
+          position: "sticky",
+          top: 0,
+          zIndex: 1100,
+          backgroundColor: theme.palette.background.paper,
+          paddingY: 1.5,
+          paddingX: 2,
+          boxShadow: theme.shadows[3],
+          marginLeft: "-20px",
+          marginRight: "-20px",
+        }}
+      >
+        <Typography variant="h6" sx={{ whiteSpace: "nowrap", mr: 1 }}>
+          Ricerca periodo:
+        </Typography>
         <TextField
           label="Data inizio"
           type="date"
@@ -411,7 +510,7 @@ function BeachPlanPeriod() {
           inputProps={{ min: queryStartDate }}
         />
         <Button variant="contained" onClick={() => handleSearch()}>
-          Cercare
+          Cerca
         </Button>
         <Button
           variant="outlined"
@@ -419,71 +518,99 @@ function BeachPlanPeriod() {
             setQueryStartDate("");
             setQueryEndDate("");
             setFilteredEvents(processedEvents);
+            if (calendarRef.current) {
+              try {
+                calendarRef.current.getApi().gotoDate(INITIAL_CALENDAR_DATE);
+              } catch (error) {
+                console.error(
+                  "Erreur lors de la réinitialisation de la date du calendrier:",
+                  error
+                );
+              }
+            }
           }}
         >
           Cancella filtro
         </Button>
       </Box>
 
-      {/* Calendario */}
-      <FullCalendar
-        plugins={[resourceTimelinePlugin, interactionPlugin, dayGridPlugin]}
-        initialView="resourceTimelineWeek"
-        headerToolbar={{
-          left: "prev,next today",
-          center: "title",
-          right: "resourceTimelineWeek,resourceTimelineMonth",
+      {/* Wrapper Calendrier */}
+      <Box
+        sx={{
+          "& .fc-header-toolbar": {
+            position: "sticky",
+            top: searchBarHeight > 0 ? `${searchBarHeight}px` : "0px",
+            zIndex: 1090,
+            backgroundColor: theme.palette.background.paper,
+            boxShadow: theme.shadows[1],
+            paddingY: theme.spacing(0.5),
+            marginLeft: "-20px",
+            marginRight: "-20px",
+            paddingLeft: "20px",
+            paddingRight: "20px",
+          },
+          "& .fc-view-harness": {
+            paddingTop: `${calendarHeaderHeight}px`,
+          },
         }}
-        schedulerLicenseKey="GPL-My-Project-Is-Open-Source"
-        resources={generateResources()}
-        events={filteredEvents}
-        selectable={true}
-        select={handleDateSelect}
-        eventClick={handleEventClick}
-        slotDuration={{ days: 1 }}
-        slotLabelFormat={{
-          weekday: "short",
-          day: "numeric",
-          month: "numeric",
-          omitCommas: true,
-        }}
-        locale={itLocale}
-        resourceAreaHeaderContent="Ombrelli"
-        // --- LARGHEZZA RIDOTTA ---
-        resourceAreaWidth="60px" // Prova con 60px. Se ancora troppo largo, ispeziona CSS.
-        resourceLabelContent={(arg) => {
-          return arg.resource.title;
-        }}
-        height="auto"
-        resourceLaneClassNames={(arg) => {
-          if (arg.resource.id.endsWith("_M")) return "fc-lane-morning";
-          // Modificato per usare _P
-          if (arg.resource.id.endsWith("_P")) return "fc-lane-afternoon";
-          return null;
-        }}
-        selectAllow={(selectInfo) => {
-          // Modificato per usare _P
-          return (
-            selectInfo.resource.id.includes("_M") ||
-            selectInfo.resource.id.includes("_P") ||
-            !selectInfo.resource.getChildren().length
-          );
-        }}
-        // --- AJOUT ICI ---
-        validRange={{
-          start: "2025-04-01",
-          end: "2025-12-02", // Important: La date de fin est exclusive
-        }}
-        // Optionnel: Définir la date initiale pour s'assurer qu'elle est dans la plage valide
-        initialDate="2025-04-01"
-      />
+      >
+        {/* Calendrier */}
+        <FullCalendar
+          ref={calendarRef}
+          plugins={[resourceTimelinePlugin, interactionPlugin, dayGridPlugin]}
+          initialView="resourceTimelineWeek"
+          headerToolbar={{
+            left: "prev,next today",
+            center: "title",
+            right: "resourceTimelineWeek,resourceTimelineMonth",
+          }}
+          schedulerLicenseKey="GPL-My-Project-Is-Open-Source"
+          resources={generateResources()}
+          events={filteredEvents}
+          selectable={true}
+          select={handleDateSelect}
+          eventClick={handleEventClick}
+          slotDuration={{ days: 1 }}
+          slotLabelFormat={{
+            weekday: "short",
+            day: "numeric",
+            month: "numeric",
+            omitCommas: true,
+          }}
+          locale={itLocale}
+          resourceAreaHeaderContent="Ombrelli"
+          resourceAreaWidth="60px"
+          resourceLabelContent={(arg) => {
+            return arg.resource.title;
+          }}
+          height="auto"
+          resourceLaneClassNames={(arg) => {
+            if (arg.resource.id.endsWith("_M")) return "fc-lane-morning";
+            if (arg.resource.id.endsWith("_P")) return "fc-lane-afternoon";
+            return null;
+          }}
+          selectAllow={(selectInfo) => {
+            return (
+              selectInfo.resource.id.includes("_M") ||
+              selectInfo.resource.id.includes("_P")
+            );
+          }}
+          validRange={{
+            start: "2025-04-01",
+            end: "2025-12-02",
+          }}
+          initialDate={INITIAL_CALENDAR_DATE}
+        />
+      </Box>
 
       {/* Modal */}
       <Dialog open={open} onClose={() => setOpen(false)}>
         <DialogTitle>
           {selectedOriginalReservation
-            ? `Modificare prenotazione (${selectedResourceBase})`
-            : `Nuova Prenotazione (${selectedResourceBase} - ${selectedConditionValue})`}
+            ? `Modifica prenotazione (${selectedResourceBase})`
+            : `Nuova Prenotazione (${selectedResourceBase} - ${
+                formData.condition === "matin" ? "Mattina" : "Pomeriggio"
+              })`}
         </DialogTitle>
         <DialogContent>
           <TextField
@@ -492,7 +619,12 @@ function BeachPlanPeriod() {
             label="Cognome"
             fullWidth
             value={formData.nom}
-            onChange={(e) => setFormData({ ...formData, nom: e.target.value })}
+            onChange={(e) =>
+              setFormData({
+                ...formData,
+                nom: capitalizeFirstLetter(e.target.value),
+              })
+            }
             required
           />
           <TextField
@@ -501,7 +633,10 @@ function BeachPlanPeriod() {
             fullWidth
             value={formData.prenom}
             onChange={(e) =>
-              setFormData({ ...formData, prenom: e.target.value })
+              setFormData({
+                ...formData,
+                prenom: capitalizeFirstLetter(e.target.value),
+              })
             }
             required
           />
@@ -540,7 +675,6 @@ function BeachPlanPeriod() {
           >
             <MenuItem value="jour entier">Giorno Intero</MenuItem>
             <MenuItem value="matin">Mattina</MenuItem>
-            {/* Il valore è ancora 'apres-midi' ma il testo è Pomeriggio */}
             <MenuItem value="apres-midi">Pomeriggio</MenuItem>
           </TextField>
         </DialogContent>
@@ -550,19 +684,25 @@ function BeachPlanPeriod() {
               onClick={() => deleteReservation(selectedOriginalReservation.id)}
               color="error"
             >
-              Cancellare
+              Cancella
             </Button>
           )}
           <Button
             onClick={() => {
               setOpen(false);
               setSelectedOriginalReservation(null);
+              setFormData({
+                nom: "",
+                prenom: "",
+                endDate: "",
+                condition: "jour entier",
+              });
             }}
           >
-            Annullare
+            Annulla
           </Button>
           <Button onClick={handleSaveReservation} variant="contained">
-            {selectedOriginalReservation ? "Modificare" : "Aggiungere"}
+            {selectedOriginalReservation ? "Modifica" : "Aggiungi"}
           </Button>
         </DialogActions>
       </Dialog>

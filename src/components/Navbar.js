@@ -8,7 +8,7 @@ const Navbar = () => {
     <nav className={styles.navbar}>
       <ul className={styles.navbarLinks}>
         <li>
-          <Link to="/Beachplan">Beach Plan</Link>
+          <Link to="/Beachplan">Beach Plan Day</Link>
         </li>
         <li>
           <Link to="/query">Query</Link>
@@ -18,7 +18,7 @@ const Navbar = () => {
         </li>
 
         <li>
-          <Link to="/codbarrereader">Code barre Reader</Link>
+          <Link to="/codbarrereader">QRcode Reader</Link>
         </li>
       </ul>
     </nav>

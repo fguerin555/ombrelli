@@ -117,7 +117,7 @@
 }
 /* Griser les cellules vides des lignes libres pour indiquer qu'il n'y a pas de données */
 .freeRow td:nth-child(n + 3):not(:first-child) {
-  color: #dedcdcdd; /* Griser légèrement */
+  color: black; /* Griser légèrement */
 }
 /* Utiliser un pseudo-élément pour assurer une hauteur minimale visuelle même si vide */
 .freeRow td:empty::before {
@@ -207,7 +207,7 @@
   }
   /* Cacher le contenu des cellules vides des lignes libres à l'impression */
   .freeRow td:nth-child(n + 3):not(:first-child) {
-    color: #555; /* Rendre le texte (s'il y en a) normalement visible */
+    color: black; /* Rendre le texte (s'il y en a) normalement visible */
   }
   .freeRow td:empty::before {
     content: ""; /* Ne pas afficher le "-" à l'impression */

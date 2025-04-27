@@ -1,112 +1,165 @@
 /* /Users/fredericguerin/Desktop/ombrelli/src/pages/BeachPlanFile/BeachPlan.module.css */
+/* STRICTEMENT basé sur l'original + modifs minimales pour moitiés */
 
-.beach-plan {
-  display: flex;
-  flex-direction: column;
+/* --- Conteneur Principal (Style Original) --- */
+/* Utiliser .beach_plan dans le JSX */
+.beach_plan {
+  /* display: flex; */ /* Supprimé */
+  /* flex-direction: column; */ /* Supprimé */
   gap: 8px;
   padding: 20px;
-  background-color: #224449; /* Fond de plan */
+  background-color: #224449;
   overflow-x: auto;
   width: 100%;
+  box-sizing: border-box;
 }
+
+/* --- Zone de Contrôles (Style Original .dateSelector) --- */
+/* Utiliser .dateSelector dans le JSX */
 .dateSelector {
   margin: 15px;
   padding: 10px;
   background-color: #f0f0f0;
   border-radius: 5px;
   text-align: center;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .dateSelector label {
   margin-right: 10px;
   font-weight: bold;
+  color: #333;
 }
 
+/* Style direct pour l'input date dans .dateSelector */
 .dateSelector input[type="date"] {
   padding: 5px;
   border: 1px solid #ccc;
   border-radius: 3px;
+  font-size: 1rem;
 }
+
+/* Styles erreur/chargement */
+.loadingIndicator {
+  font-style: italic;
+  color: #555;
+}
+.errorLoading {
+  color: #dc3545;
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
+  padding: 10px 15px;
+  border-radius: 4px;
+  margin: 10px 15px;
+}
+
+/* --- Ligne de Cellules (Style Original INCHANGÉ) --- */
+/* Utiliser .row dans le JSX */
 .row {
   display: flex;
   flex-direction: row;
   flex-wrap: nowrap;
   gap: 4px;
-  overflow-x: auto;
   width: max-content;
 }
 
+/* --- Cellule (Style Original MODIFIÉ pour contenir les moitiés) --- */
+/* Utiliser .cell dans le JSX */
 .cell {
   width: 50px;
   height: 50px;
-  /* --- Fond blanc par défaut pour non réservé --- */
-  background-color: #ffffff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   font-weight: bold;
   border: 1px solid #0288d1;
   border-radius: 4px;
   cursor: pointer;
   user-select: none;
-  transition: background-color 0.2s ease;
+  transition: box-shadow 0.2s ease;
   white-space: nowrap;
-  color: #333; /* Couleur de texte pour contraste sur blanc */
+  color: #333;
+  overflow: hidden;
+  position: relative;
+  text-align: center;
+
+  /* Structure interne flex */
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: stretch;
+}
+.cell:hover {
+  box-shadow: 0 0 5px rgba(2, 136, 209, 0.7);
 }
 
-/* --- Classe pour Jour Entier --- */
-.bookedFullDay {
-  background-color: #ef9a9a; /* Rouge clair */
-  border-color: #e57373; /* Bordure rouge un peu plus foncée */
-  color: #080000; /* Texte rouge foncé pour contraste */
+/* --- Styles pour les moitiés de cellule (Nécessaires) --- */
+.cellHalf {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Hérite font-weight, color, text-align de .cell */
+  line-height: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 1px;
+  box-sizing: border-box;
 }
 
-/* --- Classe pour Après-midi --- */
-.bookedAfternoon {
-  background-color: #ffcc80; /* Orange clair */
-  border-color: #ffb74d; /* Bordure orange un peu plus foncée */
-  color: #0b0401; /* Texte orange foncé pour contraste */
+/* --- Classes de couleur pour les moitiés (Utilisant les couleurs originales) --- */
+.colorEmpty {
+  background-color: #ffffff; /* Blanc original */
+  color: inherit; /* Hérite #333 de .cell pour le code */
 }
 
-/* --- Classe pour Matin --- */
-.bookedMorning {
-  background-color: #9de8ff; /* Jaune clair */
-  border-color: #589eff; /* Bordure jaune un peu plus foncée */
-  color: #070400; /* Texte jaune/doré foncé pour contraste */
+.colorMatin {
+  background-color: #9de8ff; /* Couleur "jaune" originale */
+  color: #070400; /* Texte foncé original pour matin */
 }
 
-/* Optionnel: style commun pour le texte dans les cellules réservées */
-.bookedFullDay,
-.bookedAfternoon,
-.bookedMorning {
-  font-weight: bold; /* Garder le texte en gras ou ajuster */
+.colorApresMidi {
+  background-color: #ffcc80; /* Orange clair original */
+  color: #0b0401; /* Texte foncé original pour après-midi */
 }
 
-/* L'ancienne classe .booked n'est plus nécessaire pour la couleur de fond */
-/* Si vous aviez .cell.booked { ... }, vous pouvez la supprimer ou la commenter */
+.colorJourEntier {
+  background-color: #ef9a9a; /* Rouge clair original */
+  color: #080000; /* Texte foncé original pour jour entier */
+}
+
+/* --- Styles Responsifs (Adaptés de l'original) --- */
 @media (max-width: 1224px) {
   .cell {
-    min-width: 40px; /* Légèrement plus petit */
-    padding: 8px 4px;
-    font-size: 0.75rem;
+    width: 40px;
+    height: 40px;
   }
-  .beach-plan {
-    padding: 5px; /* Moins de padding */
+  .beach_plan {
+    padding: 5px;
+  }
+  .row {
+    gap: 3px;
   }
 }
 
 @media (max-width: 509px) {
   .cell {
-    min-width: 35px; /* Encore plus petit */
-    padding: 6px 3px;
-    font-size: 0.7rem;
+    width: 35px;
+    height: 35px;
+  }
+  .row {
+    gap: 2px;
   }
 }
-.beach-plan::-webkit-scrollbar {
-  height: 8px; /* Hauteur de la barre de défilement */
+
+/* Styles pour la barre de défilement (gardés de l'original) */
+.beach_plan::-webkit-scrollbar {
+  height: 8px;
 }
 
-.beach-plan::-webkit-scrollbar-thumb {
-  background-color: rgba(0, 0, 0, 0.2); /* Couleur du "curseur" de défilement */
+.beach_plan::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.2); /* Couleur originale */
   border-radius: 4px;
 }
