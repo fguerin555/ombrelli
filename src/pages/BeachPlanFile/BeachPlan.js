@@ -15,6 +15,7 @@ import {
   runTransaction,
   serverTimestamp,
 } from "firebase/firestore";
+// import { buttonBaseClasses } from "@mui/material"; // Import inutilisé, peut être supprimé
 
 // --- Fonctions Utilitaires ---
 const getTodayString = () => {
@@ -53,7 +54,6 @@ const columns = Array.from({ length: 36 }, (_, i) =>
 
 // --- Références Firestore ---
 const reservationsCollectionRef = collection(db, "reservations");
-// IMPORTANT: Utilise le document compteur simple comme dans l'ancien code
 const counterDocRef = doc(db, "counters", "reservationCounter");
 
 // --- Composant Principal ---
@@ -76,33 +76,28 @@ export default function BeachPlan() {
       await runTransaction(db, async (transaction) => {
         const counterDoc = await transaction.get(counterDocRef);
         if (!counterDoc.exists()) {
-          // Si le compteur n'existe pas, on commence à 1
           nextNumber = 1;
-          transaction.set(counterDocRef, { lastNumber: 1 }); // Crée le compteur avec 1
+          transaction.set(counterDocRef, { lastNumber: 1 });
         } else {
-          // Si le compteur existe, on l'incrémente
-          const lastNumber = counterDoc.data().lastNumber; // Récupère lastNumber
-          // **Robustesse**: Vérifier si lastNumber est bien un nombre avant d'incrémenter
+          const lastNumber = counterDoc.data().lastNumber;
           if (typeof lastNumber !== "number" || isNaN(lastNumber)) {
             console.warn(
               `Valeur 'lastNumber' invalide (${lastNumber}) dans ${counterDocRef.path}. Réinitialisation à 0 avant incrémentation.`
             );
-            nextNumber = 1; // Commencer à 1 si invalide
-            transaction.set(counterDocRef, { lastNumber: 1 }); // Réinitialise à 1 dans Firestore
+            nextNumber = 1;
+            transaction.set(counterDocRef, { lastNumber: 1 });
           } else {
             nextNumber = lastNumber + 1;
-            transaction.update(counterDocRef, { lastNumber: nextNumber }); // Met à jour lastNumber
+            transaction.update(counterDocRef, { lastNumber: nextNumber });
           }
         }
       });
-      // Formate le numéro final en chaîne : "AA" + "NNNNN" (avec padding)
       return `${yearPrefix}${nextNumber.toString().padStart(5, "0")}`;
     } catch (error) {
       console.error("Erreur lors de la génération du numéro de série:", error);
-      // Remonter l'erreur pour qu'elle soit gérée par l'appelant (handleSaveReservation)
       throw new Error("Impossible de générer le numéro de série.");
     }
-  }, []); // Pas de dépendances nécessaires ici
+  }, []);
 
   // --- Fonction pour charger les réservations ---
   const fetchReservations = useCallback(async () => {
@@ -114,14 +109,12 @@ export default function BeachPlan() {
         id: doc.id,
         ...doc.data(),
       }));
-      // Nettoyage des données (assurer présence dates et cabina)
       const sanitizedReservations = fetchedReservations.map((res) => ({
         ...res,
         startDate: res.startDate || "",
         endDate: res.endDate || "",
         cabina: res.cabina !== undefined ? res.cabina : null,
         serialNumber: res.serialNumber || null,
-        // Assurer que 'condition' existe, même si vide/null (important pour les filtres)
         condition: res.condition || "",
       }));
       setAllReservations(sanitizedReservations);
@@ -139,12 +132,8 @@ export default function BeachPlan() {
   }, [fetchReservations]);
 
   // --- Gestionnaires d'Événements UI ---
-
-  // ** handleDoubleClick (Version Robuste pour l'ouverture) **
   const handleDoubleClick = (cellCode) => {
-    // console.log(`--- handleDoubleClick pour ${cellCode} le ${selectedDate} ---`); // (Log retiré)
     setSelectedCellCode(cellCode);
-
     if (!Array.isArray(allReservations)) {
       console.error(
         "ERREUR: allReservations n'est pas un tableau!",
@@ -152,7 +141,6 @@ export default function BeachPlan() {
       );
       return;
     }
-
     const reservationsForCellOnDate = allReservations.filter(
       (res) =>
         res.cellCode === cellCode &&
@@ -161,9 +149,6 @@ export default function BeachPlan() {
         selectedDate >= res.startDate &&
         selectedDate <= res.endDate
     );
-    // console.log("Réservations trouvées pour cellule/date:", reservationsForCellOnDate); // (Log retiré)
-
-    // Priorité pour trouver la donnée à passer au modal
     const fullDayRes = reservationsForCellOnDate.find(
       (res) => res.condition === "jour entier"
     );
@@ -173,27 +158,17 @@ export default function BeachPlan() {
     const afternoonRes = reservationsForCellOnDate.find(
       (res) => res.condition === "apres-midi"
     );
-    // console.log("Détails trouvés:", { fullDayRes, morningRes, afternoonRes }); // (Log retiré)
 
     let dataForModal = null;
-    if (fullDayRes) {
-      dataForModal = fullDayRes;
-    } else if (morningRes) {
-      dataForModal = morningRes;
-    } else if (afternoonRes) {
-      dataForModal = afternoonRes;
-    }
-    // **Logique de Secours**: Si on a trouvé des réservations mais aucune condition standard n'a matché
+    if (fullDayRes) dataForModal = fullDayRes;
+    else if (morningRes) dataForModal = morningRes;
+    else if (afternoonRes) dataForModal = afternoonRes;
     else if (reservationsForCellOnDate.length > 0) {
       console.warn(
-        `AVERTISSEMENT: Réservation(s) trouvée(s) pour ${cellCode} mais condition non standard détectée. Utilisation de la première trouvée.`,
-        reservationsForCellOnDate
+        `AVERTISSEMENT: Réservation(s) trouvée(s) pour ${cellCode} mais condition non standard. Utilisation de la première.`
       );
-      dataForModal = reservationsForCellOnDate[0]; // Prend la première par défaut
-    }
-    // Si toujours rien (cellule vraiment vide)
-    else {
-      // console.log("Aucune réservation existante trouvée, préparation pour nouvelle."); // (Log retiré)
+      dataForModal = reservationsForCellOnDate[0];
+    } else {
       dataForModal = {
         nom: "",
         prenom: "",
@@ -207,27 +182,17 @@ export default function BeachPlan() {
         cabina: null,
       };
     }
-
-    // Assurer que cabina est bien défini (même si null)
     if (dataForModal && dataForModal.cabina === undefined) {
       dataForModal.cabina = null;
     }
-
-    // console.log("Données finales pour le modal (dataForModal):", dataForModal); // (Log retiré)
-
-    // Ouvrir le modal seulement si on a des données valides
     if (dataForModal) {
       setCurrentReservationData(dataForModal);
       setIsModalOpen(true);
-      // console.log("Ouverture du modal demandée."); // (Log retiré)
     } else {
-      // Ce cas ne devrait plus arriver avec la logique ci-dessus, mais sécurité
       console.error(
-        "ERREUR: dataForModal est null ou invalide, le modal ne peut pas s'ouvrir."
+        "ERREUR: dataForModal est null, le modal ne peut pas s'ouvrir."
       );
-      alert(
-        "Erreur lors de la récupération des données de réservation pour cette cellule."
-      );
+      alert("Erreur lors de la récupération des données de réservation.");
     }
   };
 
@@ -263,10 +228,6 @@ export default function BeachPlan() {
     } = formDataFromModal;
 
     if (!cellCode) {
-      console.error(
-        "handleSaveReservation: cellCode manquant!",
-        formDataFromModal
-      );
       alert("Errore interno: Codice ombrellone mancante.");
       setIsSaving(false);
       return;
@@ -277,7 +238,6 @@ export default function BeachPlan() {
       console.log(`Tentativo di split per ${cellCode} il ${targetDate}`);
       let targetDaySerialNumber = null;
       let afterSerialNumber = null;
-
       try {
         targetDaySerialNumber = await getNextSerialNumber();
         const originalResCheck = allReservations.find(
@@ -286,17 +246,14 @@ export default function BeachPlan() {
         if (originalResCheck && originalResCheck.endDate > targetDate) {
           afterSerialNumber = await getNextSerialNumber();
         }
-
         const newReservationsForState = [];
         const updatesToOriginalForState = { deleted: false, endDate: null };
 
         await runTransaction(db, async (transaction) => {
           const originalDocRef = doc(db, "reservations", reservationId);
           const originalDoc = await transaction.get(originalDocRef);
-
-          if (!originalDoc.exists()) {
+          if (!originalDoc.exists())
             throw new Error("Prenotazione originale non trovata per lo split.");
-          }
           const originalData = originalDoc.data();
 
           // --- Vérification Conflit (Simplifiée) ---
@@ -436,8 +393,6 @@ export default function BeachPlan() {
       // --- CAS 2: Sauvegarde Normale (Nouvelle ou Mise à jour globale) ---
     } else {
       console.log(`Tentativo di salvataggio normale per ${cellCode}`);
-
-      // --- Vérification de Conflit Globale (Ombrellone ET Cabine) ---
       let conflictFound = false;
       let conflictMessage = "";
 
@@ -446,8 +401,6 @@ export default function BeachPlan() {
         dataToSave.endDate &&
         dataToSave.startDate <= dataToSave.endDate
       ) {
-        // ** CORRECTION ESLint: Variables checkStartDate/checkEndDate supprimées **
-
         const potentialConflicts = allReservations.filter(
           (res) =>
             res.id !== reservationId &&
@@ -462,8 +415,8 @@ export default function BeachPlan() {
         );
 
         for (const existingRes of potentialConflicts) {
-          // 1. Conflit Ombrellone
           if (existingRes.cellCode === cellCode) {
+            // Conflit Ombrellone
             if (
               dataToSave.condition === "jour entier" ||
               existingRes.condition === "jour entier" ||
@@ -481,12 +434,12 @@ export default function BeachPlan() {
               break;
             }
           }
-          // 2. Conflit Cabine
           if (
             dataToSave.cabina &&
             existingRes.cabina &&
             dataToSave.cabina === existingRes.cabina
           ) {
+            // Conflit Cabine
             conflictFound = true;
             conflictMessage = `Conflitto Cabina ${
               dataToSave.cabina
@@ -584,9 +537,7 @@ export default function BeachPlan() {
         } (N° ${reservationToDelete.serialNumber || "N/A"}) ?`
       : `Vuoi davvero cancellare questa prenotazione (ID: ${reservationIdToDelete}) ?`;
 
-    if (!window.confirm(confirmMessage)) {
-      return;
-    }
+    if (!window.confirm(confirmMessage)) return;
 
     setIsSaving(true);
     try {
@@ -634,7 +585,6 @@ export default function BeachPlan() {
                   selectedDate >= res.startDate &&
                   selectedDate <= res.endDate
               );
-
               const isMorning = reservationsForCellOnDate.some(
                 (res) =>
                   res.condition === "matin" || res.condition === "jour entier"
@@ -679,6 +629,7 @@ export default function BeachPlan() {
 
   // --- Rendu JSX Principal ---
   return (
+    // FIX 2: Ajout du Fragment React comme élément racine
     <>
       <div className={styles.controlsHeader}>
         <div className={styles.dateSelector}>
@@ -689,8 +640,13 @@ export default function BeachPlan() {
             value={selectedDate}
             onChange={handleDateChange}
           />
-        </div>
-        <button onClick={handleOpenList} className={styles.viewListButton}>
+        </div>{" "}
+        {/* Note: Espace avant > est inhabituel mais valide */}
+        {/* FIX 3: Correction de l'accès à la classe CSS avec tiret */}
+        <button
+          onClick={handleOpenList}
+          className={`${styles["my-button"]} ${styles.viewListButton}`}
+        >
           Visualizza/Stampa Lista
         </button>
       </div>
@@ -718,6 +674,7 @@ export default function BeachPlan() {
           columns={columns}
         />
       )}
-    </>
-  );
+    </> // FIX 2: Fermeture du Fragment React
+  ); // Fermeture de la parenthèse du return
+  // FIX 1: L'accolade supplémentaire qui était ici a été supprimée
 }

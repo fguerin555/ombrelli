@@ -48,7 +48,7 @@ html {
   margin: 0;
   padding: 0;
 }
-button {
+my-button {
   display: flex;
   justify-content: center;
   align-items: center;
@@ -59,15 +59,14 @@ button {
   cursor: pointer;
   margin-left: auto;
   margin-right: auto;
-  margin-top: 20px;
   background-color: #eab8f0a8 !important;
   color: beige;
   box-shadow: 3px 3px 10px rgba(0, 0, 0, 0.3);
   border: none;
   text-shadow: 2px 2px 4px #15459e;
 }
-button:hover {
-  background-color: #f5d97ea3 !important;
+my-button:hover {
+  background-color: #3518c4a3;
   transition: 0.2s;
 }
 a {
@@ -75,7 +74,13 @@ a {
 }
 
 @media (max-width: 1224px) {
-  button {
-    padding: 5px 8px !important;
+  my-button {
+    padding: 5px 8px;
+  }
+}
+
+@media (max-width: 600px) {
+  my-button {
+    padding: 3px 5px;
   }
 }
