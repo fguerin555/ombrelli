@@ -16,8 +16,8 @@ import {
   Typography,
   MenuItem,
   useTheme,
+  useMediaQuery,
 } from "@mui/material";
-// import "../../Global.css"; // Global.css n'affecte pas directement .fc-button
 import {
   collection,
   getDocs,
@@ -27,13 +27,14 @@ import {
   doc,
 } from "firebase/firestore";
 import { db } from "../../firebase";
+// Import du composant pour les boutons de navigation personnalisés
+import ScrollButtons from "../../components/ScrollButtons"; // Assurez-vous que le chemin est correct
 
 // --- Fonctions Utilitaires ---
 const capitalizeFirstLetter = (string) => {
   if (!string) return "";
   return string.charAt(0).toUpperCase() + string.slice(1).toLowerCase();
 };
-
 const generateResources = () => {
   const letters = ["A", "B", "C", "D"];
   const resources = [];
@@ -56,7 +57,6 @@ const generateResources = () => {
   });
   return resources;
 };
-
 const getColorForCondition = (condition) => {
   switch (condition) {
     case "jour entier":
@@ -69,24 +69,72 @@ const getColorForCondition = (condition) => {
       return "grey";
   }
 };
-
 const datesOverlap = (start1, end1, start2, end2) => {
   if (!start1 || !end1 || !start2 || !end2) return false;
-  const s1 = new Date(start1 + "T00:00:00Z");
-  const e1 = new Date(end1 + "T00:00:00Z");
-  const s2 = new Date(start2 + "T00:00:00Z");
-  const e2 = new Date(end2 + "T00:00:00Z");
-  return s1 <= e2 && e1 >= s2;
+  try {
+    const s1 = new Date(
+      Date.UTC(
+        parseInt(start1.substring(0, 4)),
+        parseInt(start1.substring(5, 7)) - 1,
+        parseInt(start1.substring(8, 10))
+      )
+    );
+    const e1 = new Date(
+      Date.UTC(
+        parseInt(end1.substring(0, 4)),
+        parseInt(end1.substring(5, 7)) - 1,
+        parseInt(end1.substring(8, 10))
+      )
+    );
+    const s2 = new Date(
+      Date.UTC(
+        parseInt(start2.substring(0, 4)),
+        parseInt(start2.substring(5, 7)) - 1,
+        parseInt(start2.substring(8, 10))
+      )
+    );
+    const e2 = new Date(
+      Date.UTC(
+        parseInt(end2.substring(0, 4)),
+        parseInt(end2.substring(5, 7)) - 1,
+        parseInt(end2.substring(8, 10))
+      )
+    );
+    return s1 <= e2 && e1 >= s2;
+  } catch (e) {
+    console.error("Erreur dans datesOverlap:", e, {
+      start1,
+      end1,
+      start2,
+      end2,
+    });
+    return false;
+  }
 };
-
 const addDays = (dateStr, days) => {
   if (!dateStr) return null;
   try {
-    const date = new Date(dateStr + "T00:00:00Z");
+    const date = new Date(
+      Date.UTC(
+        parseInt(dateStr.substring(0, 4)),
+        parseInt(dateStr.substring(5, 7)) - 1,
+        parseInt(dateStr.substring(8, 10))
+      )
+    );
     date.setUTCDate(date.getUTCDate() + days);
-    return date.toISOString().split("T")[0];
+    const year = date.getUTCFullYear();
+    const month = (date.getUTCMonth() + 1).toString().padStart(2, "0");
+    const day = date.getUTCDate().toString().padStart(2, "0");
+    return `${year}-${month}-${day}`;
   } catch (e) {
-    console.error("Errore in addDays:", e);
+    console.error(
+      "Errore in addDays:",
+      e,
+      "Input:",
+      dateStr,
+      "Number of days:",
+      days
+    );
     return null;
   }
 };
@@ -96,6 +144,7 @@ const addDays = (dateStr, days) => {
 const INITIAL_CALENDAR_DATE = "2025-04-01";
 
 function BeachPlanPeriod() {
+  // --- États ---
   const [allReservations, setAllReservations] = useState([]);
   const [processedEvents, setProcessedEvents] = useState([]);
   const [filteredEvents, setFilteredEvents] = useState([]);
@@ -114,32 +163,66 @@ function BeachPlanPeriod() {
   const [queryEndDate, setQueryEndDate] = useState("");
 
   const theme = useTheme();
+  const isMobileOrTablet = useMediaQuery(theme.breakpoints.down("md"));
+
   const searchBarRef = useRef(null);
   const [searchBarHeight, setSearchBarHeight] = useState(0);
-  const [calendarHeaderHeight, setCalendarHeaderHeight] = useState(60);
-  const calendarRef = useRef(null);
+  const calendarRef = useRef(null); // Ref pour l'API FullCalendar
+
+  // États pour désactiver les boutons de navigation personnalisés
+  const [isCustomPrevDisabled, setIsCustomPrevDisabled] = useState(true);
+  const [isCustomNextDisabled, setIsCustomNextDisabled] = useState(false);
+
+  // --- Fonctions ---
+  const resetFormAndState = () => {
+    setOpen(false);
+    setSelectedOriginalReservation(null);
+    setFormData({ nom: "", prenom: "", endDate: "", condition: "jour entier" });
+    setSelectedDate("");
+    setSelectedResourceBase("");
+  };
 
   const processReservationsToEvents = useCallback((reservations) => {
     const events = [];
     reservations.forEach((item) => {
-      if (!item.startDate || !item.cellCode) return;
+      if (!item.startDate || !item.cellCode) {
+        console.warn(
+          "Réservation ignorée (manque startDate ou cellCode):",
+          item
+        );
+        return;
+      }
+      let endDateValid = item.endDate;
+      if (!endDateValid || new Date(endDateValid) < new Date(item.startDate)) {
+        endDateValid = item.startDate; // Fallback si endDate invalide
+      }
+      const endForCalendar = addDays(endDateValid, 1);
+      if (!endForCalendar) {
+        console.warn(
+          "Impossible de calculer la date de fin pour l'événement:",
+          item
+        );
+        return;
+      }
+
       const commonProps = {
         extendedProps: { originalId: item.id, originalData: item },
         start: item.startDate,
-        end: item.endDate
-          ? addDays(item.endDate, 1)
-          : addDays(item.startDate, 1),
+        end: endForCalendar,
         title: item.prenom
           ? `${item.nom} ${item.prenom}`
           : item.nom || "Sans nom",
         color: getColorForCondition(item.condition),
       };
-      if (
-        !commonProps.end ||
-        new Date(commonProps.end) <= new Date(commonProps.start)
-      ) {
-        commonProps.end = addDays(commonProps.start, 1);
+
+      if (new Date(commonProps.end) <= new Date(commonProps.start)) {
+        console.warn(
+          "Date de fin invalide même après ajout du jour, événement ignoré:",
+          commonProps
+        );
+        return;
       }
+
       if (item.condition === "jour entier") {
         events.push({
           ...commonProps,
@@ -168,74 +251,17 @@ function BeachPlanPeriod() {
     return events;
   }, []);
 
-  // --- useEffect hooks ---
-  useEffect(() => {
-    const loadReservations = async () => {
-      try {
-        const snapshot = await getDocs(collection(db, "reservations"));
-        const loadedOriginals = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-          startDate: doc.data().startDate || "",
-          endDate: doc.data().endDate || "",
-          prenom: doc.data().prenom || "",
-          nom: doc.data().nom || "",
-          condition: doc.data().condition || "jour entier",
-          cellCode: doc.data().cellCode || "",
-        }));
-        setAllReservations(loadedOriginals);
-        const initialEvents = processReservationsToEvents(loadedOriginals);
-        setProcessedEvents(initialEvents);
-        setFilteredEvents(initialEvents);
-      } catch (error) {
-        console.error("Errore caricamento prenotazioni:", error);
-        alert("Errore caricamento prenotazioni.");
-      }
-    };
-    loadReservations();
-  }, [processReservationsToEvents]);
-
-  useEffect(() => {
-    if (searchBarRef.current) {
-      const resizeObserver = new ResizeObserver((entries) => {
-        for (let entry of entries) {
-          setSearchBarHeight(entry.target.offsetHeight);
-        }
-      });
-      resizeObserver.observe(searchBarRef.current);
-      return () => resizeObserver.disconnect();
-    }
-  }, []);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (calendarRef.current) {
-        const headerElement =
-          calendarRef.current.elRef.current.querySelector(".fc-header-toolbar");
-        if (headerElement) {
-          const measureHeader = () => {
-            const height = headerElement.offsetHeight;
-            if (height > 0 && height !== calendarHeaderHeight) {
-              setCalendarHeaderHeight(height);
-            }
-          };
-          measureHeader();
-          const resizeObserver = new ResizeObserver(measureHeader);
-          resizeObserver.observe(headerElement);
-          return () => resizeObserver.disconnect();
-        }
-      }
-    }, 100);
-    return () => clearTimeout(timer);
-  }, [calendarHeaderHeight]);
-
-  // --- Event Handlers ---
   const handleDateSelect = (info) => {
     if (
       !info.resource ||
       (!info.resource.id.endsWith("_M") && !info.resource.id.endsWith("_P"))
-    )
+    ) {
+      console.log(
+        "Sélection ignorée (pas sur une ligne M ou P):",
+        info.resource?.id
+      );
       return;
+    }
     const resourceId = info.resource.id;
     const baseCode = resourceId.split("_")[0];
     const conditionValue = resourceId.endsWith("_M") ? "matin" : "apres-midi";
@@ -253,7 +279,13 @@ function BeachPlanPeriod() {
 
   const handleEventClick = (info) => {
     const originalId = info.event.extendedProps?.originalId;
-    if (!originalId) return;
+    if (!originalId) {
+      console.warn("Clic sur un événement sans originalId:", info.event);
+      alert(
+        "Impossible de trouver les détails originaux de cette réservation."
+      );
+      return;
+    }
     const originalRes = allReservations.find((r) => r.id === originalId);
     if (originalRes) {
       setSelectedOriginalReservation(originalRes);
@@ -267,7 +299,11 @@ function BeachPlanPeriod() {
       setSelectedDate(originalRes.startDate || "");
       setOpen(true);
     } else {
-      console.error("Original reservation data not found for ID:", originalId);
+      console.error(
+        "Données de réservation originales non trouvées pour ID:",
+        originalId
+      );
+      alert("Dettagli della prenotazione non trovati.");
     }
   };
 
@@ -284,7 +320,7 @@ function BeachPlanPeriod() {
       );
       return;
     }
-    if (formData.endDate < selectedDate) {
+    if (new Date(formData.endDate) < new Date(selectedDate)) {
       alert("Data Fine non può precedere Data Inizio.");
       return;
     }
@@ -296,7 +332,6 @@ function BeachPlanPeriod() {
       endDate: formData.endDate,
       condition: formData.condition,
       cellCode: cellCodeToSave,
-      modifiedAt: new Date(),
     };
 
     const hasConflict = allReservations.some((existingRes) => {
@@ -315,21 +350,15 @@ function BeachPlanPeriod() {
         )
       )
         return false;
-      if (
-        reservationDetails.condition === "jour entier" ||
-        existingRes.condition === "jour entier"
-      )
-        return true;
-      if (
-        reservationDetails.condition === "matin" &&
-        existingRes.condition === "matin"
-      )
-        return true;
-      if (
-        reservationDetails.condition === "apres-midi" &&
-        existingRes.condition === "apres-midi"
-      )
-        return true;
+      const newIsFull = reservationDetails.condition === "jour entier";
+      const newIsMorning = reservationDetails.condition === "matin";
+      const newIsAfternoon = reservationDetails.condition === "apres-midi";
+      const existingIsFull = existingRes.condition === "jour entier";
+      const existingIsMorning = existingRes.condition === "matin";
+      const existingIsAfternoon = existingRes.condition === "apres-midi";
+      if (newIsFull || existingIsFull) return true;
+      if (newIsMorning && existingIsMorning) return true;
+      if (newIsAfternoon && existingIsAfternoon) return true;
       return false;
     });
 
@@ -342,7 +371,10 @@ function BeachPlanPeriod() {
 
     try {
       let updatedOriginalReservations;
-      let reservationToUpdateOrAdd = { ...reservationDetails };
+      let reservationToUpdateOrAdd = {
+        ...reservationDetails,
+        modifiedAt: new Date(),
+      };
       if (selectedOriginalReservation) {
         const docRef = doc(db, "reservations", selectedOriginalReservation.id);
         if (selectedOriginalReservation.serialNumber)
@@ -357,6 +389,7 @@ function BeachPlanPeriod() {
             ? { ...res, ...reservationToUpdateOrAdd }
             : res
         );
+        console.log("Prenotazione modificata:", reservationToUpdateOrAdd.id);
       } else {
         reservationToUpdateOrAdd.createdAt = new Date();
         const docRef = await addDoc(
@@ -368,6 +401,7 @@ function BeachPlanPeriod() {
           ...allReservations,
           reservationToUpdateOrAdd,
         ];
+        console.log("Prenotazione aggiunta:", reservationToUpdateOrAdd.id);
       }
       setAllReservations(updatedOriginalReservations);
       const newProcessedEvents = processReservationsToEvents(
@@ -375,16 +409,7 @@ function BeachPlanPeriod() {
       );
       setProcessedEvents(newProcessedEvents);
       handleSearch(newProcessedEvents);
-      setOpen(false);
-      setSelectedOriginalReservation(null);
-      setFormData({
-        nom: "",
-        prenom: "",
-        endDate: "",
-        condition: "jour entier",
-      });
-      setSelectedDate("");
-      setSelectedResourceBase("");
+      resetFormAndState();
     } catch (error) {
       console.error("Errore durante il salvataggio della prenotazione:", error);
       alert(`Errore salvataggio: ${error.message}`);
@@ -403,16 +428,13 @@ function BeachPlanPeriod() {
         const newEvents = processReservationsToEvents(updatedOriginals);
         setProcessedEvents(newEvents);
         handleSearch(newEvents);
-        setOpen(false);
-        setSelectedOriginalReservation(null);
-        setFormData({
-          nom: "",
-          prenom: "",
-          endDate: "",
-          condition: "jour entier",
-        });
-        setSelectedDate("");
-        setSelectedResourceBase("");
+        if (
+          selectedOriginalReservation &&
+          selectedOriginalReservation.id === idToDelete
+        ) {
+          resetFormAndState();
+        }
+        console.log("Prenotazione cancellata:", idToDelete);
       } catch (error) {
         console.error("Errore durante la cancellazione:", error);
         alert(`Errore cancellazione: ${error.message}`);
@@ -426,161 +448,273 @@ function BeachPlanPeriod() {
       const end = queryEndDate.trim();
       if (!start || !end) {
         setFilteredEvents(eventsToFilter);
-      } else if (end < start) {
+        return;
+      }
+      if (new Date(end) < new Date(start)) {
         alert("Data fine ricerca non può precedere data inizio.");
         setFilteredEvents(eventsToFilter);
-      } else {
-        const relevantIds = new Set(
-          allReservations
-            .filter(
-              (res) =>
-                res.startDate &&
-                res.endDate &&
-                datesOverlap(res.startDate, res.endDate, start, end)
-            )
-            .map((res) => res.id)
-        );
-        const filtered = eventsToFilter.filter((event) =>
-          relevantIds.has(event.extendedProps?.originalId)
-        );
-        setFilteredEvents(filtered);
-        if (calendarRef.current) {
-          try {
-            calendarRef.current.getApi().gotoDate(start);
-          } catch (error) {
-            console.error("Erreur lors de la navigation du calendrier:", error);
-          }
+        return;
+      }
+      const relevantIds = new Set(
+        allReservations
+          .filter(
+            (res) =>
+              res.startDate &&
+              res.endDate &&
+              datesOverlap(res.startDate, res.endDate, start, end)
+          )
+          .map((res) => res.id)
+      );
+      const filtered = eventsToFilter.filter((event) =>
+        relevantIds.has(event.extendedProps?.originalId)
+      );
+      setFilteredEvents(filtered);
+      if (calendarRef.current) {
+        try {
+          calendarRef.current.getApi().gotoDate(start);
+        } catch (error) {
+          console.error(
+            "Erreur lors de la navigation du calendrier (gotoDate):",
+            error
+          );
         }
       }
     },
     [processedEvents, queryStartDate, queryEndDate, allReservations]
   );
 
+  // Fonction appelée par FullCalendar quand la date/vue change
+  const handleDatesSet = useCallback(() => {
+    if (calendarRef.current) {
+      const calendarApi = calendarRef.current.getApi();
+      const view = calendarApi.view;
+      const validRange = calendarApi.getOption("validRange");
+
+      if (validRange && validRange.start && validRange.end) {
+        try {
+          const rangeStart = new Date(validRange.start);
+          const rangeEnd = new Date(validRange.end);
+          rangeStart.setUTCHours(0, 0, 0, 0);
+          rangeEnd.setUTCHours(0, 0, 0, 0);
+
+          const viewStart = new Date(view.activeStart);
+          viewStart.setUTCHours(0, 0, 0, 0);
+
+          setIsCustomPrevDisabled(viewStart.getTime() <= rangeStart.getTime());
+
+          const dayBeforeViewEnd = new Date(view.activeEnd);
+          dayBeforeViewEnd.setUTCDate(dayBeforeViewEnd.getUTCDate() - 1);
+          dayBeforeViewEnd.setUTCHours(0, 0, 0, 0);
+
+          setIsCustomNextDisabled(
+            dayBeforeViewEnd.getTime() >= rangeEnd.getTime()
+          );
+        } catch (e) {
+          console.error(
+            "Erreur lors de la conversion des dates de validRange:",
+            e,
+            validRange
+          );
+          setIsCustomPrevDisabled(false);
+          setIsCustomNextDisabled(false);
+        }
+      } else {
+        setIsCustomPrevDisabled(false);
+        setIsCustomNextDisabled(false);
+      }
+    }
+  }, []);
+
+  // --- useEffect hooks ---
+  // Chargement initial des réservations
+  useEffect(() => {
+    const loadReservations = async () => {
+      try {
+        const snapshot = await getDocs(collection(db, "reservations"));
+        const loadedOriginals = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+          startDate: doc.data().startDate || "",
+          endDate: doc.data().endDate || "",
+          prenom: doc.data().prenom || "",
+          nom: doc.data().nom || "",
+          condition: doc.data().condition || "jour entier",
+          cellCode: doc.data().cellCode || "",
+        }));
+        setAllReservations(loadedOriginals);
+        const initialEvents = processReservationsToEvents(loadedOriginals);
+        setProcessedEvents(initialEvents);
+        setFilteredEvents(initialEvents);
+        // Appeler handleDatesSet une fois après le chargement initial pour définir l'état initial des boutons
+        handleDatesSet();
+      } catch (error) {
+        console.error("Errore caricamento prenotazioni:", error);
+        alert("Errore caricamento prenotazioni.");
+      }
+    };
+    loadReservations();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [processReservationsToEvents]); // handleDatesSet n'est pas nécessaire ici car stable
+
+  // Calcul hauteur barre de recherche
+  useEffect(() => {
+    if (searchBarRef.current && !isMobileOrTablet) {
+      const resizeObserver = new ResizeObserver((entries) => {
+        for (let entry of entries) {
+          setSearchBarHeight(entry.target.offsetHeight);
+        }
+      });
+      resizeObserver.observe(searchBarRef.current);
+      return () => resizeObserver.disconnect();
+    } else {
+      setSearchBarHeight(0);
+    }
+  }, [isMobileOrTablet]);
+
   // --- Render ---
   return (
     <div style={{ padding: "20px" }}>
-      {/* Barre de recherche */}
-      <Box
-        ref={searchBarRef}
-        display="flex"
-        alignItems="center"
-        gap={2}
-        flexWrap="wrap"
-        sx={{
-          position: "sticky",
-          top: 0,
-          zIndex: 1100,
-          backgroundColor: theme.palette.background.paper,
-          paddingY: 1.5,
-          paddingX: 2,
-          boxShadow: theme.shadows[3],
-          marginLeft: "-20px",
-          marginRight: "-20px",
-          gap: { xs: 1, sm: 2 },
-        }}
-      >
-        <Typography
-          variant="h6"
+      {/* Barre de recherche (Desktop) */}
+      {!isMobileOrTablet && (
+        <Box
+          ref={searchBarRef}
+          display="flex"
+          alignItems="center"
+          gap={2}
+          flexWrap="wrap"
           sx={{
-            whiteSpace: "nowrap",
-            mr: { xs: 0, sm: 1 },
-            fontSize: { xs: "0.9rem", sm: "1.25rem" },
-            flexShrink: { xs: 1, sm: 0 },
-            display: "flex",
-            alignItems: "center",
-            minHeight: { xs: "36px", sm: "40px" },
+            position: "sticky",
+            top: 0,
+            zIndex: 1100,
+            backgroundColor: theme.palette.background.paper,
+            paddingY: 1.5,
+            paddingX: 2,
+            boxShadow: theme.shadows[3],
+            marginLeft: "-20px",
+            marginRight: "-20px",
+            gap: { xs: 1, sm: 2 },
           }}
         >
-          Ricerca periodo:
-        </Typography>
-        <TextField
-          label="Data inizio"
-          type="date"
-          value={queryStartDate}
-          onChange={(e) => setQueryStartDate(e.target.value)}
-          InputLabelProps={{ shrink: true }}
-          size="small"
-          sx={{
-            "& .MuiInputLabel-root": {
-              fontSize: { xs: "0.8rem", sm: "inherit" },
-            },
-            "& .MuiInputBase-input": {
-              fontSize: { xs: "0.85rem", sm: "inherit" },
-              padding: { xs: "8px 10px", sm: "8.5px 14px" },
-            },
-            flexGrow: { xs: 1, sm: 0 },
-            minWidth: { xs: "130px", sm: "auto" },
-          }}
-        />
-        <TextField
-          label="Data fine"
-          type="date"
-          value={queryEndDate}
-          onChange={(e) => setQueryEndDate(e.target.value)}
-          InputLabelProps={{ shrink: true }}
-          size="small"
-          inputProps={{ min: queryStartDate }}
-          sx={{
-            "& .MuiInputLabel-root": {
-              fontSize: { xs: "0.8rem", sm: "inherit" },
-            },
-            "& .MuiInputBase-input": {
-              fontSize: { xs: "0.85rem", sm: "inherit" },
-              padding: { xs: "8px 10px", sm: "8.5px 14px" },
-            },
-            flexGrow: { xs: 1, sm: 0 },
-            minWidth: { xs: "130px", sm: "auto" },
-          }}
-        />
-        <Button
-          variant="contained"
-          onClick={() => handleSearch()}
-          size="small"
-          sx={{
-            fontSize: { xs: "0.75rem", sm: "0.8125rem" },
-            padding: { xs: "4px 8px", sm: "4px 10px" },
-            flexGrow: { xs: 1, sm: 0 },
-            color: { xs: "blue", sm: "blue" },
-            backgroundColor: { xs: "#eab8f0a8", sm: "#eab8f0a8" },
-            "&:hover": { backgroundColor: "#3518c4a3", color: "white" },
-          }}
-        >
-          {" "}
-          Cerca{" "}
-        </Button>
-        <Button
-          variant="outlined"
-          onClick={() => {
-            setQueryStartDate("");
-            setQueryEndDate("");
-            setFilteredEvents(processedEvents);
-            if (calendarRef.current) {
-              try {
-                calendarRef.current.getApi().gotoDate(INITIAL_CALENDAR_DATE);
-              } catch (error) {
-                console.error("Errore reset data:", error);
+          <Typography
+            variant="h6"
+            sx={{
+              whiteSpace: "nowrap",
+              mr: { xs: 0, sm: 1 },
+              fontSize: { xs: "0.9rem", sm: "1.25rem" },
+            }}
+          >
+            Ricerca periodo:
+          </Typography>
+          <TextField
+            label="Data inizio"
+            type="date"
+            value={queryStartDate}
+            onChange={(e) => setQueryStartDate(e.target.value)}
+            InputLabelProps={{ shrink: true }}
+            size="small"
+            sx={{
+              "& .MuiInputLabel-root": {
+                fontSize: { xs: "0.8rem", sm: "inherit" },
+              },
+              "& .MuiInputBase-input": {
+                fontSize: { xs: "0.85rem", sm: "inherit" },
+                padding: { xs: "8px 10px", sm: "8.5px 14px" },
+              },
+              flexGrow: { xs: 1, sm: 0 },
+              minWidth: { xs: "130px", sm: "auto" },
+            }}
+          />
+          <TextField
+            label="Data fine"
+            type="date"
+            value={queryEndDate}
+            onChange={(e) => setQueryEndDate(e.target.value)}
+            InputLabelProps={{ shrink: true }}
+            size="small"
+            inputProps={{ min: queryStartDate }}
+            sx={{
+              "& .MuiInputLabel-root": {
+                fontSize: { xs: "0.8rem", sm: "inherit" },
+              },
+              "& .MuiInputBase-input": {
+                fontSize: { xs: "0.85rem", sm: "inherit" },
+                padding: { xs: "8px 10px", sm: "8.5px 14px" },
+              },
+              flexGrow: { xs: 1, sm: 0 },
+              minWidth: { xs: "130px", sm: "auto" },
+            }}
+          />
+          <Button
+            variant="contained"
+            onClick={() => handleSearch()}
+            size="small"
+            sx={{
+              fontSize: { xs: "0.75rem", sm: "0.8125rem" },
+              padding: { xs: "4px 8px", sm: "4px 10px" },
+              flexGrow: { xs: 1, sm: 0 },
+              color: "blue",
+              backgroundColor: "#eab8f0a8",
+              "&:hover": { backgroundColor: "#3518c4a3", color: "white" },
+            }}
+          >
+            Cerca
+          </Button>
+          <Button
+            variant="outlined"
+            onClick={() => {
+              setQueryStartDate("");
+              setQueryEndDate("");
+              setFilteredEvents(processedEvents);
+              if (calendarRef.current) {
+                try {
+                  calendarRef.current.getApi().gotoDate(INITIAL_CALENDAR_DATE);
+                } catch (error) {
+                  console.error("Errore reset data:", error);
+                }
               }
-            }
-          }}
-          size="small"
+            }}
+            size="small"
+            sx={{
+              fontSize: { xs: "0.75rem", sm: "0.8125rem" },
+              padding: { xs: "4px 8px", sm: "4px 10px" },
+              flexGrow: { xs: 1, sm: 0 },
+              color: "blue",
+              backgroundColor: "#eab8f0a8",
+              "&:hover": { backgroundColor: "#3518c4a3", color: "white" },
+            }}
+          >
+            Cancella filtro
+          </Button>
+        </Box>
+      )}
+
+      {/* Boutons de navigation personnalisés (Mobile) */}
+      {isMobileOrTablet && (
+        <Box
           sx={{
-            fontSize: { xs: "0.75rem", sm: "0.8125rem" },
-            padding: { xs: "4px 8px", sm: "4px 10px" },
-            flexGrow: { xs: 1, sm: 0 },
-            color: { xs: "blue", sm: "blue" },
-            backgroundColor: { xs: "#eab8f0a8", sm: "#eab8f0a8" },
-            "&:hover": { backgroundColor: "#3518c4a3", color: "white" },
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            gap: "20px",
+            marginBottom: "10px",
+            width: "100%",
           }}
         >
-          {" "}
-          Cancella filtro{" "}
-        </Button>
-      </Box>
+          <ScrollButtons
+            onPrevClick={() => calendarRef.current?.getApi().prev()}
+            onNextClick={() => calendarRef.current?.getApi().next()}
+            isPrevDisabled={isCustomPrevDisabled}
+            isNextDisabled={isCustomNextDisabled}
+          />
+        </Box>
+      )}
 
-      {/* Calendar Wrapper - Styles pour l'en-tête FC corrigés */}
+      {/* Calendar Wrapper */}
       <Box
         sx={{
-          // --- Styles Toolbar ---
+          overflowX: "auto", // Garder pour le scroll manuel du contenu
+          overflowY: "hidden",
+          // Styles Toolbar
           "& .fc-header-toolbar": {
             position: "sticky",
             top: searchBarHeight > 0 ? `${searchBarHeight}px` : "0px",
@@ -613,12 +747,8 @@ function BeachPlanPeriod() {
             },
             "&:nth-of-type(2)": { flexGrow: 1, justifyContent: "center" },
           },
-
-          // --- Styles pour les BOUTONS FullCalendar (Final avec Hover violet pour inactifs) ---
           "& .fc .fc-button": {
-            // Style de base pour TOUS les boutons
-            backgroundColor: "#eab8f0a8", // Rose initial semi-transparent
-
+            backgroundColor: "#eab8f0a8",
             border: "none",
             borderRadius: "7px",
             boxShadow: "3px 3px 10px rgba(0, 0, 0, 0.3)",
@@ -628,43 +758,25 @@ function BeachPlanPeriod() {
             textTransform: "none",
             margin: "0 2px",
             cursor: "pointer",
-            // Appliquer la transition ici pour qu'elle affecte tous les changements
             transition: "background-color 0.2s ease, opacity 0.2s ease",
             display: "inline-flex",
             alignItems: "center",
             justifyContent: "center",
-            opacity: 0.85, // Opacité par défaut pour les boutons INACTIFS
+            opacity: 0.85,
           },
-
-          // --- Style pour le SURVOL d'un bouton INACTIF ---
           "& .fc .fc-button:not(.fc-button-primary):hover": {
-            backgroundColor: "#3518c4a3", // Couleur hover foncée désirée
-            opacity: 1, // Rendre opaque au survol
-            // La transition est déjà définie dans le style de base .fc-button
+            backgroundColor: "#3518c4a3",
+            opacity: 1,
           },
-
-          // --- Style SPÉCIFIQUE et FORCÉ pour le bouton ACTIF ---
           "& .fc .fc-button-primary": {
-            backgroundColor: "#eab8f0a8 !important", // Force la couleur rose
-
-            opacity: "1 !important", // Force l'opacité
-            color: "blue !important", // Assure que la couleur du texte reste
-            "&:hover": {
-              backgroundColor: "#3518c4a3",
-              color: "white !important",
-            },
+            backgroundColor: "#eab8f0a8 !important",
+            opacity: "1 !important",
+            color: "blue !important",
           },
-
-          // --- Style SPÉCIFIQUE et FORCÉ pour le SURVOL du bouton ACTIF ---
-          // (Pour s'assurer qu'il ne change PAS au survol)
           "& .fc .fc-button-primary:hover": {
-            backgroundColor: "#3518c4a3 !important", // Force la couleur foncée au survol
-            opacity: "1 !important", // Force l'opacité au survol
-            // Pas de changement visuel, la transition héritée n'a pas d'effet visible ici
+            backgroundColor: "#3518c4a3 !important",
+            color: "white !important",
           },
-          // --- Fin Styles Boutons ---
-
-          // --- Styles Titre ---
           "& .fc .fc-toolbar-title": {
             fontSize: "1.4em",
             fontWeight: "bold",
@@ -672,20 +784,29 @@ function BeachPlanPeriod() {
             margin: 0,
             [theme.breakpoints.down("sm")]: { fontSize: "1.0em" },
           },
-          // --- Styles Conteneur Vue ---
-          "& .fc-view-harness": { paddingTop: `${calendarHeaderHeight}px` },
+          "& .fc-view-harness .fc-timeline": { minWidth: "800px" }, // Force largeur min sur mobile
         }}
       >
-        {/* Calendrier */}
+        {/* Composant FullCalendar */}
         <FullCalendar
-          ref={calendarRef}
+          ref={calendarRef} // Ref pour l'API
           plugins={[resourceTimelinePlugin, interactionPlugin, dayGridPlugin]}
           initialView="resourceTimelineWeek"
-          headerToolbar={{
-            left: "prev,next today",
-            center: "title",
-            right: "resourceTimelineWeek,resourceTimelineMonth",
-          }}
+          schedulerLicenseKey="GPL-My-Project-Is-Open-Source"
+          locale={itLocale}
+          // Configuration de la barre d'outils standard
+          headerToolbar={
+            isMobileOrTablet
+              ? false // Masque complètement sur mobile/tablette
+              : {
+                  // Configuration pour Desktop
+                  left: "prev,next today",
+                  center: "title",
+                  right: "resourceTimelineWeek,resourceTimelineMonth",
+                }
+          }
+          // Callback appelé après chaque changement de date/vue
+          datesSet={handleDatesSet}
           buttonText={{
             today: "Oggi",
             month: "Mese",
@@ -693,7 +814,6 @@ function BeachPlanPeriod() {
             resourceTimelineWeek: "Settimana",
             resourceTimelineMonth: "Mese",
           }}
-          schedulerLicenseKey="GPL-My-Project-Is-Open-Source"
           resources={generateResources()}
           events={filteredEvents}
           selectable={true}
@@ -706,32 +826,35 @@ function BeachPlanPeriod() {
             month: "numeric",
             omitCommas: true,
           }}
-          locale={itLocale}
           resourceAreaHeaderContent="Ombrelli"
           resourceAreaWidth="60px"
+          // Fonction pour afficher le label de ressource
           resourceLabelContent={(arg) => (
             <Typography sx={{ fontSize: "0.7rem", textAlign: "center" }}>
               {arg.resource.title}
             </Typography>
           )}
           height="auto"
+          // Fonction pour ajouter des classes CSS aux lignes
           resourceLaneClassNames={(arg) => {
             if (arg.resource.id.endsWith("_M")) return "fc-lane-morning";
             if (arg.resource.id.endsWith("_P")) return "fc-lane-afternoon";
             return null;
           }}
+          // Fonction pour autoriser la sélection
           selectAllow={(selectInfo) =>
             selectInfo.resource &&
             (selectInfo.resource.id.includes("_M") ||
               selectInfo.resource.id.includes("_P"))
           }
+          // Plage de dates valide pour la navigation
           validRange={{ start: "2025-04-01", end: "2025-12-02" }}
           initialDate={INITIAL_CALENDAR_DATE}
           eventMinWidth={30}
         />
       </Box>
 
-      {/* Modal */}
+      {/* Modal de réservation/modification */}
       <Dialog
         open={open}
         onClose={() => setOpen(false)}
@@ -814,30 +937,18 @@ function BeachPlanPeriod() {
               onClick={() => deleteReservation(selectedOriginalReservation.id)}
               color="error"
             >
-              {" "}
-              Cancella{" "}
+              Cancella
             </Button>
           )}
           <Button
             onClick={() => {
-              setOpen(false);
-              setSelectedOriginalReservation(null);
-              setFormData({
-                nom: "",
-                prenom: "",
-                endDate: "",
-                condition: "jour entier",
-              });
-              setSelectedDate("");
-              setSelectedResourceBase("");
+              resetFormAndState();
             }}
           >
-            {" "}
-            Annulla{" "}
+            Annulla
           </Button>
           <Button onClick={handleSaveReservation} variant="contained">
-            {" "}
-            {selectedOriginalReservation ? "Modifica" : "Aggiungi"}{" "}
+            {selectedOriginalReservation ? "Modifica" : "Aggiungi"}
           </Button>
         </DialogActions>
       </Dialog>

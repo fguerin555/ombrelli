@@ -1,0 +1,87 @@
+/* src/components/ScrollButtons.module.css */
+
+.scrollButton {
+  /* Style de base */
+  background-color: rgba(240, 240, 240, 0.85); /* Fond légèrement transparent */
+  border: 1px solid #b0b0b0; /* Bordure grise */
+  border-radius: 50%; /* Bouton rond */
+  width: 40px; /* Largeur */
+  height: 40px; /* Hauteur */
+  font-size: 1.6rem; /* Taille du chevron (symbole < ou >) */
+  font-weight: bold; /* Chevron en gras */
+  color: #444; /* Couleur du chevron */
+  cursor: pointer; /* Curseur main */
+  display: inline-flex; /* Important pour aligner le contenu (chevron) */
+  align-items: center; /* Centre verticalement le chevron */
+  justify-content: center; /* Centre horizontalement le chevron */
+  line-height: 1; /* Assure que le chevron est bien centré verticalement */
+  padding: 0; /* Enlève le padding par défaut du bouton */
+  margin: 0 5px; /* Ajoute un petit espace entre les boutons s'ils sont côte à côte */
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2); /* Ombre légère */
+  transition: background-color 0.2s ease, transform 0.1s ease, opacity 0.2s ease; /* Transitions douces pour hover, active, et disabled */
+  z-index: 10; /* S'assure qu'ils sont au-dessus du contenu si superposés */
+
+  /* --- POSITIONNEMENT --- */
+  /* Par défaut, les boutons seront dans le flux normal (position: static). */
+  /* Vous pouvez décommenter et ajuster les lignes ci-dessous si vous voulez */
+  /* les positionner absolument par rapport à un conteneur parent */
+  /* (qui doit avoir position: relative). */
+  /* position: absolute; */
+  /* top: 50%; */
+  /* transform: translateY(-50%); */
+}
+
+/* Styles au survol */
+.scrollButton:hover {
+  background-color: rgba(
+    225,
+    225,
+    225,
+    0.95
+  ); /* Fond légèrement plus foncé au survol */
+}
+
+/* Styles au clic (bouton enfoncé) */
+.scrollButton:active {
+  background-color: rgba(210, 210, 210, 1); /* Fond encore plus foncé */
+  transform: scale(0.96); /* Léger effet d'enfoncement */
+}
+
+/* --- STYLES POUR L'ÉTAT DÉSACTIVÉ --- */
+/* Appliqués lorsque l'attribut 'disabled' est présent sur le bouton */
+.scrollButton:disabled {
+  opacity: 0.4; /* Rendre plus transparent */
+  cursor: not-allowed; /* Curseur "interdit" */
+  background-color: rgba(
+    230,
+    230,
+    230,
+    0.7
+  ); /* Fond légèrement différent pour indiquer l'inactivité */
+  box-shadow: none; /* Optionnel: enlever l'ombre */
+  transform: none; /* Optionnel: annuler l'effet au clic si présent */
+}
+
+/* Optionnel: Empêcher les effets de survol sur un bouton désactivé */
+.scrollButton:disabled:hover {
+  background-color: rgba(
+    230,
+    230,
+    230,
+    0.7
+  ); /* Garder la même couleur qu'en disabled */
+  /* Vous pouvez aussi ajouter d'autres styles ici si nécessaire */
+}
+/* --- FIN STYLES DÉSACTIVÉS --- */
+
+/* Styles spécifiques pour positionnement absolu (si utilisé) */
+/* Décommentez et ajustez si vous utilisez position: absolute */
+/*
+  .scrollButton.left {
+    left: 10px; // Positionne le bouton gauche à 10px du bord gauche du parent
+  }
+  
+  .scrollButton.right {
+    right: 10px; // Positionne le bouton droit à 10px du bord droit du parent
+  }
+  */
