@@ -20,6 +20,9 @@ const Navbar = () => {
         <li>
           <Link to="/codbarrereader">QRcode Reader</Link>
         </li>
+        <li>
+          <Link to="/stickycalendartest">StickyCalendarTest</Link>
+        </li>
       </ul>
     </nav>
   );

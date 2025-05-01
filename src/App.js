@@ -8,6 +8,7 @@ import CodBarreReader from "./pages/CodBarreReaderFile/CodBarreReader";
 import BeachPlanPeriod from "./pages/BeachPlanPeriodFile/BeachPlanPeriod";
 
 import Navbar from "./components/Navbar";
+import StickyCalendarTest from "./StickyCalendarTest";
 
 const App = () => {
   return (
@@ -23,6 +24,7 @@ const App = () => {
           <Route path="/codbarrereader" element={<CodBarreReader />} />
           <Route path="/beachplanperiod" element={<BeachPlanPeriod />} />
           <Route path="/query" element={<Query />} />
+          <Route path="StickyCalendarTest" element={<StickyCalendarTest />} />
         </Routes>
       </div>
     </Router>
