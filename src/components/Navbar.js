@@ -20,7 +20,7 @@ const Navbar = () => {
           <Link to="/changeexchange">Change / Exchange</Link>
         </li>
         <li>
-          <Link to="/codbarrereader">QRcode Reader</Link>
+          <Link to="/testqueryname">TestQuery Name</Link>
         </li>
       </ul>
     </nav>

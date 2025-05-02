@@ -7,6 +7,7 @@ import Query from "./pages/QueryFile/Query";
 import CodBarreReader from "./pages/CodBarreReaderFile/CodBarreReader";
 import BeachPlanPeriod from "./pages/BeachPlanPeriodFile/BeachPlanPeriod";
 import ChangeExchange from "./pages/ChangeExchangeFile/ChangeExchange";
+import TestQueryName from "./TestQueryName";
 import Navbar from "./components/Navbar";
 
 const App = () => {
@@ -23,6 +24,7 @@ const App = () => {
           <Route path="/codbarrereader" element={<CodBarreReader />} />
           <Route path="/beachplanperiod" element={<BeachPlanPeriod />} />
           <Route path="/query" element={<Query />} />
+          <Route path="/testqueryname" element={<TestQueryName />} />
         </Routes>
       </div>
     </Router>
