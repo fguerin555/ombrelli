@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react"; // Suppression useRef
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
-import resourceTimelinePlugin from "@fullcalendar/resource-timeline"; // Assurez-vous que le plugin est bien inclus
-import interactionPlugin from "@fullcalendar/interaction"; // Ajout pour l'interaction (select, eventClick)
-import itLocale from "@fullcalendar/core/locales/it"; // Importer la locale italienne
+import resourceTimelinePlugin from "@fullcalendar/resource-timeline";
+import interactionPlugin from "@fullcalendar/interaction";
+import itLocale from "@fullcalendar/core/locales/it";
 import {
   Box,
   Dialog,
@@ -13,8 +13,11 @@ import {
   Button,
   TextField,
   MenuItem,
-} from "@mui/material"; // Ajout des composants Dialog
-import { useTheme } from "@mui/material/styles"; // Importer useTheme pour le fond
+  Checkbox, // Ajout pour la cabine
+  FormControlLabel, // Ajout pour la cabine
+  Typography, // Ajout pour le split
+} from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import {
   collection,
   getDocs,
@@ -22,16 +25,19 @@ import {
   deleteDoc,
   updateDoc,
   doc,
-} from "firebase/firestore"; // Ajout imports Firebase
-import { db } from "./firebase"; // Import db depuis le bon chemin
+  runTransaction, // Ajout pour le numéro de série et le split
+  serverTimestamp, // Ajout pour les dates de création/modif
+} from "firebase/firestore";
+import { db } from "./firebase";
+
+// --- Constantes copiées ---
+const VALID_CABINS = "ABCDEFGHIJKLMNOPQRSTUWXYZ".split("");
 
 export default function StickyCalendarTest() {
   // Utilisation de useMemo pour mémoriser 'resources'
   const resources = useMemo(() => {
-    // Garde la génération des ressources
     const resourcesArray = [];
     const letters = ["A", "B", "C", "D"];
-    // Création dynamique des ressources (A01-D36 avec sous-ressources)
     letters.forEach((letter) => {
       for (let i = 1; i <= 36; i++) {
         const num = i.toString().padStart(2, "0");
@@ -39,18 +45,16 @@ export default function StickyCalendarTest() {
         resourcesArray.push({ id, title: id });
         resourcesArray.push({ id: `${id}_M`, parentId: id, title: "Mattina" });
         resourcesArray.push({
-          id: `${id}_P`, // Garde Pomeriggio pour correspondre à la condition
+          id: `${id}_P`,
           parentId: id,
           title: "Pomeriggio",
         });
       }
     });
     return resourcesArray;
-  }, []); // Utilisez un tableau vide comme dépendance pour n'exécuter cette logique qu'une seule fois
+  }, []);
 
-  // --- Début du code ajouté depuis BeachPlanPeriod ---
-
-  // Utilitaires copiés
+  // --- Utilitaires ---
   const capitalizeFirstLetter = (s) =>
     s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : "";
   const getColorForCondition = (cond) =>
@@ -58,45 +62,82 @@ export default function StickyCalendarTest() {
       "jour entier": "#e57373", // Rouge
       matin: "#64b5f6", // Bleu
       "apres-midi": "#ffb74d", // Orange
-    }[cond] || "#9e9e9e"); // Gris par défaut
+    }[cond] || "#9e9e9e");
   const addDays = (dateStr, days) => {
-    const d = new Date(dateStr);
-    d.setDate(d.getDate() + days);
-    return d.toISOString().slice(0, 10);
+    if (!dateStr) return null;
+    try {
+      const d = new Date(dateStr);
+      d.setDate(d.getDate() + days);
+      return d.toISOString().slice(0, 10);
+    } catch (e) {
+      return null;
+    }
   };
   const datesOverlap = (s1, e1, s2, e2) => {
-    if (!s1 || !e1 || !s2 || !e2) return false; // Vérification null/undefined
-    const a = new Date(s1),
-      b = new Date(e1),
-      c = new Date(s2),
-      d = new Date(e2);
-    return a <= d && b >= c;
+    if (!s1 || !e1 || !s2 || !e2) return false;
+    return s1 <= e2 && e1 >= s2; // Comparaison directe des chaînes YYYY-MM-DD
+  };
+  const formatDateForDisplay = (dateStr) => {
+    if (!dateStr) return "";
+    try {
+      const [year, month, day] = dateStr.split("-");
+      return `${day}/${month}/${year}`;
+    } catch (e) {
+      return dateStr;
+    }
   };
 
-  // États copiés
+  // --- États ---
   const [allReservations, setAllReservations] = useState([]);
   const [processedEvents, setProcessedEvents] = useState([]);
-  // Note: filteredEvents n'est pas utilisé ici car il n'y a pas de barre de recherche
   const [open, setOpen] = useState(false);
   const [formData, setFormData] = useState({
     nom: "",
     prenom: "",
     endDate: "",
     condition: "jour entier",
+    numBeds: 2,
+    registiPoltrona: "",
+    serialNumber: null,
+    id: null,
+    startDate: "", // Ajouté pour la logique de cabine
   });
   const [selectedResBase, setSelectedResBase] = useState("");
-  const [selectedDate, setSelectedDate] = useState("");
+  const [selectedDate, setSelectedDate] = useState(""); // Date cliquée/sélectionnée
   const [selectedOriginal, setSelectedOriginal] = useState(null);
+  const [requestCabin, setRequestCabin] = useState(false);
+  const [assignedCabin, setAssignedCabin] = useState("");
+  const [cabinError, setCabinError] = useState("");
+  const [showSingleDayOptions, setShowSingleDayOptions] = useState(false);
+  const [singleDayCondition, setSingleDayCondition] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [isNew, setIsNew] = useState(true);
+  const [umbrellaConflictError, setUmbrellaConflictError] = useState(""); // Ajout état conflit ombrellone
 
-  // Process reservations (copié et adapté)
+  // --- Traitement des réservations pour FullCalendar ---
   const processReservationsToEvents = useCallback((reservations) => {
     const evts = [];
     reservations.forEach((item) => {
-      const { id, startDate, endDate, nom, prenom, condition, cellCode } = item;
+      const {
+        id,
+        startDate,
+        endDate,
+        nom,
+        prenom,
+        condition,
+        cellCode,
+        cabina,
+      } = item;
       if (!startDate || !cellCode) return;
-      const endValid = endDate && endDate >= startDate ? endDate : startDate; // Vérifie endDate
-      const endCal = addDays(endValid, 1); // FullCalendar exclut la date de fin
-      const title = prenom ? `${nom} ${prenom}` : nom || "Sans nom";
+      const endValid = endDate && endDate >= startDate ? endDate : startDate;
+      const endCal = addDays(endValid, 1);
+      const bedsText = item.numBeds !== undefined ? `(${item.numBeds}L` : "";
+      const extraText = item.registiPoltrona ? `+${item.registiPoltrona}` : "";
+      const cabinText = cabina ? `C${cabina}` : ""; // ajout du texte pour la cabine
+      const title =
+        `${nom || ""} ${prenom || ""} ${bedsText}${extraText}${
+          bedsText ? ")" : ""
+        }${cabinText}`.trim() || "N/A"; // Ajout de cabinText au titre
       const common = {
         extendedProps: { originalId: id },
         start: startDate,
@@ -110,14 +151,42 @@ export default function StickyCalendarTest() {
       } else if (condition === "matin") {
         evts.push({ ...common, id: `${id}_M`, resourceId: `${cellCode}_M` });
       } else if (condition === "apres-midi") {
-        // Doit correspondre à la valeur exacte
         evts.push({ ...common, id: `${id}_P`, resourceId: `${cellCode}_P` });
       }
     });
     return evts;
   }, []);
 
-  // Chargement initial (copié)
+  // --- Génération Numéro de Série ---
+  const counterDocRef = doc(db, "counters", "reservationCounter");
+  const getNextSerialNumber = useCallback(async () => {
+    const yearPrefix = new Date().getFullYear().toString().slice(-2);
+    try {
+      let nextNumber = 1;
+      await runTransaction(db, async (transaction) => {
+        const counterDoc = await transaction.get(counterDocRef);
+        if (!counterDoc.exists()) {
+          nextNumber = 1;
+          transaction.set(counterDocRef, { lastNumber: 1 });
+        } else {
+          const lastNumber = counterDoc.data().lastNumber;
+          if (typeof lastNumber !== "number" || isNaN(lastNumber)) {
+            nextNumber = 1;
+            transaction.set(counterDocRef, { lastNumber: 1 });
+          } else {
+            nextNumber = lastNumber + 1;
+            transaction.update(counterDocRef, { lastNumber: nextNumber });
+          }
+        }
+      });
+      return `${yearPrefix}${nextNumber.toString().padStart(5, "0")}`;
+    } catch (error) {
+      console.error("Erreur génération SN:", error);
+      throw new Error("Impossible de générer le numéro de série.");
+    }
+  }, [counterDocRef]); // Ajout de counterDocRef aux dependances
+
+  // --- Chargement Initial ---
   useEffect(() => {
     (async () => {
       try {
@@ -128,23 +197,57 @@ export default function StickyCalendarTest() {
         setProcessedEvents(evts);
       } catch (error) {
         console.error("Erreur de chargement des réservations:", error);
-        // Gérer l'erreur (ex: afficher un message)
       }
     })();
-  }, [processReservationsToEvents]);
+  }, [processReservationsToEvents]); // Re-run si processReservationsToEvents change (ne devrait pas)
 
-  // Gestionnaires d'événements (copiés et adaptés de BeachPlanPeriod)
+  // --- Logique Cabine ---
+  const findNextAvailableCabin = useCallback(
+    (startDate, endDate, currentResId) => {
+      if (!startDate || !endDate || !Array.isArray(allReservations))
+        return null;
+      const conflictingCabins = allReservations
+        .filter(
+          (res) =>
+            res.cabina &&
+            res.id !== currentResId &&
+            datesOverlap(startDate, endDate, res.startDate, res.endDate)
+        )
+        .map((res) => res.cabina);
+      const uniqueConflictingCabins = [...new Set(conflictingCabins)];
+      for (const cabin of VALID_CABINS) {
+        if (!uniqueConflictingCabins.includes(cabin)) return cabin;
+      }
+      return null;
+    },
+    [allReservations]
+  );
+
+  // --- Gestionnaires d'Événements FullCalendar ---
   const handleDateSelect = (info) => {
-    if (!info.resource?.id.match(/_(M|P)$/)) return; // Ne rien faire si on clique sur le parent A01
+    if (!info.resource?.id.match(/_(M|P)$/)) return;
+    const clickedDateStr = info.startStr;
     setSelectedResBase(info.resource.id.split("_")[0]);
-    setSelectedDate(info.startStr);
+    setSelectedDate(clickedDateStr); // Date cliquée
     setFormData({
       nom: "",
       prenom: "",
-      endDate: info.startStr, // Par défaut, fin = début
+      startDate: clickedDateStr, // Date de début = date cliquée
+      endDate: clickedDateStr,
       condition: info.resource.id.endsWith("_M") ? "matin" : "apres-midi",
+      numBeds: 2,
+      registiPoltrona: "",
+      serialNumber: null,
+      id: null,
     });
-    setSelectedOriginal(null); // C'est une nouvelle réservation
+    setSelectedOriginal(null);
+    setIsNew(true);
+    setRequestCabin(false);
+    setAssignedCabin("");
+    setCabinError("");
+    setUmbrellaConflictError("");
+    setShowSingleDayOptions(false);
+    setSingleDayCondition("");
     setOpen(true);
   };
 
@@ -153,95 +256,458 @@ export default function StickyCalendarTest() {
       (r) => r.id === info.event.extendedProps.originalId
     );
     if (orig) {
+      const clickedDateStr = info.event.startStr; // Date de début de l'événement FC cliqué
       setSelectedOriginal(orig);
+      setSelectedResBase(orig.cellCode);
+      setSelectedDate(clickedDateStr); // Date cliquée (pour la logique split)
       setFormData({
         nom: orig.nom || "",
         prenom: orig.prenom || "",
-        endDate: orig.endDate || orig.startDate, // Assurer une valeur
-        condition: orig.condition || "jour entier", // Assurer une valeur
+        startDate: orig.startDate, // Dates originales de la réservation
+        endDate: orig.endDate || orig.startDate,
+        condition: orig.condition || "jour entier",
+        numBeds: orig.numBeds === undefined ? 2 : orig.numBeds,
+        registiPoltrona: orig.registiPoltrona || "",
+        serialNumber: orig.serialNumber || null,
+        id: orig.id,
       });
-      setSelectedResBase(orig.cellCode);
-      setSelectedDate(orig.startDate);
+      setIsNew(false);
+      setRequestCabin(!!orig.cabina);
+      setAssignedCabin(orig.cabina || "");
+      setCabinError("");
+      setUmbrellaConflictError("");
+
+      const isMultiDay = orig.startDate !== (orig.endDate || orig.startDate);
+      const isClickedDateWithinRange =
+        clickedDateStr >= orig.startDate &&
+        clickedDateStr <= (orig.endDate || orig.startDate);
+      const shouldShowSplit = !isNew && isMultiDay && isClickedDateWithinRange;
+
+      setShowSingleDayOptions(shouldShowSplit);
+      setSingleDayCondition(
+        shouldShowSplit ? orig.condition || "jour entier" : ""
+      );
+
       setOpen(true);
     } else {
       console.warn("Original reservation not found for event:", info.event);
     }
   };
 
+  // --- Gestion Formulaire Dialogue ---
   const resetForm = () => {
     setOpen(false);
     setSelectedOriginal(null);
-    // Réinitialiser formData peut être utile aussi
-    setFormData({ nom: "", prenom: "", endDate: "", condition: "jour entier" });
+    setFormData({
+      nom: "",
+      prenom: "",
+      startDate: "",
+      endDate: "",
+      condition: "jour entier",
+      numBeds: 2,
+      registiPoltrona: "",
+      serialNumber: null,
+      id: null,
+    });
+    setRequestCabin(false);
+    setAssignedCabin("");
+    setCabinError("");
+    setUmbrellaConflictError("");
+    setShowSingleDayOptions(false);
+    setSingleDayCondition("");
+    setIsNew(true);
   };
 
-  const handleSave = async () => {
+  // --- useEffect pour la gestion de la Cabine ---
+  useEffect(() => {
+    if (!open) return;
+
+    if (requestCabin) {
+      // Utiliser formData.startDate et formData.endDate qui sont mis à jour par l'utilisateur
+      if (
+        formData.startDate &&
+        formData.endDate &&
+        formData.startDate <= formData.endDate
+      ) {
+        const nextCabin = findNextAvailableCabin(
+          formData.startDate,
+          formData.endDate,
+          formData.id
+        );
+        if (nextCabin) {
+          setAssignedCabin(nextCabin);
+          setCabinError("");
+        } else {
+          setAssignedCabin("");
+          setCabinError("Nessuna cabina disponibile.");
+        }
+      } else {
+        setAssignedCabin("");
+        if (
+          formData.startDate &&
+          formData.endDate &&
+          formData.startDate > formData.endDate
+        ) {
+          setCabinError("Fine prima di inizio.");
+        } else {
+          setCabinError("");
+        }
+      }
+    } else {
+      setAssignedCabin("");
+      setCabinError("");
+    }
+  }, [
+    open,
+    requestCabin,
+    formData.startDate,
+    formData.endDate,
+    formData.id,
+    findNextAvailableCabin,
+  ]);
+
+  // --- useEffect pour la vérification de conflit d'Ombrellone ---
+  useEffect(() => {
+    if (!open) {
+      setUmbrellaConflictError("");
+      return;
+    }
+    setUmbrellaConflictError(""); // Reset
+
     if (
-      !formData.nom ||
-      !selectedDate ||
+      !selectedResBase ||
+      !formData.startDate ||
       !formData.endDate ||
       !formData.condition ||
-      !selectedResBase
+      !Array.isArray(allReservations) ||
+      formData.startDate > formData.endDate
     ) {
-      alert("Veuillez remplir tous les champs obligatoires.");
       return;
     }
 
-    // Vérification de conflit (simplifiée, peut nécessiter ajustement pour M/P)
-    const conflict = allReservations.some((r) => {
-      if (r.id === selectedOriginal?.id) return false; // Ne pas comparer avec soi-même
-      if (r.cellCode !== selectedResBase) return false; // Pas le même parasol
-      if (!datesOverlap(r.startDate, r.endDate, selectedDate, formData.endDate))
-        return false; // Pas de chevauchement de dates
+    const currentId = formData.id;
+    const currentStart = formData.startDate;
+    const currentEnd = formData.endDate;
+    // Utiliser la condition spécifique du jour si on est en train de splitter
+    const currentCondition =
+      showSingleDayOptions &&
+      singleDayCondition &&
+      singleDayCondition !== formData.condition
+        ? singleDayCondition
+        : formData.condition;
 
-      // Vérification plus fine des conditions (matin/aprem/jour entier)
-      const newIsMatin =
-        formData.condition === "matin" || formData.condition === "jour entier";
-      const newIsAprem =
-        formData.condition === "apres-midi" ||
-        formData.condition === "jour entier";
-      const existingIsMatin =
-        r.condition === "matin" || r.condition === "jour entier";
-      const existingIsAprem =
-        r.condition === "apres-midi" || r.condition === "jour entier";
+    const conflictingRes = allReservations.find((existingRes) => {
+      if (currentId && existingRes.id === currentId) return false;
 
-      return (newIsMatin && existingIsMatin) || (newIsAprem && existingIsAprem);
+      if (
+        existingRes.cellCode === selectedResBase &&
+        datesOverlap(
+          currentStart,
+          currentEnd,
+          existingRes.startDate,
+          existingRes.endDate
+        )
+      ) {
+        const existingCondition = existingRes.condition;
+        if (
+          currentCondition === "jour entier" ||
+          existingCondition === "jour entier" ||
+          currentCondition === existingCondition
+        ) {
+          return true; // Conflit trouvé
+        }
+      }
+      return false;
     });
 
-    if (conflict) {
-      alert("Conflit de réservation détecté pour ce parasol et cette période.");
+    if (conflictingRes) {
+      let existingCondText = conflictingRes.condition
+        .replace("apres-midi", "pomeriggio")
+        .replace("jour entier", "giorno intero");
+      const conflictStart = formatDateForDisplay(conflictingRes.startDate);
+      const conflictEnd = formatDateForDisplay(conflictingRes.endDate);
+      const conflictPeriod =
+        conflictStart === conflictEnd
+          ? `il ${conflictStart}`
+          : `dal ${conflictStart} al ${conflictEnd}`;
+      setUmbrellaConflictError(
+        `Conflitto: Ombrellone ${selectedResBase} già prenotato (${existingCondText}) ${conflictPeriod} (Cliente: ${
+          conflictingRes.nom
+        } ${conflictingRes.prenom}, N° ${
+          conflictingRes.serialNumber || "N/A"
+        }).`
+      );
+    } else {
+      setUmbrellaConflictError("");
+    }
+  }, [
+    open,
+    selectedResBase,
+    formData.startDate,
+    formData.endDate,
+    formData.condition, // Condition globale
+    singleDayCondition, // Condition spécifique du jour (pour split)
+    showSingleDayOptions, // Pour savoir si on doit considérer singleDayCondition
+    formData.id,
+    allReservations,
+  ]);
+
+  // --- Sauvegarde ---
+  const handleSave = async () => {
+    // Validations
+    if (!formData.nom) {
+      alert("Cognome obbligatorio.");
+      return;
+    }
+    if (!formData.startDate || !formData.endDate) {
+      alert("Date obbligatorie.");
+      return;
+    }
+    if (formData.endDate < formData.startDate) {
+      alert("Data fine non valida.");
+      return;
+    }
+    if (
+      formData.numBeds === "" ||
+      isNaN(formData.numBeds) ||
+      formData.numBeds < 0 ||
+      formData.numBeds > 3
+    ) {
+      alert("N° lettini non valido (0-3).");
+      return;
+    }
+    if (requestCabin && !assignedCabin && cabinError) {
+      alert(`Impossibile salvare: ${cabinError}`);
+      return;
+    }
+    if (requestCabin && !assignedCabin && !cabinError) {
+      alert("Attendere assegnazione cabina o deselezionare.");
+      return;
+    }
+    if (umbrellaConflictError) {
+      alert("Impossibile salvare: " + umbrellaConflictError);
       return;
     }
 
-    const payload = {
-      nom: formData.nom,
-      prenom: formData.prenom || "", // Assurer une chaîne vide si non fourni
-      startDate: selectedDate,
-      endDate: formData.endDate,
-      condition: formData.condition,
-      cellCode: selectedResBase,
-    };
+    setIsSaving(true);
+
+    const isSplitting =
+      showSingleDayOptions &&
+      singleDayCondition &&
+      singleDayCondition !== formData.condition;
+    const currentResId = selectedOriginal?.id;
 
     try {
-      if (selectedOriginal) {
-        await updateDoc(doc(db, "reservations", selectedOriginal.id), payload);
+      // --- CAS 1: SPLIT ---
+      if (isSplitting && currentResId) {
+        console.log(
+          `Tentativo di split per ${selectedResBase} il ${selectedDate}`
+        );
+        let targetDaySerialNumber = null;
+        let afterSerialNumber = null;
+
+        targetDaySerialNumber = await getNextSerialNumber();
+        if (selectedOriginal.endDate > selectedDate) {
+          afterSerialNumber = await getNextSerialNumber();
+        }
+
+        const newReservationsForState = [];
+        const updatesToOriginalForState = { deleted: false, endDate: null };
+
+        await runTransaction(db, async (transaction) => {
+          const originalDocRef = doc(db, "reservations", currentResId);
+          const originalDoc = await transaction.get(originalDocRef);
+          if (!originalDoc.exists())
+            throw new Error("Prenotazione originale non trovata.");
+          const originalData = originalDoc.data();
+
+          // 1. Créer résa jour cible
+          const targetDayData = {
+            ...originalData,
+            nom: formData.nom,
+            prenom: formData.prenom || "",
+            numBeds: formData.numBeds,
+            registiPoltrona: formData.registiPoltrona || "",
+            cabina: requestCabin ? assignedCabin : null,
+            startDate: selectedDate, // Date cliquée
+            endDate: selectedDate, // Date cliquée
+            condition: singleDayCondition, // Nouvelle condition
+            serialNumber: targetDaySerialNumber,
+            cellCode: selectedResBase,
+            createdAt: originalData.createdAt || serverTimestamp(),
+            modifiedAt: serverTimestamp(),
+          };
+          delete targetDayData.id;
+          const targetDayDocRef = doc(collection(db, "reservations"));
+          transaction.set(targetDayDocRef, targetDayData);
+          newReservationsForState.push({
+            id: targetDayDocRef.id,
+            ...targetDayData,
+          });
+          console.log(
+            "Split: Creata prenotazione giorno target",
+            targetDaySerialNumber
+          );
+
+          // 2. Gérer période AVANT
+          if (originalData.startDate < selectedDate) {
+            const newEndDate = addDays(selectedDate, -1);
+            if (!newEndDate)
+              throw new Error("Errore calcolo data fine 'avant'.");
+            transaction.update(originalDocRef, {
+              endDate: newEndDate,
+              modifiedAt: serverTimestamp(),
+            });
+            updatesToOriginalForState.endDate = newEndDate;
+            console.log(
+              "Split: Aggiornata originale (prima)",
+              originalData.serialNumber,
+              "nuova fine:",
+              newEndDate
+            );
+          } else {
+            updatesToOriginalForState.endDate = null; // Pas de période avant à garder
+            console.log("Split: Giorno target è startDate originale.");
+          }
+
+          // 3. Gérer période APRÈS
+          if (originalData.endDate > selectedDate) {
+            if (!afterSerialNumber)
+              throw new Error("SN mancante per periodo 'dopo'.");
+            const newStartDate = addDays(selectedDate, 1);
+            if (!newStartDate)
+              throw new Error("Errore calcolo data inizio 'après'.");
+            const afterData = {
+              ...originalData,
+              startDate: newStartDate,
+              endDate: originalData.endDate,
+              serialNumber: afterSerialNumber,
+              cellCode: selectedResBase,
+              createdAt: originalData.createdAt || serverTimestamp(),
+              modifiedAt: serverTimestamp(),
+            };
+            delete afterData.id;
+            const afterDocRef = doc(collection(db, "reservations"));
+            transaction.set(afterDocRef, afterData);
+            newReservationsForState.push({ id: afterDocRef.id, ...afterData });
+            console.log(
+              "Split: Creata prenotazione periodo dopo",
+              afterData.serialNumber,
+              "inizio:",
+              newStartDate
+            );
+          } else {
+            console.log("Split: Giorno target è endDate originale.");
+          }
+
+          // 4. Supprimer l'originale si elle n'a plus de période avant valide
+          if (!updatesToOriginalForState.endDate) {
+            transaction.delete(originalDocRef);
+            updatesToOriginalForState.deleted = true;
+            console.log(
+              "Split: Prenotazione originale eliminata.",
+              originalData.serialNumber
+            );
+          }
+        }); // --- Fin Transaction ---
+
+        // --- MàJ État Local ---
+        setAllReservations((prev) => {
+          let newState = [...prev];
+          if (updatesToOriginalForState.deleted) {
+            newState = newState.filter((res) => res.id !== currentResId);
+          } else if (updatesToOriginalForState.endDate) {
+            newState = newState.map((res) =>
+              res.id === currentResId
+                ? {
+                    ...res,
+                    endDate: updatesToOriginalForState.endDate,
+                    modifiedAt: new Date(),
+                  }
+                : res
+            );
+          }
+          newState = [
+            ...newState,
+            ...newReservationsForState.map((nr) => ({
+              ...nr,
+              createdAt: nr.createdAt?.toDate
+                ? nr.createdAt.toDate()
+                : new Date(),
+              modifiedAt: new Date(),
+            })),
+          ];
+          const finalEvents = processReservationsToEvents(newState); // Recalculer les événements
+          setProcessedEvents(finalEvents); // Mettre à jour les événements affichés
+          return newState; // Retourner le nouvel état des réservations brutes
+        });
+        console.log("Split completato.");
+
+        // --- CAS 2: SAUVEGARDE NORMALE (Add / Update global) ---
       } else {
-        await addDoc(collection(db, "reservations"), payload);
+        const payload = {
+          nom: formData.nom,
+          prenom: formData.prenom || "",
+          startDate: formData.startDate, // Utiliser les dates du formulaire
+          endDate: formData.endDate,
+          condition: formData.condition,
+          cellCode: selectedResBase,
+          numBeds: formData.numBeds,
+          registiPoltrona: formData.registiPoltrona || "",
+          cabina: requestCabin ? assignedCabin : null,
+          modifiedAt: serverTimestamp(),
+        };
+
+        let updatedReservations;
+        if (currentResId) {
+          // Mise à jour globale
+          payload.serialNumber = formData.serialNumber; // Conserver SN
+          await updateDoc(doc(db, "reservations", currentResId), payload);
+          console.log("Prenotazione aggiornata:", currentResId);
+          // Mettre à jour l'état local
+          updatedReservations = allReservations.map((res) =>
+            res.id === currentResId
+              ? { ...res, ...payload, modifiedAt: new Date() }
+              : res
+          );
+        } else {
+          // Nouvelle réservation
+          payload.serialNumber = await getNextSerialNumber();
+          payload.createdAt = serverTimestamp();
+          const docRef = await addDoc(collection(db, "reservations"), payload);
+          payload.id = docRef.id; // Ajouter l'ID pour la mise à jour de l'état local
+          console.log(
+            "Nuova prenotazione creata:",
+            payload.id,
+            "SN:",
+            payload.serialNumber
+          );
+          // Mettre à jour l'état local
+          updatedReservations = [
+            ...allReservations,
+            {
+              ...payload,
+              id: docRef.id,
+              createdAt: new Date(),
+              modifiedAt: new Date(),
+            },
+          ];
+        }
+        setAllReservations(updatedReservations);
+        const finalEvents = processReservationsToEvents(updatedReservations); // Recalculer les événements
+        setProcessedEvents(finalEvents); // Mettre à jour les événements affichés
       }
 
-      // Recharger les données après sauvegarde
-      const snap = await getDocs(collection(db, "reservations"));
-      const alls = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      setAllReservations(alls);
-      const evts = processReservationsToEvents(alls);
-      setProcessedEvents(evts);
-      resetForm();
+      resetForm(); // Fermer et réinitialiser le dialogue
     } catch (error) {
-      console.error("Erreur lors de la sauvegarde:", error);
-      alert("Une erreur est survenue lors de la sauvegarde.");
+      console.error("Errore durante la sauvegarde:", error);
+      alert(`Errore durante la sauvegarde: ${error.message}`);
+    } finally {
+      setIsSaving(false);
     }
   };
 
+  // --- Suppression ---
   const handleDelete = async () => {
     if (
       window.confirm(
@@ -249,86 +715,78 @@ export default function StickyCalendarTest() {
       ) &&
       selectedOriginal
     ) {
+      setIsSaving(true);
       try {
         await deleteDoc(doc(db, "reservations", selectedOriginal.id));
-
-        // Recharger les données après suppression
-        const snap = await getDocs(collection(db, "reservations"));
-        const alls = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-        setAllReservations(alls);
-        const evts = processReservationsToEvents(alls);
-        setProcessedEvents(evts);
+        console.log("Prenotazione eliminata:", selectedOriginal.id);
+        // Mettre à jour l'état local
+        const updatedReservations = allReservations.filter(
+          (res) => res.id !== selectedOriginal.id
+        );
+        setAllReservations(updatedReservations);
+        const finalEvents = processReservationsToEvents(updatedReservations); // Recalculer les événements
+        setProcessedEvents(finalEvents); // Mettre à jour les événements affichés
         resetForm();
       } catch (error) {
-        console.error("Erreur lors de la suppression:", error);
-        alert("Une erreur est survenue lors de la suppression.");
+        console.error("Errore durante la suppression:", error);
+        alert(`Errore durante la suppression: ${error.message}`);
+      } finally {
+        setIsSaving(false);
       }
     }
   };
 
-  // --- Fin du code ajouté depuis BeachPlanPeriod ---
-
-  const theme = useTheme(); // Récupérer le thème
+  // --- Thème et Rendu ---
+  const theme = useTheme();
 
   return (
-    // Le Box principal n'écoute plus le double clic
     <Box sx={{ height: "90vh", overflow: "auto", border: "1px solid #ccc" }}>
-      {/*
       <Box
         sx={{
-          height: "50px",
-          backgroundColor: theme.palette.background.paper, // Utiliser la couleur du thème
-          position: "sticky",
-          top: 0,
-          zIndex: 1200, // zIndex élevé pour être au-dessus du calendrier
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          borderBottom: "1px solid #ccc",
-        }}
-      >
-        Sticky Search Bar
-      </Box>
-      */}
-      {/* Ce Box contient le calendrier et gère les styles sticky/scroll */}
-      <Box
-        sx={{
-          // --- Styles pour rendre les en-têtes de la GRILLE sticky ---
-          // Cibler la ligne (TR) qui contient les en-têtes de la grille
           "& .fc-scrollgrid-section-sticky": {
             position: "sticky",
-            top: 0, // Coller en haut du conteneur scrollable principal
+            top: 0,
             zIndex: 1090,
+            backgroundColor: theme.palette.background.paper, // Fond pour sticky header
           },
-          // Appliquer le fond aux cellules TH et corriger l'overflow (nécessaire pour sticky)
           "& .fc-scrollgrid-section-sticky > th": {
-            backgroundColor: theme.palette.background.paper,
-            overflow: "visible !important", // Correctif overflow pour sticky
+            // Cibler les TH directement
+            backgroundColor: theme.palette.background.paper, // Assurer le fond
+            overflow: "visible !important",
           },
-          // --- Styles pour assurer le scroll horizontal DANS LE CORPS ---
-          // (Garder ces styles)
           "& .fc-scrollgrid-section-body .fc-scroller, & .fc-scrollgrid-section-body .fc-scroller-harness":
             {
-              // Correction: il manquait une accolade ouvrante ici
-              overflow: "auto hidden !important", // Force X:auto et Y:hidden
+              overflow: "auto hidden !important",
             },
+          // Style pour le titre de la ressource (Ombrelli)
+          "& .fc-col-header-cell.fc-resource": {
+            position: "sticky",
+            left: 0,
+            zIndex: 1091, // Au dessus des headers de date
+            backgroundColor: theme.palette.background.paper,
+          },
+          // Style pour les cellules de ressources dans le corps
+          "& .fc-datagrid-cell.fc-resource": {
+            position: "sticky",
+            left: 0,
+            zIndex: 1089, // En dessous des headers
+            backgroundColor: theme.palette.background.paper,
+            borderRight: `1px solid ${theme.palette.divider}`, // Ligne de séparation
+          },
         }}
-        // onDoubleClick={handleDoubleClick} // Suppression du gestionnaire double clic
       >
         <FullCalendar
-          // ref={calendarRef} // Suppression de la ref
-          plugins={[dayGridPlugin, resourceTimelinePlugin, interactionPlugin]} // Ajout interactionPlugin
-          headerToolbar={false} // Supprimer la barre d'outils par défaut
-          initialView="resourceTimeline" // Utiliser la vue timeline générique
-          // duration={{ weeks: 4 }}        // On utilise visibleRange à la place
-          visibleRange={{ start: "2025-05-01", end: "2025-12-02" }} // Plage du 01/05 au 01/12 inclus (gardé)
-          resources={resources} // Passez bien les ressources comme ceci // --- Rétablissement des props d'interaction simple clic ---
-          events={processedEvents} // Utiliser les événements traités depuis Firebase
-          selectable={true} // Permettre la sélection de dates/cellules
-          select={handleDateSelect} // Gérer la sélection
-          eventClick={handleEventClick} // Gérer le clic sur événement
-          initialDate="2025-05-01" // Commencer la vue au début de la plage
-          locale={itLocale} // Utiliser la locale italienne
+          plugins={[dayGridPlugin, resourceTimelinePlugin, interactionPlugin]}
+          headerToolbar={false}
+          initialView="resourceTimeline"
+          visibleRange={{ start: "2025-04-01", end: "2025-12-02" }}
+          resources={resources}
+          events={processedEvents}
+          selectable={true}
+          select={handleDateSelect}
+          eventClick={handleEventClick}
+          initialDate="2025-04-01"
+          locale={itLocale}
           resourceAreaHeaderContent="Ombrelli"
           slotDuration={{ days: 1 }}
           slotLabelFormat={{
@@ -337,21 +795,34 @@ export default function StickyCalendarTest() {
             month: "numeric",
             omitCommas: true,
           }}
-          displayEventTime={false} // Ne pas afficher l'heure sur les événements
-          height="auto" // Laisser FullCalendar gérer sa hauteur interne
+          displayEventTime={false}
+          height="auto"
+          resourceAreaWidth="100px" // Ajuster si nécessaire
         />
       </Box>
 
-      {/* --- Début Dialog JSX ajouté --- */}
+      {/* --- Dialogue --- */}
       <Dialog open={open} onClose={resetForm} fullWidth maxWidth="xs">
         <DialogTitle>
           {selectedOriginal
             ? `Modifica Prenotazione (${selectedResBase})`
-            : `Nuova Prenotazione (${selectedResBase} - ${selectedDate})`}
+            : `Nuova Prenotazione (${selectedResBase} - ${formatDateForDisplay(
+                formData.startDate
+              )})`}
         </DialogTitle>
         <DialogContent>
+          {/* Numéro de série */}
           <TextField
+            margin="dense"
+            label="N° Prenotazione"
+            value={formData.serialNumber || (isNew ? "(Nuova)" : "N/A")}
+            InputProps={{ readOnly: true }}
+            variant="filled"
+            size="small"
             fullWidth
+          />
+          {/* Cognome */}
+          <TextField
             margin="dense"
             label="Cognome"
             value={formData.nom}
@@ -362,9 +833,10 @@ export default function StickyCalendarTest() {
               })
             }
             required
-          />
-          <TextField
             fullWidth
+          />
+          {/* Nome */}
+          <TextField
             margin="dense"
             label="Nome"
             value={formData.prenom}
@@ -374,18 +846,30 @@ export default function StickyCalendarTest() {
                 prenom: capitalizeFirstLetter(e.target.value),
               })
             }
-          />
-          <TextField
             fullWidth
+          />
+          {/* Data Inizio */}
+          <TextField
             margin="dense"
             label="Data Inizio"
             type="date"
-            value={selectedDate}
+            value={formData.startDate} // Utiliser formData.startDate
+            onChange={(e) => {
+              const newStartDate = e.target.value;
+              setFormData((prev) => ({
+                ...prev,
+                startDate: newStartDate,
+                // Ajuster endDate si elle devient antérieure à startDate
+                endDate:
+                  prev.endDate < newStartDate ? newStartDate : prev.endDate,
+              }));
+            }}
             InputLabelProps={{ shrink: true }}
-            disabled // La date de début est déterminée par la sélection
-          />
-          <TextField
+            required
             fullWidth
+          />
+          {/* Data Fine */}
+          <TextField
             margin="dense"
             label="Data Fine"
             type="date"
@@ -394,9 +878,64 @@ export default function StickyCalendarTest() {
               setFormData({ ...formData, endDate: e.target.value })
             }
             InputLabelProps={{ shrink: true }}
-            inputProps={{ min: selectedDate }} // La date de fin ne peut pas être avant le début
+            inputProps={{ min: formData.startDate }} // Min basé sur formData.startDate
             required
+            fullWidth
           />
+          {/* Lits */}
+          <TextField
+            margin="dense"
+            label="N° lettini (0-3)"
+            type="number"
+            value={formData.numBeds ?? ""}
+            onChange={(e) => {
+              const val =
+                e.target.value === "" ? "" : parseInt(e.target.value, 10);
+              setFormData({
+                ...formData,
+                numBeds: isNaN(val) ? "" : Math.min(Math.max(val, 0), 3),
+              });
+            }}
+            inputProps={{ min: 0, max: 3, step: 1 }}
+            required
+            fullWidth
+          />
+          {/* Extra */}
+          <TextField
+            margin="dense"
+            label="+ Regista (R) / Poltrona (P)"
+            value={formData.registiPoltrona || ""}
+            onChange={(e) => {
+              const upperValue = e.target.value.toUpperCase();
+              setFormData({
+                ...formData,
+                registiPoltrona: ["R", "P", ""].includes(upperValue)
+                  ? upperValue
+                  : formData.registiPoltrona,
+              });
+            }}
+            inputProps={{ maxLength: 1 }}
+            placeholder="R / P"
+            fullWidth
+          />
+          {/* Cabine */}
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={requestCabin}
+                onChange={(e) => setRequestCabin(e.target.checked)}
+                disabled={isSaving}
+              />
+            }
+            label={`Richiedi Cabina ${
+              assignedCabin
+                ? `(${assignedCabin})`
+                : cabinError
+                ? `(${cabinError})`
+                : ""
+            }`}
+          />
+          {/* Condition */}
           <TextField
             select
             fullWidth
@@ -407,26 +946,95 @@ export default function StickyCalendarTest() {
               setFormData({ ...formData, condition: e.target.value })
             }
             required
+            disabled={isSaving} // Désactiver si sauvegarde en cours
           >
             <MenuItem value="jour entier">Giorno Intero</MenuItem>
             <MenuItem value="matin">Mattina</MenuItem>
             <MenuItem value="apres-midi">Pomeriggio</MenuItem>
           </TextField>
+
+          {/* Erreur Conflit Ombrellone */}
+          {umbrellaConflictError && (
+            <Typography
+              color="error"
+              variant="caption"
+              display="block"
+              sx={{ mt: 1 }}
+            >
+              {umbrellaConflictError}
+            </Typography>
+          )}
+
+          {/* Section Split */}
+          {showSingleDayOptions && (
+            <Box
+              sx={{ border: "1px dashed grey", p: 1.5, mt: 2, borderRadius: 1 }}
+            >
+              <Typography variant="body2" gutterBottom>
+                Modifica solo per il giorno{" "}
+                <strong>{formatDateForDisplay(selectedDate)}</strong>:
+              </Typography>
+              <TextField
+                select
+                fullWidth
+                margin="dense"
+                label="Condizione per questo giorno"
+                value={singleDayCondition}
+                onChange={(e) => setSingleDayCondition(e.target.value)}
+                size="small"
+                disabled={isSaving}
+              >
+                <MenuItem value={formData.condition || "jour entier"}>
+                  -- Mantieni (
+                  {(formData.condition || "jour entier")
+                    .replace("jour entier", "Giorno Intero")
+                    .replace("matin", "Mattina")
+                    .replace("apres-midi", "Pomeriggio")}
+                  ) --
+                </MenuItem>
+                {formData.condition !== "jour entier" && (
+                  <MenuItem value="jour entier">Giorno Intero</MenuItem>
+                )}
+                {formData.condition !== "matin" && (
+                  <MenuItem value="matin">Mattina</MenuItem>
+                )}
+                {formData.condition !== "apres-midi" && (
+                  <MenuItem value="apres-midi">Pomeriggio</MenuItem>
+                )}
+              </TextField>
+              <Typography variant="caption" display="block" sx={{ mt: 0.5 }}>
+                Selezionando una condizione diversa qui, la prenotazione verrà
+                divisa.
+              </Typography>
+            </Box>
+          )}
         </DialogContent>
         <DialogActions>
           {selectedOriginal && (
-            <Button color="error" onClick={handleDelete}>
-              {" "}
-              Cancella{" "}
+            <Button color="error" onClick={handleDelete} disabled={isSaving}>
+              Cancella
             </Button>
           )}
-          <Button onClick={resetForm}>Annulla</Button>
-          <Button onClick={handleSave} variant="contained">
-            {selectedOriginal ? "Modifica" : "Aggiungi"}
+          <Button onClick={resetForm} disabled={isSaving}>
+            Annulla
+          </Button>
+          <Button
+            onClick={handleSave}
+            variant="contained"
+            disabled={
+              isSaving ||
+              !!umbrellaConflictError ||
+              (requestCabin && !assignedCabin && !!cabinError)
+            }
+          >
+            {isSaving
+              ? "Salvataggio..."
+              : selectedOriginal
+              ? "Modifica"
+              : "Aggiungi"}
           </Button>
         </DialogActions>
       </Dialog>
-      {/* --- Fin Dialog JSX ajouté --- */}
     </Box>
   );
 }
