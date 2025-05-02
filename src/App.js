@@ -6,9 +6,8 @@ import ReservationList from "./pages/ReservationListFile/ReservationList";
 import Query from "./pages/QueryFile/Query";
 import CodBarreReader from "./pages/CodBarreReaderFile/CodBarreReader";
 import BeachPlanPeriod from "./pages/BeachPlanPeriodFile/BeachPlanPeriod";
-
+import ChangeExchange from "./pages/ChangeExchangeFile/ChangeExchange";
 import Navbar from "./components/Navbar";
-import StickyCalendarTest from "./StickyCalendarTest";
 
 const App = () => {
   return (
@@ -20,11 +19,10 @@ const App = () => {
           <Route path="/" element={<BeachPlan />} />
           <Route path="/beachplan" element={<BeachPlan />} />
           <Route path="/ReservationList" element={<ReservationList />} />
-
+          <Route path="/changeexchange" element={<ChangeExchange />} />
           <Route path="/codbarrereader" element={<CodBarreReader />} />
           <Route path="/beachplanperiod" element={<BeachPlanPeriod />} />
           <Route path="/query" element={<Query />} />
-          <Route path="StickyCalendarTest" element={<StickyCalendarTest />} />
         </Routes>
       </div>
     </Router>

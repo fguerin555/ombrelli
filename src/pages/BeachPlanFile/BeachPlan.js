@@ -132,7 +132,8 @@ export default function BeachPlan() {
   }, [fetchReservations]);
 
   // --- Gestionnaires d'Événements UI ---
-  const handleDoubleClick = (cellCode) => {
+  const handleDoubleClick = (cellCode, clickedHalf) => {
+    // Ajout de clickedHalf
     setSelectedCellCode(cellCode);
     if (!Array.isArray(allReservations)) {
       console.error(
@@ -159,16 +160,19 @@ export default function BeachPlan() {
       (res) => res.condition === "apres-midi"
     );
 
+    // Logique pour choisir quelle réservation ouvrir en fonction du clic
     let dataForModal = null;
-    if (fullDayRes) dataForModal = fullDayRes;
-    else if (morningRes) dataForModal = morningRes;
-    else if (afternoonRes) dataForModal = afternoonRes;
-    else if (reservationsForCellOnDate.length > 0) {
-      console.warn(
-        `AVERTISSEMENT: Réservation(s) trouvée(s) pour ${cellCode} mais condition non standard. Utilisation de la première.`
-      );
-      dataForModal = reservationsForCellOnDate[0];
+    if (clickedHalf === "matin") {
+      dataForModal = morningRes || fullDayRes; // Priorité matin, sinon jour entier
+    } else if (clickedHalf === "apres-midi") {
+      dataForModal = afternoonRes || fullDayRes; // Priorité après-midi, sinon jour entier
     } else {
+      // Fallback si clickedHalf n'est pas défini (ne devrait pas arriver)
+      dataForModal = fullDayRes || morningRes || afternoonRes;
+    }
+
+    // Si aucune réservation existante trouvée pour la moitié cliquée, préparer une nouvelle
+    if (!dataForModal) {
       dataForModal = {
         nom: "",
         prenom: "",
@@ -176,15 +180,24 @@ export default function BeachPlan() {
         registiPoltrona: "",
         startDate: selectedDate,
         endDate: selectedDate,
-        condition: "jour entier",
+        // Pré-remplir la condition en fonction de la moitié cliquée
+        condition:
+          clickedHalf === "matin"
+            ? "matin"
+            : clickedHalf === "apres-midi"
+            ? "apres-midi"
+            : "jour entier",
         serialNumber: null,
         id: null,
         cabina: null,
       };
     }
+
+    // Assurer que cabina est null et non undefined
     if (dataForModal && dataForModal.cabina === undefined) {
       dataForModal.cabina = null;
     }
+
     if (dataForModal) {
       setCurrentReservationData(dataForModal);
       setIsModalOpen(true);
@@ -585,39 +598,55 @@ export default function BeachPlan() {
                   selectedDate >= res.startDate &&
                   selectedDate <= res.endDate
               );
-              const isMorning = reservationsForCellOnDate.some(
-                (res) =>
-                  res.condition === "matin" || res.condition === "jour entier"
+
+              // Trouver les réservations spécifiques pour ce jour/cellule
+              const fullDayRes = reservationsForCellOnDate.find(
+                (res) => res.condition === "jour entier"
               );
-              const isAfternoon = reservationsForCellOnDate.some(
-                (res) =>
-                  res.condition === "apres-midi" ||
-                  res.condition === "jour entier"
+              const morningRes = reservationsForCellOnDate.find(
+                (res) => res.condition === "matin"
+              );
+              const afternoonRes = reservationsForCellOnDate.find(
+                (res) => res.condition === "apres-midi"
               );
 
+              // Déterminer les classes CSS pour chaque moitié
               let morningClass = styles.colorEmpty;
               let afternoonClass = styles.colorEmpty;
 
-              if (isMorning && isAfternoon) {
+              if (fullDayRes) {
+                // Si jour entier, les deux moitiés sont rouges
                 morningClass = styles.colorJourEntier;
                 afternoonClass = styles.colorJourEntier;
-              } else if (isMorning) {
-                morningClass = styles.colorMatin;
-              } else if (isAfternoon) {
-                afternoonClass = styles.colorApresMidi;
+              } else {
+                // Sinon, vérifier chaque moitié indépendamment
+                if (morningRes) {
+                  morningClass = styles.colorMatin; // Bleu
+                }
+                if (afternoonRes) {
+                  afternoonClass = styles.colorApresMidi; // Orange
+                }
               }
 
               return (
                 <div
                   key={code}
                   className={styles.cell}
-                  onDoubleClick={() => handleDoubleClick(code)}
                   title={`Ombrellone ${code}`}
                 >
-                  <div className={`${styles.cellHalf} ${morningClass}`}>
-                    {code}
+                  {/* Moitié Matin (supérieure) */}
+                  <div
+                    className={`${styles.cellHalf} ${morningClass}`}
+                    onDoubleClick={() => handleDoubleClick(code, "matin")}
+                  >
+                    {code}{" "}
+                    {/* Afficher le code seulement dans la partie supérieure */}
                   </div>
-                  <div className={`${styles.cellHalf} ${afternoonClass}`}></div>
+                  {/* Moitié Après-midi (inférieure) */}
+                  <div
+                    className={`${styles.cellHalf} ${afternoonClass}`}
+                    onDoubleClick={() => handleDoubleClick(code, "apres-midi")}
+                  ></div>
                 </div>
               );
             })}

@@ -16,12 +16,11 @@ const Navbar = () => {
         <li>
           <Link to="/beachplanperiod">Beach Plan Period</Link>
         </li>
-
         <li>
-          <Link to="/codbarrereader">QRcode Reader</Link>
+          <Link to="/changeexchange">Change / Exchange</Link>
         </li>
         <li>
-          <Link to="/stickycalendartest">StickyCalendarTest</Link>
+          <Link to="/codbarrereader">QRcode Reader</Link>
         </li>
       </ul>
     </nav>

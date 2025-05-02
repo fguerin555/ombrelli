@@ -1,22 +1,23 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import FullCalendar from "@fullcalendar/react";
+import dayGridPlugin from "@fullcalendar/daygrid";
 import resourceTimelinePlugin from "@fullcalendar/resource-timeline";
 import interactionPlugin from "@fullcalendar/interaction";
-import dayGridPlugin from "@fullcalendar/daygrid";
 import itLocale from "@fullcalendar/core/locales/it";
 import {
+  Box,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
   Button,
   TextField,
-  Box,
-  Typography,
   MenuItem,
-  useTheme,
-  useMediaQuery,
+  Checkbox, // Ajout pour la cabine
+  FormControlLabel, // Ajout pour la cabine
+  Typography, // Ajout pour le split
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import {
   collection,
   getDocs,
@@ -24,83 +25,119 @@ import {
   deleteDoc,
   updateDoc,
   doc,
+  runTransaction, // Ajout pour le numéro de série et le split
+  serverTimestamp, // Ajout pour les dates de création/modif
 } from "firebase/firestore";
 import { db } from "../../firebase";
-import ScrollButtons from "../../components/ScrollButtons";
 
-// Utilitaires
-const capitalizeFirstLetter = (s) =>
-  s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : "";
-const getColorForCondition = (cond) =>
-  ({ "jour entier": "#e57373", matin: "#64b5f6", "apres-midi": "#ffb74d" }[
-    cond
-  ] || "#9e9e9e");
-const addDays = (dateStr, days) => {
-  const d = new Date(dateStr);
-  d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
-};
-const datesOverlap = (s1, e1, s2, e2) => {
-  const a = new Date(s1),
-    b = new Date(e1),
-    c = new Date(s2),
-    d = new Date(e2);
-  return a <= d && b >= c;
-};
-
-const INITIAL_CALENDAR_DATE = "2025-04-01";
+// --- Constantes copiées ---
+const VALID_CABINS = "ABCDEFGHIJKLMNOPQRSTUWXYZ".split("");
 
 export default function BeachPlanPeriod() {
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
-  const searchBarRef = useRef(null);
-  // const scrollButtonsRef = useRef(null); // Supprimé  // const [scrollButtonsHeight, setScrollButtonsHeight] = useState(0); // Supprimé
-  const calendarRef = useRef(null);
+  // Utilisation de useMemo pour mémoriser 'resources'
+  const resources = useMemo(() => {
+    const resourcesArray = [];
+    const letters = ["A", "B", "C", "D"];
+    letters.forEach((letter) => {
+      for (let i = 1; i <= 36; i++) {
+        const num = i.toString().padStart(2, "0");
+        const id = `${letter}${num}`;
+        resourcesArray.push({ id, title: id });
+        resourcesArray.push({ id: `${id}_M`, parentId: id, title: "Mattina" });
+        resourcesArray.push({
+          id: `${id}_P`,
+          parentId: id,
+          title: "Pomeriggio",
+        });
+      }
+    });
+    return resourcesArray;
+  }, []);
 
-  // Données
+  // --- Utilitaires ---
+  const capitalizeFirstLetter = (s) =>
+    s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : "";
+  const getColorForCondition = (cond) =>
+    ({
+      "jour entier": "#e57373", // Rouge
+      matin: "#64b5f6", // Bleu
+      "apres-midi": "#ffb74d", // Orange
+    }[cond] || "#9e9e9e");
+  const addDays = (dateStr, days) => {
+    if (!dateStr) return null;
+    try {
+      const d = new Date(dateStr);
+      d.setDate(d.getDate() + days);
+      return d.toISOString().slice(0, 10);
+    } catch (e) {
+      return null;
+    }
+  };
+  const datesOverlap = (s1, e1, s2, e2) => {
+    if (!s1 || !e1 || !s2 || !e2) return false;
+    return s1 <= e2 && e1 >= s2; // Comparaison directe des chaînes YYYY-MM-DD
+  };
+  const formatDateForDisplay = (dateStr) => {
+    if (!dateStr) return "";
+    try {
+      const [year, month, day] = dateStr.split("-");
+      return `${day}/${month}/${year}`;
+    } catch (e) {
+      return dateStr;
+    }
+  };
+
+  // --- États ---
   const [allReservations, setAllReservations] = useState([]);
   const [processedEvents, setProcessedEvents] = useState([]);
-  const [filteredEvents, setFilteredEvents] = useState([]);
-
-  // Formulaire & sélection
-  const [queryStartDate, setQueryStartDate] = useState("");
-  const [queryEndDate, setQueryEndDate] = useState("");
   const [open, setOpen] = useState(false);
   const [formData, setFormData] = useState({
     nom: "",
     prenom: "",
     endDate: "",
     condition: "jour entier",
+    numBeds: 2,
+    registiPoltrona: "",
+    serialNumber: null,
+    id: null,
+    startDate: "", // Ajouté pour la logique de cabine
   });
   const [selectedResBase, setSelectedResBase] = useState("");
-  const [selectedDate, setSelectedDate] = useState("");
+  const [selectedDate, setSelectedDate] = useState(""); // Date cliquée/sélectionnée
   const [selectedOriginal, setSelectedOriginal] = useState(null);
+  const [requestCabin, setRequestCabin] = useState(false);
+  const [assignedCabin, setAssignedCabin] = useState("");
+  const [cabinError, setCabinError] = useState("");
+  const [showSingleDayOptions, setShowSingleDayOptions] = useState(false);
+  const [singleDayCondition, setSingleDayCondition] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [isNew, setIsNew] = useState(true);
+  const [umbrellaConflictError, setUmbrellaConflictError] = useState(""); // Ajout état conflit ombrellone
 
-  // Récupère resources génériques (A01..D36 -> M,P)
-  const generateResources = () => {
-    const letters = ["A", "B", "C", "D"];
-    const res = [];
-    letters.forEach((l) => {
-      for (let i = 1; i <= 36; i++) {
-        const num = i.toString().padStart(2, "0");
-        const base = `${l}${num}`;
-        res.push({ id: base, title: base });
-        res.push({ id: `${base}_M`, parentId: base, title: "Mattina" });
-        res.push({ id: `${base}_P`, parentId: base, title: "Pomer." });
-      }
-    });
-    return res;
-  };
-
-  // Process reservations
+  // --- Traitement des réservations pour FullCalendar ---
   const processReservationsToEvents = useCallback((reservations) => {
     const evts = [];
     reservations.forEach((item) => {
-      const { id, startDate, endDate, nom, prenom, condition, cellCode } = item;
+      const {
+        id,
+        startDate,
+        endDate,
+        nom,
+        prenom,
+        condition,
+        cellCode,
+        cabina,
+      } = item;
       if (!startDate || !cellCode) return;
-      const endValid = endDate >= startDate ? endDate : startDate;
+      const endValid = endDate && endDate >= startDate ? endDate : startDate;
       const endCal = addDays(endValid, 1);
-      const title = prenom ? `${nom} ${prenom}` : nom || "Sans nom";
+      const bedsText = item.numBeds !== undefined ? `(${item.numBeds}L` : "";
+      const extraText = item.registiPoltrona ? `+${item.registiPoltrona}` : "";
+      const cabinText = cabina ? `C${cabina}` : ""; // ajout du texte pour la cabine
+      const title =
+        `${nom || ""} ${prenom || ""} ${bedsText}${extraText}${
+          bedsText ? ")" : ""
+        }${cabinText}`.trim() || "N/A"; // Ajout de cabinText au titre
       const common = {
         extendedProps: { originalId: id },
         start: startDate,
@@ -120,308 +157,637 @@ export default function BeachPlanPeriod() {
     return evts;
   }, []);
 
-  // Chargement initial
+  // --- Génération Numéro de Série ---
+  const counterDocRef = doc(db, "counters", "reservationCounter");
+  const getNextSerialNumber = useCallback(async () => {
+    const yearPrefix = new Date().getFullYear().toString().slice(-2);
+    try {
+      let nextNumber = 1;
+      await runTransaction(db, async (transaction) => {
+        const counterDoc = await transaction.get(counterDocRef);
+        if (!counterDoc.exists()) {
+          nextNumber = 1;
+          transaction.set(counterDocRef, { lastNumber: 1 });
+        } else {
+          const lastNumber = counterDoc.data().lastNumber;
+          if (typeof lastNumber !== "number" || isNaN(lastNumber)) {
+            nextNumber = 1;
+            transaction.set(counterDocRef, { lastNumber: 1 });
+          } else {
+            nextNumber = lastNumber + 1;
+            transaction.update(counterDocRef, { lastNumber: nextNumber });
+          }
+        }
+      });
+      return `${yearPrefix}${nextNumber.toString().padStart(5, "0")}`;
+    } catch (error) {
+      console.error("Erreur génération SN:", error);
+      throw new Error("Impossible de générer le numéro de série.");
+    }
+  }, [counterDocRef]); // Ajout de counterDocRef aux dependances
+
+  // --- Chargement Initial ---
   useEffect(() => {
     (async () => {
-      const snap = await getDocs(collection(db, "reservations"));
-      const alls = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      setAllReservations(alls);
-      const evts = processReservationsToEvents(alls);
-      setProcessedEvents(evts);
-      setFilteredEvents(evts);
+      try {
+        const snap = await getDocs(collection(db, "reservations"));
+        const alls = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        setAllReservations(alls);
+        const evts = processReservationsToEvents(alls);
+        setProcessedEvents(evts);
+      } catch (error) {
+        console.error("Erreur de chargement des réservations:", error);
+      }
     })();
-  }, [processReservationsToEvents]);
+  }, [processReservationsToEvents]); // Re-run si processReservationsToEvents change (ne devrait pas)
 
-  // Recherche
-  const handleSearch = () => {
-    if (!queryStartDate || !queryEndDate) {
-      setFilteredEvents(processedEvents);
-      return;
-    }
-    const relevant = new Set(
-      allReservations
-        .filter((r) =>
-          datesOverlap(r.startDate, r.endDate, queryStartDate, queryEndDate)
+  // --- Logique Cabine ---
+  const findNextAvailableCabin = useCallback(
+    (startDate, endDate, currentResId) => {
+      if (!startDate || !endDate || !Array.isArray(allReservations))
+        return null;
+      const conflictingCabins = allReservations
+        .filter(
+          (res) =>
+            res.cabina &&
+            res.id !== currentResId &&
+            datesOverlap(startDate, endDate, res.startDate, res.endDate)
         )
-        .map((r) => r.id)
-    );
-    setFilteredEvents(
-      processedEvents.filter((e) => relevant.has(e.extendedProps.originalId))
-    );
-    if (calendarRef.current && !isMobile) {
-      calendarRef.current.getApi().gotoDate(queryStartDate);
-    }
-  };
+        .map((res) => res.cabina);
+      const uniqueConflictingCabins = [...new Set(conflictingCabins)];
+      for (const cabin of VALID_CABINS) {
+        if (!uniqueConflictingCabins.includes(cabin)) return cabin;
+      }
+      return null;
+    },
+    [allReservations]
+  );
 
-  // Form interactions
+  // --- Gestionnaires d'Événements FullCalendar ---
   const handleDateSelect = (info) => {
     if (!info.resource?.id.match(/_(M|P)$/)) return;
+    const clickedDateStr = info.startStr;
     setSelectedResBase(info.resource.id.split("_")[0]);
-    setSelectedDate(info.startStr);
+    setSelectedDate(clickedDateStr); // Date cliquée
     setFormData({
       nom: "",
       prenom: "",
-      endDate: info.startStr,
+      startDate: clickedDateStr, // Date de début = date cliquée
+      endDate: clickedDateStr,
       condition: info.resource.id.endsWith("_M") ? "matin" : "apres-midi",
+      numBeds: 2,
+      registiPoltrona: "",
+      serialNumber: null,
+      id: null,
     });
     setSelectedOriginal(null);
+    setIsNew(true);
+    setRequestCabin(false);
+    setAssignedCabin("");
+    setCabinError("");
+    setUmbrellaConflictError("");
+    setShowSingleDayOptions(false);
+    setSingleDayCondition("");
     setOpen(true);
   };
+
   const handleEventClick = (info) => {
     const orig = allReservations.find(
       (r) => r.id === info.event.extendedProps.originalId
     );
     if (orig) {
+      const clickedDateStr = info.event.startStr; // Date de début de l'événement FC cliqué
       setSelectedOriginal(orig);
-      setFormData({
-        nom: orig.nom,
-        prenom: orig.prenom,
-        endDate: orig.endDate,
-        condition: orig.condition,
-      });
       setSelectedResBase(orig.cellCode);
-      setSelectedDate(orig.startDate);
+      setSelectedDate(clickedDateStr); // Date cliquée (pour la logique split)
+      setFormData({
+        nom: orig.nom || "",
+        prenom: orig.prenom || "",
+        startDate: orig.startDate, // Dates originales de la réservation
+        endDate: orig.endDate || orig.startDate,
+        condition: orig.condition || "jour entier",
+        numBeds: orig.numBeds === undefined ? 2 : orig.numBeds,
+        registiPoltrona: orig.registiPoltrona || "",
+        serialNumber: orig.serialNumber || null,
+        id: orig.id,
+      });
+      setIsNew(false);
+      setRequestCabin(!!orig.cabina);
+      setAssignedCabin(orig.cabina || "");
+      setCabinError("");
+      setUmbrellaConflictError("");
+
+      const isMultiDay = orig.startDate !== (orig.endDate || orig.startDate);
+      const isClickedDateWithinRange =
+        clickedDateStr >= orig.startDate &&
+        clickedDateStr <= (orig.endDate || orig.startDate);
+      const shouldShowSplit = !isNew && isMultiDay && isClickedDateWithinRange;
+
+      setShowSingleDayOptions(shouldShowSplit);
+      setSingleDayCondition(
+        shouldShowSplit ? orig.condition || "jour entier" : ""
+      );
+
       setOpen(true);
+    } else {
+      console.warn("Original reservation not found for event:", info.event);
     }
   };
+
+  // --- Gestion Formulaire Dialogue ---
   const resetForm = () => {
     setOpen(false);
     setSelectedOriginal(null);
+    setFormData({
+      nom: "",
+      prenom: "",
+      startDate: "",
+      endDate: "",
+      condition: "jour entier",
+      numBeds: 2,
+      registiPoltrona: "",
+      serialNumber: null,
+      id: null,
+    });
+    setRequestCabin(false);
+    setAssignedCabin("");
+    setCabinError("");
+    setUmbrellaConflictError("");
+    setShowSingleDayOptions(false);
+    setSingleDayCondition("");
+    setIsNew(true);
   };
-  const handleSave = async () => {
+
+  // --- useEffect pour la gestion de la Cabine ---
+  useEffect(() => {
+    if (!open) return;
+
+    if (requestCabin) {
+      // Utiliser formData.startDate et formData.endDate qui sont mis à jour par l'utilisateur
+      if (
+        formData.startDate &&
+        formData.endDate &&
+        formData.startDate <= formData.endDate
+      ) {
+        const nextCabin = findNextAvailableCabin(
+          formData.startDate,
+          formData.endDate,
+          formData.id
+        );
+        if (nextCabin) {
+          setAssignedCabin(nextCabin);
+          setCabinError("");
+        } else {
+          setAssignedCabin("");
+          setCabinError("Nessuna cabina disponibile.");
+        }
+      } else {
+        setAssignedCabin("");
+        if (
+          formData.startDate &&
+          formData.endDate &&
+          formData.startDate > formData.endDate
+        ) {
+          setCabinError("Fine prima di inizio.");
+        } else {
+          setCabinError("");
+        }
+      }
+    } else {
+      setAssignedCabin("");
+      setCabinError("");
+    }
+  }, [
+    open,
+    requestCabin,
+    formData.startDate,
+    formData.endDate,
+    formData.id,
+    findNextAvailableCabin,
+  ]);
+
+  // --- useEffect pour la vérification de conflit d'Ombrellone ---
+  useEffect(() => {
+    if (!open) {
+      setUmbrellaConflictError("");
+      return;
+    }
+    setUmbrellaConflictError(""); // Reset
+
     if (
-      !formData.nom ||
-      !selectedDate ||
+      !selectedResBase ||
+      !formData.startDate ||
       !formData.endDate ||
       !formData.condition ||
-      !selectedResBase
+      !Array.isArray(allReservations) ||
+      formData.startDate > formData.endDate
     ) {
-      alert("Champs requis");
       return;
     }
-    const conflict = allReservations.some(
-      (r) =>
-        r.id !== selectedOriginal?.id &&
-        r.cellCode === selectedResBase &&
-        datesOverlap(r.startDate, r.endDate, selectedDate, formData.endDate)
-    );
-    if (conflict) {
-      alert("Conflit");
-      return;
-    }
-    const payload = {
-      nom: formData.nom,
-      prenom: formData.prenom,
-      startDate: selectedDate,
-      endDate: formData.endDate,
-      condition: formData.condition,
-      cellCode: selectedResBase,
-    };
-    if (selectedOriginal) {
-      await updateDoc(doc(db, "reservations", selectedOriginal.id), payload);
+
+    const currentId = formData.id;
+    const currentStart = formData.startDate;
+    const currentEnd = formData.endDate;
+    // Utiliser la condition spécifique du jour si on est en train de splitter
+    const currentCondition =
+      showSingleDayOptions &&
+      singleDayCondition &&
+      singleDayCondition !== formData.condition
+        ? singleDayCondition
+        : formData.condition;
+
+    const conflictingRes = allReservations.find((existingRes) => {
+      if (currentId && existingRes.id === currentId) return false;
+
+      if (
+        existingRes.cellCode === selectedResBase &&
+        datesOverlap(
+          currentStart,
+          currentEnd,
+          existingRes.startDate,
+          existingRes.endDate
+        )
+      ) {
+        const existingCondition = existingRes.condition;
+        if (
+          currentCondition === "jour entier" ||
+          existingCondition === "jour entier" ||
+          currentCondition === existingCondition
+        ) {
+          return true; // Conflit trouvé
+        }
+      }
+      return false;
+    });
+
+    if (conflictingRes) {
+      let existingCondText = conflictingRes.condition
+        .replace("apres-midi", "pomeriggio")
+        .replace("jour entier", "giorno intero");
+      const conflictStart = formatDateForDisplay(conflictingRes.startDate);
+      const conflictEnd = formatDateForDisplay(conflictingRes.endDate);
+      const conflictPeriod =
+        conflictStart === conflictEnd
+          ? `il ${conflictStart}`
+          : `dal ${conflictStart} al ${conflictEnd}`;
+      setUmbrellaConflictError(
+        `Conflitto: Ombrellone ${selectedResBase} già prenotato (${existingCondText}) ${conflictPeriod} (Cliente: ${
+          conflictingRes.nom
+        } ${conflictingRes.prenom}, N° ${
+          conflictingRes.serialNumber || "N/A"
+        }).`
+      );
     } else {
-      await addDoc(collection(db, "reservations"), payload);
+      setUmbrellaConflictError("");
     }
-    // Reload
-    const snap = await getDocs(collection(db, "reservations"));
-    const alls = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    setAllReservations(alls);
-    const evts = processReservationsToEvents(alls);
-    setProcessedEvents(evts);
-    setFilteredEvents(evts);
-    resetForm();
-  };
-  const handleDelete = async () => {
-    if (window.confirm("Confirmer?") && selectedOriginal) {
-      await deleteDoc(doc(db, "reservations", selectedOriginal.id));
-      // Recharger les données après suppression
-      const snap = await getDocs(collection(db, "reservations"));
-      const alls = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      setAllReservations(alls);
-      const evts = processReservationsToEvents(alls);
-      setProcessedEvents(evts);
-      // Appliquer le filtre actuel aux nouvelles données
-      if (!queryStartDate || !queryEndDate) {
-        setFilteredEvents(evts);
+  }, [
+    open,
+    selectedResBase,
+    formData.startDate,
+    formData.endDate,
+    formData.condition, // Condition globale
+    singleDayCondition, // Condition spécifique du jour (pour split)
+    showSingleDayOptions, // Pour savoir si on doit considérer singleDayCondition
+    formData.id,
+    allReservations,
+  ]);
+
+  // --- Sauvegarde ---
+  const handleSave = async () => {
+    // Validations
+    if (!formData.nom) {
+      alert("Cognome obbligatorio.");
+      return;
+    }
+    if (!formData.startDate || !formData.endDate) {
+      alert("Date obbligatorie.");
+      return;
+    }
+    if (formData.endDate < formData.startDate) {
+      alert("Data fine non valida.");
+      return;
+    }
+    if (
+      formData.numBeds === "" ||
+      isNaN(formData.numBeds) ||
+      formData.numBeds < 0 ||
+      formData.numBeds > 3
+    ) {
+      alert("N° lettini non valido (0-3).");
+      return;
+    }
+    if (requestCabin && !assignedCabin && cabinError) {
+      alert(`Impossibile salvare: ${cabinError}`);
+      return;
+    }
+    if (requestCabin && !assignedCabin && !cabinError) {
+      alert("Attendere assegnazione cabina o deselezionare.");
+      return;
+    }
+    if (umbrellaConflictError) {
+      alert("Impossibile salvare: " + umbrellaConflictError);
+      return;
+    }
+
+    setIsSaving(true);
+
+    const isSplitting =
+      showSingleDayOptions &&
+      singleDayCondition &&
+      singleDayCondition !== formData.condition;
+    const currentResId = selectedOriginal?.id;
+
+    try {
+      // --- CAS 1: SPLIT ---
+      if (isSplitting && currentResId) {
+        console.log(
+          `Tentativo di split per ${selectedResBase} il ${selectedDate}`
+        );
+        let targetDaySerialNumber = null;
+        let afterSerialNumber = null;
+
+        targetDaySerialNumber = await getNextSerialNumber();
+        if (selectedOriginal.endDate > selectedDate) {
+          afterSerialNumber = await getNextSerialNumber();
+        }
+
+        const newReservationsForState = [];
+        const updatesToOriginalForState = { deleted: false, endDate: null };
+
+        await runTransaction(db, async (transaction) => {
+          const originalDocRef = doc(db, "reservations", currentResId);
+          const originalDoc = await transaction.get(originalDocRef);
+          if (!originalDoc.exists())
+            throw new Error("Prenotazione originale non trovata.");
+          const originalData = originalDoc.data();
+
+          // 1. Créer résa jour cible
+          const targetDayData = {
+            ...originalData,
+            nom: formData.nom,
+            prenom: formData.prenom || "",
+            numBeds: formData.numBeds,
+            registiPoltrona: formData.registiPoltrona || "",
+            cabina: requestCabin ? assignedCabin : null,
+            startDate: selectedDate, // Date cliquée
+            endDate: selectedDate, // Date cliquée
+            condition: singleDayCondition, // Nouvelle condition
+            serialNumber: targetDaySerialNumber,
+            cellCode: selectedResBase,
+            createdAt: originalData.createdAt || serverTimestamp(),
+            modifiedAt: serverTimestamp(),
+          };
+          delete targetDayData.id;
+          const targetDayDocRef = doc(collection(db, "reservations"));
+          transaction.set(targetDayDocRef, targetDayData);
+          newReservationsForState.push({
+            id: targetDayDocRef.id,
+            ...targetDayData,
+          });
+          console.log(
+            "Split: Creata prenotazione giorno target",
+            targetDaySerialNumber
+          );
+
+          // 2. Gérer période AVANT
+          if (originalData.startDate < selectedDate) {
+            const newEndDate = addDays(selectedDate, -1);
+            if (!newEndDate)
+              throw new Error("Errore calcolo data fine 'avant'.");
+            transaction.update(originalDocRef, {
+              endDate: newEndDate,
+              modifiedAt: serverTimestamp(),
+            });
+            updatesToOriginalForState.endDate = newEndDate;
+            console.log(
+              "Split: Aggiornata originale (prima)",
+              originalData.serialNumber,
+              "nuova fine:",
+              newEndDate
+            );
+          } else {
+            updatesToOriginalForState.endDate = null; // Pas de période avant à garder
+            console.log("Split: Giorno target è startDate originale.");
+          }
+
+          // 3. Gérer période APRÈS
+          if (originalData.endDate > selectedDate) {
+            if (!afterSerialNumber)
+              throw new Error("SN mancante per periodo 'dopo'.");
+            const newStartDate = addDays(selectedDate, 1);
+            if (!newStartDate)
+              throw new Error("Errore calcolo data inizio 'après'.");
+            const afterData = {
+              ...originalData,
+              startDate: newStartDate,
+              endDate: originalData.endDate,
+              serialNumber: afterSerialNumber,
+              cellCode: selectedResBase,
+              createdAt: originalData.createdAt || serverTimestamp(),
+              modifiedAt: serverTimestamp(),
+            };
+            delete afterData.id;
+            const afterDocRef = doc(collection(db, "reservations"));
+            transaction.set(afterDocRef, afterData);
+            newReservationsForState.push({ id: afterDocRef.id, ...afterData });
+            console.log(
+              "Split: Creata prenotazione periodo dopo",
+              afterData.serialNumber,
+              "inizio:",
+              newStartDate
+            );
+          } else {
+            console.log("Split: Giorno target è endDate originale.");
+          }
+
+          // 4. Supprimer l'originale si elle n'a plus de période avant valide
+          if (!updatesToOriginalForState.endDate) {
+            transaction.delete(originalDocRef);
+            updatesToOriginalForState.deleted = true;
+            console.log(
+              "Split: Prenotazione originale eliminata.",
+              originalData.serialNumber
+            );
+          }
+        }); // --- Fin Transaction ---
+
+        // --- MàJ État Local ---
+        setAllReservations((prev) => {
+          let newState = [...prev];
+          if (updatesToOriginalForState.deleted) {
+            newState = newState.filter((res) => res.id !== currentResId);
+          } else if (updatesToOriginalForState.endDate) {
+            newState = newState.map((res) =>
+              res.id === currentResId
+                ? {
+                    ...res,
+                    endDate: updatesToOriginalForState.endDate,
+                    modifiedAt: new Date(),
+                  }
+                : res
+            );
+          }
+          newState = [
+            ...newState,
+            ...newReservationsForState.map((nr) => ({
+              ...nr,
+              createdAt: nr.createdAt?.toDate
+                ? nr.createdAt.toDate()
+                : new Date(),
+              modifiedAt: new Date(),
+            })),
+          ];
+          const finalEvents = processReservationsToEvents(newState); // Recalculer les événements
+          setProcessedEvents(finalEvents); // Mettre à jour les événements affichés
+          return newState; // Retourner le nouvel état des réservations brutes
+        });
+        console.log("Split completato.");
+
+        // --- CAS 2: SAUVEGARDE NORMALE (Add / Update global) ---
       } else {
-        const relevant = new Set(
-          alls
-            .filter((r) =>
-              datesOverlap(r.startDate, r.endDate, queryStartDate, queryEndDate)
-            )
-            .map((r) => r.id)
-        );
-        setFilteredEvents(
-          evts.filter((e) => relevant.has(e.extendedProps.originalId))
-        );
+        const payload = {
+          nom: formData.nom,
+          prenom: formData.prenom || "",
+          startDate: formData.startDate, // Utiliser les dates du formulaire
+          endDate: formData.endDate,
+          condition: formData.condition,
+          cellCode: selectedResBase,
+          numBeds: formData.numBeds,
+          registiPoltrona: formData.registiPoltrona || "",
+          cabina: requestCabin ? assignedCabin : null,
+          modifiedAt: serverTimestamp(),
+        };
+
+        let updatedReservations;
+        if (currentResId) {
+          // Mise à jour globale
+          payload.serialNumber = formData.serialNumber; // Conserver SN
+          await updateDoc(doc(db, "reservations", currentResId), payload);
+          console.log("Prenotazione aggiornata:", currentResId);
+          // Mettre à jour l'état local
+          updatedReservations = allReservations.map((res) =>
+            res.id === currentResId
+              ? { ...res, ...payload, modifiedAt: new Date() }
+              : res
+          );
+        } else {
+          // Nouvelle réservation
+          payload.serialNumber = await getNextSerialNumber();
+          payload.createdAt = serverTimestamp();
+          const docRef = await addDoc(collection(db, "reservations"), payload);
+          payload.id = docRef.id; // Ajouter l'ID pour la mise à jour de l'état local
+          console.log(
+            "Nuova prenotazione creata:",
+            payload.id,
+            "SN:",
+            payload.serialNumber
+          );
+          // Mettre à jour l'état local
+          updatedReservations = [
+            ...allReservations,
+            {
+              ...payload,
+              id: docRef.id,
+              createdAt: new Date(),
+              modifiedAt: new Date(),
+            },
+          ];
+        }
+        setAllReservations(updatedReservations);
+        const finalEvents = processReservationsToEvents(updatedReservations); // Recalculer les événements
+        setProcessedEvents(finalEvents); // Mettre à jour les événements affichés
       }
-      resetForm();
+
+      resetForm(); // Fermer et réinitialiser le dialogue
+    } catch (error) {
+      console.error("Errore durante la sauvegarde:", error);
+      alert(`Errore durante la sauvegarde: ${error.message}`);
+    } finally {
+      setIsSaving(false);
     }
   };
 
-  // Sticky heights & Variable CSS
-  useEffect(() => {
-    const calendarBox = calendarRef.current
-      ?.getApi()
-      .el?.closest(".calendar-container-box");
-    let searchBarObserver;
-
-    const updateSearchBarHeight = (height) => {
-      if (calendarBox) {
-        // Mettre à jour la variable CSS ici
-        calendarBox.style.setProperty("--fixed-sticky-offset", `${height}px`);
-        console.log(`CSS Variable --fixed-sticky-offset set to: ${height}px`);
+  // --- Suppression ---
+  const handleDelete = async () => {
+    if (
+      window.confirm(
+        "Êtes-vous sûr de vouloir supprimer cette réservation ?"
+      ) &&
+      selectedOriginal
+    ) {
+      setIsSaving(true);
+      try {
+        await deleteDoc(doc(db, "reservations", selectedOriginal.id));
+        console.log("Prenotazione eliminata:", selectedOriginal.id);
+        // Mettre à jour l'état local
+        const updatedReservations = allReservations.filter(
+          (res) => res.id !== selectedOriginal.id
+        );
+        setAllReservations(updatedReservations);
+        const finalEvents = processReservationsToEvents(updatedReservations); // Recalculer les événements
+        setProcessedEvents(finalEvents); // Mettre à jour les événements affichés
+        resetForm();
+      } catch (error) {
+        console.error("Errore durante la suppression:", error);
+        alert(`Errore durante la suppression: ${error.message}`);
+      } finally {
+        setIsSaving(false);
       }
-    };
-
-    if (searchBarRef.current && !isMobile) {
-      searchBarObserver = new ResizeObserver(([entry]) => {
-        updateSearchBarHeight(entry.target.offsetHeight);
-      });
-      searchBarObserver.observe(searchBarRef.current);
-      // Mise à jour initiale
-      updateSearchBarHeight(searchBarRef.current.offsetHeight);
-    } else {
-      updateSearchBarHeight(0); // Reset si mobile ou pas de barre
     }
+  };
 
-    return () => {
-      if (searchBarObserver) {
-        searchBarObserver.disconnect();
-      }
-      // Nettoyer la variable CSS si le composant est démonté
-      if (calendarBox) {
-        calendarBox.style.removeProperty("--fixed-sticky-offset");
-      }
-    };
-  }, [isMobile]); // Dépend de isMobile pour réévaluer si la barre est affichée
-
-  // Ajout d'un console.log pour vérifier les hauteurs
+  // --- Thème et Rendu ---
+  const theme = useTheme();
 
   return (
-    <div style={{ padding: 20 }}>
-      {/* Barre de recherche sticky - Réactivée */}
-      {!isMobile && (
-        <Box
-          ref={searchBarRef}
-          sx={{
+    <Box sx={{ height: "90vh", overflow: "auto", border: "1px solid #ccc" }}>
+      <Box
+        sx={{
+          "& .fc-scrollgrid-section-sticky": {
             position: "sticky",
             top: 0,
-            zIndex: 1100,
-            background: theme.palette.background.paper,
-            p: 2,
-            display: "flex",
-            gap: 2,
-            flexWrap: "wrap",
-            alignItems: "center", // Pour aligner verticalement les éléments
-          }}
-        >
-          <Typography>Ricerca periodo:</Typography>
-          <TextField
-            label="Data inizio"
-            type="date"
-            value={queryStartDate}
-            onChange={(e) => setQueryStartDate(e.target.value)}
-            size="small"
-            InputLabelProps={{ shrink: true }}
-          />
-          <TextField
-            label="Data fine"
-            type="date"
-            value={queryEndDate}
-            onChange={(e) => setQueryEndDate(e.target.value)}
-            size="small"
-            InputLabelProps={{ shrink: true }}
-            inputProps={{ min: queryStartDate }}
-          />
-          <Button variant="contained" onClick={handleSearch} size="small">
-            Cerca
-          </Button>
-          <Button
-            variant="outlined"
-            onClick={() => {
-              setQueryStartDate("");
-              setQueryEndDate("");
-              setFilteredEvents(processedEvents);
-              if (calendarRef.current && !isMobile)
-                calendarRef.current.getApi().gotoDate(INITIAL_CALENDAR_DATE);
-            }}
-            size="small"
-          >
-            Cancella filtro
-          </Button>
-          {/* ScrollButtons déplacés ici */}
-          <Box
-            sx={{ marginLeft: "auto", display: "flex", alignItems: "center" }}
-          >
-            {" "}
-            {/* Pour les pousser à droite */}
-            <ScrollButtons
-              onPrevClick={() => calendarRef.current?.getApi().prev()}
-              onNextClick={() => calendarRef.current?.getApi().next()}
-              isPrevDisabled={false}
-              isNextDisabled={false}
-            />
-          </Box>
-        </Box>
-      )}
-
-      {/* Box des boutons supprimé */}
-
-      {/* Calendrier avec sticky header dates */}
-      <Box
-        // Ajout d'une classe pour cibler plus facilement ce Box spécifique
-        className="calendar-container-box"
-        sx={{
-          // overflowX: "auto", // ENLEVÉ - Cassait le contexte sticky pour la page
-          // Cible les en-têtes de colonne (dates) DANS la section header
-          "& .fc-scrollgrid-section-header .fc-col-header": {
-            position: "sticky", // Revenir à la valeur dynamique
-            top: "88px", // Utilise la variable CSS
-            zIndex: 1085,
-            backgroundColor: theme.palette.background.paper,
+            zIndex: 1090,
+            backgroundColor: theme.palette.background.paper, // Fond pour sticky header
           },
-          // Cible l'en-tête de la zone de ressource ("Ombrelli") DANS la section header
-          "& .fc-scrollgrid-section-header .fc-resource-area-header": {
-            position: "sticky", // Revenir à la valeur dynamique
-            top: "88px", // Utilise la variable CSS
+          "& .fc-scrollgrid-section-sticky > th": {
+            // Cibler les TH directement
+            backgroundColor: theme.palette.background.paper, // Assurer le fond
+            overflow: "visible !important",
+          },
+          "& .fc-scrollgrid-section-body .fc-scroller, & .fc-scrollgrid-section-body .fc-scroller-harness":
+            {
+              overflow: "auto hidden !important",
+            },
+          // Style pour le titre de la ressource (Ombrelli)
+          "& .fc-col-header-cell.fc-resource": {
+            position: "sticky",
             left: 0,
-            zIndex: 1086,
+            zIndex: 1091, // Au dessus des headers de date
             backgroundColor: theme.palette.background.paper,
           },
-          // Cible TOUS les conteneurs scroller INTERNES de la section header
-          "& .fc-scrollgrid-section-header .fc-scroller": {
-            overflow: "visible !important",
-            // Ajout pour essayer de contrer le style inline et aider overflow:visible
-            minHeight: "1px",
+          // Style pour les cellules de ressources dans le corps
+          "& .fc-datagrid-cell.fc-resource": {
+            position: "sticky",
+            left: 0,
+            zIndex: 1089, // En dessous des headers
+            backgroundColor: theme.palette.background.paper,
+            borderRight: `1px solid ${theme.palette.divider}`, // Ligne de séparation
           },
-          // Cible AUSSI les conteneurs "harness" qui enveloppent les scrollers dans l'en-tête
-          "& .fc-scrollgrid-section-header .fc-scroller-harness": {
-            overflow: "visible !important", // Force AUSSI leur overflow pour ne pas casser le sticky
-          },
-          // *** NOUVEAU : Gérer le scroll horizontal DANS le corps du calendrier ***
-          "& .fc-scrollgrid-section-body .fc-scroller": {
-            overflowX: "auto !important", // Appliquer le scroll horizontal ici
-            overflowY: "hidden !important", // Empêcher le scroll vertical ici (géré par la page)
-          },
-          // *** NOUVELLE TENTATIVE : Forcer l'overflow sur fc-view-harness ***
-          "& .fc-view-harness": {
-            overflow: "visible !important",
-          },
-          // *** Suppression de l'override du scroller des ressources du BODY (moins probable) ***
         }}
       >
         <FullCalendar
-          ref={calendarRef}
-          plugins={[resourceTimelinePlugin, interactionPlugin, dayGridPlugin]}
-          initialView="resourceTimelineWeek"
-          locale={itLocale}
+          plugins={[dayGridPlugin, resourceTimelinePlugin, interactionPlugin]}
           headerToolbar={false}
-          schedulerLicenseKey="GPL-My-Project-Is-Open-Source"
-          resources={generateResources()}
-          events={filteredEvents}
+          initialView="resourceTimeline"
+          visibleRange={{ start: "2025-04-01", end: "2025-12-02" }}
+          resources={resources}
+          events={processedEvents}
+          selectable={true}
           select={handleDateSelect}
           eventClick={handleEventClick}
+          initialDate="2025-04-01"
+          locale={itLocale}
+          resourceAreaHeaderContent="Ombrelli"
           slotDuration={{ days: 1 }}
           slotLabelFormat={{
             weekday: "short",
@@ -429,36 +795,34 @@ export default function BeachPlanPeriod() {
             month: "numeric",
             omitCommas: true,
           }}
-          resourceAreaWidth="60px"
-          resourceAreaHeaderContent="Ombrelli"
-          resourceLabelContent={(arg) => (
-            <Typography sx={{ fontSize: "0.7rem", textAlign: "center" }}>
-              {arg.resource.title}
-            </Typography>
-          )}
           displayEventTime={false}
-          selectable
-          validRange={{ start: INITIAL_CALENDAR_DATE, end: "2025-12-02" }}
-          initialDate={INITIAL_CALENDAR_DATE}
-          height="auto" // Important pour que les scrollers internes fonctionnent correctement
+          height="auto"
+          resourceAreaWidth="100px" // Ajuster si nécessaire
         />
       </Box>
 
-      {/* Le div gris pour tester le scroll peut être enlevé si le scroll naturel est suffisant */}
-      {/* <div style={{ height: '2000px', background: 'lightgray', marginTop: '20px' }}>
-        Espace pour tester le défilement
-      </div> */}
-
-      {/* Dialog */}
+      {/* --- Dialogue --- */}
       <Dialog open={open} onClose={resetForm} fullWidth maxWidth="xs">
         <DialogTitle>
           {selectedOriginal
-            ? `Modifica (${selectedResBase})`
-            : `Nuova (${selectedResBase} - ${selectedDate})`}
+            ? `Modifica Prenotazione (${selectedResBase})`
+            : `Nuova Prenotazione (${selectedResBase} - ${formatDateForDisplay(
+                formData.startDate
+              )})`}
         </DialogTitle>
         <DialogContent>
+          {/* Numéro de série */}
           <TextField
+            margin="dense"
+            label="N° Prenotazione"
+            value={formData.serialNumber || (isNew ? "(Nuova)" : "N/A")}
+            InputProps={{ readOnly: true }}
+            variant="filled"
+            size="small"
             fullWidth
+          />
+          {/* Cognome */}
+          <TextField
             margin="dense"
             label="Cognome"
             value={formData.nom}
@@ -469,9 +833,10 @@ export default function BeachPlanPeriod() {
               })
             }
             required
-          />
-          <TextField
             fullWidth
+          />
+          {/* Nome */}
+          <TextField
             margin="dense"
             label="Nome"
             value={formData.prenom}
@@ -481,18 +846,30 @@ export default function BeachPlanPeriod() {
                 prenom: capitalizeFirstLetter(e.target.value),
               })
             }
-          />
-          <TextField
             fullWidth
+          />
+          {/* Data Inizio */}
+          <TextField
             margin="dense"
             label="Data Inizio"
             type="date"
-            value={selectedDate}
+            value={formData.startDate} // Utiliser formData.startDate
+            onChange={(e) => {
+              const newStartDate = e.target.value;
+              setFormData((prev) => ({
+                ...prev,
+                startDate: newStartDate,
+                // Ajuster endDate si elle devient antérieure à startDate
+                endDate:
+                  prev.endDate < newStartDate ? newStartDate : prev.endDate,
+              }));
+            }}
             InputLabelProps={{ shrink: true }}
-            disabled
-          />
-          <TextField
+            required
             fullWidth
+          />
+          {/* Data Fine */}
+          <TextField
             margin="dense"
             label="Data Fine"
             type="date"
@@ -501,9 +878,64 @@ export default function BeachPlanPeriod() {
               setFormData({ ...formData, endDate: e.target.value })
             }
             InputLabelProps={{ shrink: true }}
-            inputProps={{ min: selectedDate }}
+            inputProps={{ min: formData.startDate }} // Min basé sur formData.startDate
             required
+            fullWidth
           />
+          {/* Lits */}
+          <TextField
+            margin="dense"
+            label="N° lettini (0-3)"
+            type="number"
+            value={formData.numBeds ?? ""}
+            onChange={(e) => {
+              const val =
+                e.target.value === "" ? "" : parseInt(e.target.value, 10);
+              setFormData({
+                ...formData,
+                numBeds: isNaN(val) ? "" : Math.min(Math.max(val, 0), 3),
+              });
+            }}
+            inputProps={{ min: 0, max: 3, step: 1 }}
+            required
+            fullWidth
+          />
+          {/* Extra */}
+          <TextField
+            margin="dense"
+            label="+ Regista (R) / Poltrona (P)"
+            value={formData.registiPoltrona || ""}
+            onChange={(e) => {
+              const upperValue = e.target.value.toUpperCase();
+              setFormData({
+                ...formData,
+                registiPoltrona: ["R", "P", ""].includes(upperValue)
+                  ? upperValue
+                  : formData.registiPoltrona,
+              });
+            }}
+            inputProps={{ maxLength: 1 }}
+            placeholder="R / P"
+            fullWidth
+          />
+          {/* Cabine */}
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={requestCabin}
+                onChange={(e) => setRequestCabin(e.target.checked)}
+                disabled={isSaving}
+              />
+            }
+            label={`Richiedi Cabina ${
+              assignedCabin
+                ? `(${assignedCabin})`
+                : cabinError
+                ? `(${cabinError})`
+                : ""
+            }`}
+          />
+          {/* Condition */}
           <TextField
             select
             fullWidth
@@ -514,24 +946,95 @@ export default function BeachPlanPeriod() {
               setFormData({ ...formData, condition: e.target.value })
             }
             required
+            disabled={isSaving} // Désactiver si sauvegarde en cours
           >
             <MenuItem value="jour entier">Giorno Intero</MenuItem>
             <MenuItem value="matin">Mattina</MenuItem>
             <MenuItem value="apres-midi">Pomeriggio</MenuItem>
           </TextField>
+
+          {/* Erreur Conflit Ombrellone */}
+          {umbrellaConflictError && (
+            <Typography
+              color="error"
+              variant="caption"
+              display="block"
+              sx={{ mt: 1 }}
+            >
+              {umbrellaConflictError}
+            </Typography>
+          )}
+
+          {/* Section Split */}
+          {showSingleDayOptions && (
+            <Box
+              sx={{ border: "1px dashed grey", p: 1.5, mt: 2, borderRadius: 1 }}
+            >
+              <Typography variant="body2" gutterBottom>
+                Modifica solo per il giorno{" "}
+                <strong>{formatDateForDisplay(selectedDate)}</strong>:
+              </Typography>
+              <TextField
+                select
+                fullWidth
+                margin="dense"
+                label="Condizione per questo giorno"
+                value={singleDayCondition}
+                onChange={(e) => setSingleDayCondition(e.target.value)}
+                size="small"
+                disabled={isSaving}
+              >
+                <MenuItem value={formData.condition || "jour entier"}>
+                  -- Mantieni (
+                  {(formData.condition || "jour entier")
+                    .replace("jour entier", "Giorno Intero")
+                    .replace("matin", "Mattina")
+                    .replace("apres-midi", "Pomeriggio")}
+                  ) --
+                </MenuItem>
+                {formData.condition !== "jour entier" && (
+                  <MenuItem value="jour entier">Giorno Intero</MenuItem>
+                )}
+                {formData.condition !== "matin" && (
+                  <MenuItem value="matin">Mattina</MenuItem>
+                )}
+                {formData.condition !== "apres-midi" && (
+                  <MenuItem value="apres-midi">Pomeriggio</MenuItem>
+                )}
+              </TextField>
+              <Typography variant="caption" display="block" sx={{ mt: 0.5 }}>
+                Selezionando una condizione diversa qui, la prenotazione verrà
+                divisa.
+              </Typography>
+            </Box>
+          )}
         </DialogContent>
         <DialogActions>
           {selectedOriginal && (
-            <Button color="error" onClick={handleDelete}>
+            <Button color="error" onClick={handleDelete} disabled={isSaving}>
               Cancella
             </Button>
           )}
-          <Button onClick={resetForm}>Annulla</Button>
-          <Button onClick={handleSave} variant="contained">
-            {selectedOriginal ? "Modifica" : "Aggiungi"}
+          <Button onClick={resetForm} disabled={isSaving}>
+            Annulla
+          </Button>
+          <Button
+            onClick={handleSave}
+            variant="contained"
+            disabled={
+              isSaving ||
+              !!umbrellaConflictError ||
+              (requestCabin && !assignedCabin && !!cabinError)
+            }
+          >
+            {isSaving
+              ? "Salvataggio..."
+              : selectedOriginal
+              ? "Modifica"
+              : "Aggiungi"}
           </Button>
         </DialogActions>
       </Dialog>
-    </div>
+    </Box>
   );
 }
