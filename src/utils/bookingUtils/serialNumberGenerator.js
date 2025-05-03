@@ -6,7 +6,7 @@ import {
   limit,
   getDocs,
 } from "firebase/firestore";
-import { db } from "../../Firebase";
+import { db } from "../Firebase";
 
 export const generateSerialNumber = async () => {
   try {
@@ -24,11 +24,11 @@ export const generateSerialNumber = async () => {
 
     const lastDoc = querySnapshot.docs[0].data();
     const lastSerial =
-      lastDoc.serialNumber || lastDoc.serialnumber || "25000000";
+      lastDoc.serialNumber || lastDoc.serialnumber || "2500000";
     const nextNumber = parseInt(lastSerial) + 1;
 
-    // Formatage avec 8 chiffres (25 + 6 chiffres)
-    return nextNumber.toString().padStart(8, "0");
+    // Formatage avec 8 chiffres (25 + 5 chiffres)
+    return nextNumber.toString().padStart(7, "0");
   } catch (error) {
     console.error("Erreur génération numéro de série:", error);
     throw new Error("Impossible de générer un numéro de série");

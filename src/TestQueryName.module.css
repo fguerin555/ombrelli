@@ -93,3 +93,7 @@
 .resultsTable tbody tr:nth-child(even) {
   background-color: #f9f9f9; /* Ligne alternée légèrement grisée */
 }
+
+.resultsTableContainer {
+  margin-bottom: 30px; /* Espace après chaque tableau */
+}

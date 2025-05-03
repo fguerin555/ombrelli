@@ -22,6 +22,9 @@ const Navbar = () => {
         <li>
           <Link to="/testqueryname">TestQuery Name</Link>
         </li>
+        <li>
+          <Link to="/testqueryplan">TestQuery Plan</Link>
+        </li>
       </ul>
     </nav>
   );

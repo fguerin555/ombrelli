@@ -1,0 +1,118 @@
+/* /Users/fredericguerin/Desktop/ombrelli/src/TestQueryPlan.module.css */
+
+.TestQueryPlanPage {
+  padding: 20px;
+  font-family: sans-serif;
+}
+
+.Titre h1 {
+  text-align: center;
+  color: #333;
+  margin-bottom: 20px;
+}
+
+.controlsHeader {
+  display: flex;
+  justify-content: space-between; /* Aligne les éléments sur les côtés */
+  align-items: center;
+  margin-bottom: 20px;
+  padding: 15px;
+  background-color: #f0f0f0;
+  border-radius: 8px;
+  flex-wrap: wrap; /* Permet le retour à la ligne sur petits écrans */
+  gap: 15px; /* Espace entre les groupes de contrôles */
+}
+
+.dateSelector,
+.conditionSelector {
+  display: flex;
+  align-items: center;
+  gap: 8px; /* Espace entre label et input/select */
+}
+
+.dateSelector label,
+.conditionSelector label {
+  font-weight: bold;
+  white-space: nowrap; /* Empêche le label de se couper */
+}
+
+.dateSelector input[type="date"],
+.conditionSelector select {
+  padding: 8px 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 0.95rem;
+}
+
+.loadingIndicator,
+.errorLoading,
+.noResults {
+  text-align: center;
+  padding: 40px;
+  font-size: 1.2em;
+  color: #555;
+}
+
+.beach_plan {
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(60px, 1fr)
+  ); /* Ajustement responsive */
+  gap: 5px; /* Espace entre les cellules */
+  padding: 10px;
+  background-color: #e0e0e0; /* Fond gris clair pour le plan */
+  border-radius: 5px;
+  max-width: 100%; /* Assure que le plan ne dépasse pas */
+  overflow-x: auto; /* Scroll horizontal si nécessaire */
+}
+
+.row {
+  /* Plus nécessaire avec display: grid sur le parent */
+  display: contents; /* Permet aux cellules d'être des enfants directs de la grille */
+}
+
+.cell {
+  border: 1px solid #ccc;
+  background-color: #fff; /* Fond blanc par défaut */
+  min-height: 50px; /* Hauteur minimale */
+  display: flex;
+  flex-direction: column; /* Pour superposer les moitiés */
+  font-size: 0.8em;
+  font-weight: bold;
+  text-align: center;
+  cursor: default; /* Curseur normal, pas de clic ici */
+  overflow: hidden; /* Empêche le contenu de déborder */
+  border-radius: 3px;
+}
+
+.cellHalf {
+  flex: 1; /* Chaque moitié prend 50% de la hauteur */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+
+.cell.filteredOut {
+  background-color: #e0e0e0; /* Grisé pour les cellules non concernées */
+  border-color: #bdbdbd;
+  color: #9e9e9e;
+}
+.cell.filteredOut .cellHalf {
+  background-color: #e0e0e0 !important; /* Force le fond grisé */
+}
+
+/* Couleurs spécifiques */
+.colorEmpty {
+  background-color: #ffffff; /* Blanc */
+}
+.colorJourEntier {
+  background-color: #ffcdd2; /* Rouge clair */
+}
+.colorMatin {
+  background-color: #bbdefb; /* Bleu clair */
+}
+.colorApresMidi {
+  background-color: #ffe0b2; /* Orange clair */
+}

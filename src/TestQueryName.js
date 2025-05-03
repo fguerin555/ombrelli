@@ -11,7 +11,7 @@ const TestQueryName = () => {
   const [searchSerialNumber, setSearchSerialNumber] = useState("");
 
   // État pour les résultats et le chargement
-  const [searchResults, setSearchResults] = useState([]);
+  const [allSearchResults, setAllSearchResults] = useState([]); // Stocke TOUS les résultats
   const [isLoading, setIsLoading] = useState(false);
   const [searchPerformed, setSearchPerformed] = useState(false); // Pour savoir si une recherche a été faite
 
@@ -31,7 +31,6 @@ const TestQueryName = () => {
     console.log("handleSearch démarrée !"); // Log 1
     setIsLoading(true);
     setSearchPerformed(true); // Marquer qu'une recherche a été lancée
-    setSearchResults([]); // Vider les anciens résultats
 
     try {
       const reservationsRef = collection(db, "reservations");
@@ -73,7 +72,10 @@ const TestQueryName = () => {
       console.log(
         `Recherche terminée. ${filteredResults.length} résultats trouvés.`
       ); // Log 4
-      setSearchResults(filteredResults);
+      setAllSearchResults((prevResults) => [...prevResults, filteredResults]); // Ajouter les nouveaux résultats
+
+      // Réinitialiser l'indicateur de recherche effectuée après chaque recherche
+      setSearchPerformed(false);
     } catch (error) {
       console.error("Erreur lors de la recherche:", error);
       alert("Une erreur est survenue pendant la recherche.");
@@ -124,37 +126,45 @@ const TestQueryName = () => {
 
         {/* Section des résultats */}
         <div className={styles.resultsSection}>
-          {isLoading && <p>Ricerca in corso...</p>}
-          {!isLoading && searchPerformed && searchResults.length === 0 && (
+          {isLoading ? (
+            <p>Ricerca in corso...</p>
+          ) : allSearchResults.length === 0 && searchPerformed ? (
             <p>Nessuna prenotazione trovata con questi criteri.</p>
-          )}
-          {!isLoading && searchResults.length > 0 && (
-            <table className={styles.resultsTable}>
-              <thead>
-                <tr>
-                  <th>Ombrellone</th>
-                  <th>Cognome</th>
-                  <th>Nome</th>
-                  <th>Data Inizio</th>
-                  <th>Data Fine</th>
-                  <th>N° Prenot.</th> {/* Ajout colonne SN */}
-                </tr>
-              </thead>
-              <tbody>
-                {searchResults.map((res) => (
-                  <tr key={res.id}>
-                    <td>{res.cellCode || "N/A"}</td>
-                    <td>{res.nom || ""}</td>
-                    <td>{res.prenom || ""}</td>
-                    <td>{formatDateEU(res.startDate)}</td>{" "}
-                    {/* Formatage date début */}
-                    <td>{formatDateEU(res.endDate || res.startDate)}</td>{" "}
-                    {/* Formatage date fin */}
-                    <td>{res.serialNumber || "N/A"}</td> {/* Affichage SN */}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          ) : (
+            allSearchResults.map((searchResults, index) => (
+              <div key={index} className={styles.resultsTableContainer}>
+                {index > 0 && <hr />}{" "}
+                {/* Ligne de séparation entre les tableaux */}
+                {searchResults.length === 0 ? (
+                  <p>Nessun risultato per questa ricerca.</p>
+                ) : (
+                  <table className={styles.resultsTable}>
+                    <thead>
+                      <tr>
+                        <th>Ombrellone</th>
+                        <th>Cognome</th>
+                        <th>Nome</th>
+                        <th>Data Inizio</th>
+                        <th>Data Fine</th>
+                        <th>N° Prenot.</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {searchResults.map((res) => (
+                        <tr key={res.id}>
+                          <td>{res.cellCode || "N/A"}</td>
+                          <td>{res.nom || ""}</td>
+                          <td>{res.prenom || ""}</td>
+                          <td>{formatDateEU(res.startDate)}</td>
+                          <td>{formatDateEU(res.endDate || res.startDate)}</td>
+                          <td>{res.serialNumber || "N/A"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            ))
           )}
         </div>
       </div>
