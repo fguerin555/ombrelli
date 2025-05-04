@@ -1,16 +1,257 @@
-.ChangeExchangePage {
-  width: 100%;
-}
-.Titre h1 {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  font-size: 40px;
-  color: rgb(221, 12, 141);
+/* /Users/fredericguerin/Desktop/ombrelli/src/pages/ChangeExchangeFile/ChangeExchange.module.css */
+
+.changeExchangeContainer {
+  padding: 20px;
+  max-width: 98%; /* Très large pour accommoder la grille */
+  margin: 20px auto;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
 
-@media (max-width: 1224px) {
-  .h1 {
-    font-size: 20px;
+.titre {
+  text-align: center;
+  margin-bottom: 25px;
+  color: var(--primary-color, #007bff);
+  padding-bottom: 10px;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.titre h1 {
+  margin-bottom: 5px;
+  font-size: 1.6em;
+}
+
+.titre p {
+  font-size: 0.9em;
+  color: #6c757d;
+}
+
+/* --- Styles pour le filtre de date --- */
+.filterContainer {
+  display: flex;
+  flex-wrap: wrap; /* Passage à la ligne sur petits écrans */
+  gap: 15px; /* Espace entre les éléments */
+  padding: 15px;
+  margin-bottom: 20px;
+  background-color: #e9ecef; /* Fond légèrement différent */
+  border-radius: 6px;
+  align-items: flex-end; /* Aligne les éléments en bas */
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1 1 180px; /* Permet de grandir/rétrécir, base de 180px */
+}
+
+.formGroup label {
+  font-weight: bold;
+  font-size: 0.9em;
+  color: #495057;
+}
+
+.formGroup input[type="date"] {
+  padding: 8px 10px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 0.95em;
+  max-width: 160px;
+}
+.searchAction {
+  /* Conteneur pour le bouton, permet de l'aligner correctement avec flex-end du .filterContainer */
+  /* Peut être ajusté si besoin d'un alignement différent */
+  margin-left: auto; /* Pousse le bouton vers la droite si espace dispo */
+}
+
+.searchButton {
+  padding: 9px 20px; /* Padding ajusté pour correspondre à la hauteur des inputs */
+  background-color: var(--primary-color, #007bff);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1em;
+  font-weight: bold;
+  transition: background-color 0.2s ease, box-shadow 0.2s ease;
+  /* Styles repris de Query.module.css pour cohérence */
+  text-shadow: 2px 2px 4px #15459e;
+  box-shadow: 3px 3px 10px rgba(0, 0, 0, 0.3);
+}
+
+.searchButton:hover {
+  background-color: var(--secondary-color, #0056b3);
+  text-shadow: 2px 2px 4px #15459e;
+  box-shadow: 3px 3px 10px rgba(0, 0, 0, 0.3);
+}
+
+.searchButton:disabled {
+  background-color: #cccccc;
+  color: #666666;
+  cursor: not-allowed;
+  text-shadow: none;
+  box-shadow: none;
+}
+.loadingIndicator,
+.error {
+  text-align: center;
+  padding: 40px;
+  font-size: 1.1em;
+  color: #6c757d;
+}
+
+.error {
+  color: #dc3545;
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
+  border-radius: 4px;
+  margin: 20px;
+}
+
+.gridContainer {
+  width: 100%;
+  /* overflow-x: auto; Supprimé car on va utiliser flex-wrap */
+  padding: 10px 0;
+  background-color: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+}
+
+.gridRow {
+  display: flex;
+  flex-wrap: wrap; /* Permet aux cellules de passer à la ligne */
+  margin-bottom: 8px; /* Espace entre les lignes */
+  padding: 0 5px; /* Petit padding horizontal pour la ligne */
+  justify-content: flex-start; /* Aligne les cellules au début (gauche) */
+}
+
+.cell {
+  /* min-width: 130px; Remplacé par flex-basis pour la responsivité */
+  min-width: 130px; /* Largeur augmentée */
+  height: 90px; /* Hauteur augmentée */
+  margin: 4px;
+  padding: 8px;
+  border-radius: 5px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between; /* Pousse le haut et le bas aux extrémités */
+  flex-grow: 0; /* Ne pas grandir */
+  flex-shrink: 1; /* Rétrécir si nécessaire */
+  font-size: 0.75em; /* Police plus petite pour contenir les infos */
+  overflow: hidden; /* Cache le texte qui dépasse */
+  cursor: pointer; /* Indique qu'on pourra cliquer */
+  transition: transform 0.1s ease, box-shadow 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.cell:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.cellTopHeader {
+  /* Nouveau conteneur pour N° et Code */
+  display: flex;
+  align-items: baseline; /* Aligne sur la ligne de base */
+  gap: 5px; /* Espace entre N° et Code */
+  margin-bottom: 3px;
+}
+
+.serialNumber {
+  /* Style pour le numéro de série */
+  font-size: 1em !important;
+  color: #0c0d0d; /* Gris */
+  font-weight: normal;
+}
+
+.cellCodeDisplay {
+  font-weight: bold;
+  font-size: 1.2em; /* Taille du code cellule */
+  color: #343a40;
+}
+
+.clientName {
+  display: block; /* Nom et prénom sur lignes séparées */
+  color: #0c0c0c;
+  line-height: 1.5;
+  font-size: 1.2em !important;
+}
+
+.cellBottom {
+  text-align: center;
+  font-weight: bold;
+}
+
+.period {
+  font-size: 1em;
+  color: #1b1c1d;
+}
+
+.reservedCell {
+  background-color: #fff3cd; /* Jaune pâle Bootstrap pour réservé */
+}
+
+.freeCell {
+  background-color: #d1e7dd; /* Vert pâle Bootstrap pour libre */
+  align-items: center; /* Centre le contenu verticalement si libre */
+  justify-content: center; /* Centre le contenu horizontalement si libre */
+}
+
+.freeCell .cellTop {
+  text-align: center; /* Centre le code cellule si libre */
+}
+
+.freeCell .cellBottom span {
+  color: #0a3622; /* Texte vert foncé pour "Libero" */
+}
+
+/* --- Media Queries pour la responsivité --- */
+
+/* Tablettes (ex: <= 992px) */
+@media (max-width: 992px) {
+  .cell {
+    min-width: 110px; /* Réduire un peu la largeur */
+    height: 80px; /* Réduire un peu la hauteur */
+    padding: 6px;
+    font-size: 0.7em; /* Réduire un peu la police */
+  }
+  .serialNumber {
+    font-size: 0.9em; /* Ajuster si nécessaire */
+  }
+  .cellCodeDisplay {
+    font-size: 1.1em;
+  }
+  .clientName {
+    font-size: 1em;
+  }
+  .period {
+    font-size: 0.85em;
+  }
+}
+
+/* Mobiles (ex: <= 576px) */
+@media (max-width: 576px) {
+  .cell {
+    min-width: 90px; /* Réduire encore la largeur */
+    height: 75px; /* Réduire encore la hauteur */
+    padding: 4px;
+    margin: 2px;
+    font-size: 0.65em; /* Police encore plus petite */
+  }
+  .gridRow {
+    justify-content: center; /* Centrer les cellules sur mobile */
+  }
+  .serialNumber {
+    font-size: 0.7em;
+  }
+  .cellCodeDisplay {
+    font-size: 1em;
+  }
+  .clientName {
+    font-size: 0.9em;
+  }
+  .period {
+    font-size: 0.8em;
   }
 }
