@@ -48,6 +48,7 @@
   display: flex;
   flex-wrap: nowrap; /* Empêche le retour à la ligne */
   margin-bottom: 5px; /* Espace réduit entre les rangées */
+  justify-content: flex-start; /* Aligne les cells au début à gauche*/
 }
 
 .queryCell {
@@ -214,18 +215,44 @@
   border-bottom: none;
 }
 
-/* Cible la partie gauche (date/statut) pour la flexibilité */
+/* Cible la partie gauche (date/statut/condition) pour la flexibilité */
 .resultsList li > div:first-child {
   flex-grow: 1; /* Permet à cette partie de prendre l'espace */
   margin-right: 10px; /* Espace avant le nom du client */
 }
 
-.prenotato strong {
+/* --- Styles pour les statuts et conditions colorés (Mis à jour) --- */
+.prenotato {
+  /* Applique directement la couleur */
   color: #d9534f; /* Rouge */
+  font-weight: bold; /* Assure le gras */
 }
 
-.libero strong {
+.libero {
+  /* Applique directement la couleur */
   color: #5cb85c; /* Vert */
+  font-weight: bold; /* Assure le gras */
+}
+
+.conditionText {
+  /* Style pour le span de la condition */
+  font-weight: bold; /* Mettre en gras comme le statut */
+  margin-left: 5px; /* Petit espace après "Prenotato" */
+}
+
+.conditionRed {
+  /* Classe pour la condition rouge */
+  color: #d9534f; /* Même rouge que .prenotato */
+}
+
+.conditionBlue {
+  /* Classe pour la condition bleue */
+  color: #007bff; /* Bleu standard */
+}
+
+.conditionOrange {
+  /* Classe pour la condition orange */
+  color: #fd7e14; /* Orange Bootstrap */
 }
 
 .customerName {

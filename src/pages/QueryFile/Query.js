@@ -1,4 +1,4 @@
-import React, { useState } from "react"; // useEffect n'est plus nécessaire ici a priori
+import React, { useState } from "react";
 import { db } from "../../firebase";
 import {
   collection,
@@ -7,7 +7,6 @@ import {
   getDocs,
   Timestamp,
 } from "firebase/firestore";
-// import BeachPlan from "../BeachPlanFile/BeachPlan"; // <-- SUPPRIMÉ : On n'importe plus BeachPlan
 import "../../Global.css";
 import styles from "./Query.module.css";
 
@@ -15,7 +14,31 @@ import styles from "./Query.module.css";
 const QUERY_GRID_ROWS = ["A", "B", "C", "D"];
 const QUERY_GRID_COLS = 36;
 
-// Helper function pour les dates (inchangée)
+// --- Fonction simple pour formater la date (alternative à dateUtils) ---
+const formatDateSimple = (dateStr) => {
+  if (!dateStr) return "N/A";
+  try {
+    const parts = dateStr.split(/[-/]/);
+    if (parts.length === 3) {
+      const year = parts[0];
+      const month = parts[1];
+      const day = parts[2];
+      if (
+        !isNaN(parseInt(day)) &&
+        !isNaN(parseInt(month)) &&
+        !isNaN(parseInt(year))
+      ) {
+        return `${day.padStart(2, "0")}/${month.padStart(2, "0")}/${year}`;
+      }
+    }
+    return dateStr;
+  } catch (e) {
+    console.error("Erreur formatage date simple:", e, "pour date:", dateStr);
+    return dateStr;
+  }
+};
+
+// Helper function pour les dates (de l'ancienne version)
 const getDatesInRange = (startDateStr, endDateStr) => {
   const dates = [];
   try {
@@ -41,27 +64,27 @@ const getDatesInRange = (startDateStr, endDateStr) => {
     console.error("Erreur getDatesInRange:", error, startDateStr, endDateStr);
     return [];
   }
-  console.log(`getDatesInRange(${startDateStr}, ${endDateStr}) =>`, dates);
+  // console.log(`getDatesInRange(${startDateStr}, ${endDateStr}) =>`, dates); // Peut être bruyant
   return dates;
 };
 
 const Query = () => {
-  // États pour le formulaire DANS LE MODAL (inchangés)
+  // États pour le formulaire DANS LE MODAL (de l'ancienne version)
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [condition, setCondition] = useState("all");
+  const [condition, setCondition] = useState("all"); // 'all', 'reserved', 'not_reserved'
 
-  // États pour le fonctionnement général et le modal (inchangés)
+  // États pour le fonctionnement général et le modal (de l'ancienne version)
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedParasol, setSelectedParasol] = useState(null);
 
-  // États pour les résultats et le chargement/erreurs (inchangés)
-  const [results, setResults] = useState(null);
+  // États pour les résultats et le chargement/erreurs (de l'ancienne version)
+  const [results, setResults] = useState(null); // Sera notre 'dailyStatus'
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [searchParams, setSearchParams] = useState(null);
+  const [searchParams, setSearchParams] = useState(null); // Pour afficher les infos de recherche
 
-  // --- Gère le double-clic sur une cellule de la GRILLE INTERNE ---
+  // --- Gère le double-clic sur une cellule de la GRILLE INTERNE --- (de l'ancienne version)
   const handleCellDoubleClick = (cellCode) => {
     console.log("Query Grid: Cell double-clicked:", cellCode);
     setSelectedParasol(cellCode);
@@ -73,14 +96,12 @@ const Query = () => {
     setIsModalOpen(true); // Ouvre le modal de requête
   };
 
-  // --- Fonction de recherche (déclenchée par le modal) --- (inchangée)
+  // --- Fonction de recherche (déclenchée par le modal) --- (Adaptée pour inclure la condition)
   const handleSearch = async (
     searchStartDate,
     searchEndDate,
-    searchCondition
+    searchCondition // 'all', 'reserved', 'not_reserved'
   ) => {
-    // La validation est maintenant faite dans le handleSubmit du modal avant d'appeler handleSearch
-
     setIsModalOpen(false);
     setLoading(true);
     setError(null);
@@ -90,7 +111,7 @@ const Query = () => {
       codeParasol: selectedParasol,
       startDate: searchStartDate,
       endDate: searchEndDate,
-      condition: searchCondition,
+      condition: searchCondition, // Stocke la condition de recherche
     });
 
     try {
@@ -102,57 +123,52 @@ const Query = () => {
 
       const querySnapshot = await getDocs(q);
       const fetchedReservations = [];
-      console.log(`Recherche Firestore pour cellCode: ${selectedParasol}`);
+      // console.log(`Recherche Firestore pour cellCode: ${selectedParasol}`); // Peut être bruyant
       querySnapshot.forEach((doc) => {
         const data = doc.data();
         let resStartDate, resEndDate;
         try {
+          // Gestion des dates (Timestamp ou string)
           resStartDate =
             data.startDate instanceof Timestamp
               ? data.startDate.toDate()
-              : new Date(data.startDate + "T00:00:00Z");
+              : new Date(data.startDate + "T00:00:00Z"); // Assume UTC si string
           resEndDate =
             data.endDate instanceof Timestamp
               ? data.endDate.toDate()
-              : new Date(data.endDate + "T00:00:00Z");
+              : new Date(data.endDate + "T00:00:00Z"); // Assume UTC si string
+
           if (isNaN(resStartDate.getTime()) || isNaN(resEndDate.getTime())) {
             console.warn(
-              "Dates invalides:",
+              "Dates invalides dans Firestore:",
               doc.id,
               data.startDate,
               data.endDate
             );
-            return;
+            return; // Ignore cette réservation
           }
-          // Log avec les noms de champs Firestore corrects
-          console.log("Réservation traitée:", {
-            id: doc.id,
-            cellCode: data.cellCode,
-            startDate: resStartDate.toISOString().split("T")[0],
-            endDate: resEndDate.toISOString().split("T")[0],
-            prenom: data.prenom,
-            nom: data.nom,
-          });
+
           fetchedReservations.push({
             id: doc.id,
-            ...data,
-            startDate: resStartDate,
-            endDate: resEndDate,
+            ...data, // Inclut prenom, nom, condition, etc.
+            startDate: resStartDate, // Garde comme objet Date
+            endDate: resEndDate, // Garde comme objet Date
           });
         } catch (conversionError) {
           console.error(
-            "Erreur conversion date:",
+            "Erreur conversion date Firestore:",
             doc.id,
             data,
             conversionError
           );
         }
       });
-      console.log("Total réservations trouvées:", fetchedReservations.length);
+      // console.log("Total réservations Firestore trouvées:", fetchedReservations.length); // Peut être bruyant
 
       const requestedDates = getDatesInRange(searchStartDate, searchEndDate);
-      if (requestedDates.length === 0) {
-        setError("Errore nella generazione dell'intervallo di date.");
+      if (requestedDates.length === 0 && searchStartDate && searchEndDate) {
+        // Affiche une erreur seulement si les dates étaient valides mais la plage est vide (ex: start > end)
+        setError("Errore nell'intervallo di date richiesto.");
         setResults([]);
         setLoading(false);
         return;
@@ -160,10 +176,12 @@ const Query = () => {
 
       let dailyStatus = requestedDates.map((dateStr) => {
         const [year, month, day] = dateStr.split("-").map(Number);
-        const currentDateUTC = new Date(Date.UTC(year, month - 1, day));
+        const currentDateUTC = new Date(Date.UTC(year, month - 1, day)); // Date courante en UTC pour comparaison
         let isReserved = false;
         let reservationDetails = null;
+
         for (const reservation of fetchedReservations) {
+          // Convertir les dates de réservation en UTC pour la comparaison jour par jour
           const resStartUTC = new Date(
             Date.UTC(
               reservation.startDate.getUTCFullYear(),
@@ -178,34 +196,37 @@ const Query = () => {
               reservation.endDate.getUTCDate()
             )
           );
-          const comparisonResult =
+
+          // Comparaison stricte des temps UTC
+          if (
             currentDateUTC.getTime() >= resStartUTC.getTime() &&
-            currentDateUTC.getTime() <= resEndUTC.getTime();
-          if (comparisonResult) {
+            currentDateUTC.getTime() <= resEndUTC.getTime()
+          ) {
             isReserved = true;
-            // Lire depuis 'prenom' et 'nom'
             reservationDetails = {
               firstName: reservation.prenom || "N/A",
               lastName: reservation.nom || "N/A",
+              condition: reservation.condition || "N/A", // *** Récupère la condition de la réservation ***
             };
-            break;
+            break; // Une seule réservation suffit pour marquer le jour comme réservé
           }
         }
         return {
-          date: dateStr,
+          date: dateStr, // Garde le format YYYY-MM-DD
           status: isReserved ? "Prenotato" : "Libero",
-          customer: isReserved ? reservationDetails : null,
+          customer: reservationDetails, // Contient maintenant la condition si réservé
         };
       });
 
+      // Appliquer le filtre de condition APRÈS avoir déterminé le statut de chaque jour
       if (searchCondition === "reserved") {
         dailyStatus = dailyStatus.filter((day) => day.status === "Prenotato");
       } else if (searchCondition === "not_reserved") {
         dailyStatus = dailyStatus.filter((day) => day.status === "Libero");
       }
 
-      console.log("Statut journalier après filtre:", dailyStatus);
-      setResults(dailyStatus);
+      // console.log("Statut journalier final:", dailyStatus); // Peut être bruyant
+      setResults(dailyStatus); // Met à jour l'état des résultats
     } catch (err) {
       console.error("Erreur lors de la recherche Firestore:", err);
       setError("Une erreur est survenue lors de la recherche.");
@@ -215,7 +236,7 @@ const Query = () => {
     }
   };
 
-  // Fonction pour obtenir le label de la condition (inchangée)
+  // Fonction pour obtenir le label de la condition (de l'ancienne version)
   const getConditionLabel = () => {
     switch (searchParams?.condition) {
       case "reserved":
@@ -227,28 +248,34 @@ const Query = () => {
     }
   };
 
-  // --- Composant Modal de Requête --- (inchangé)
+  // --- Composant Modal de Requête --- (de l'ancienne version)
   const QueryModal = () => {
     const [modalStartDate, setModalStartDate] = useState(startDate);
     const [modalEndDate, setModalEndDate] = useState(endDate);
     const [modalCondition, setModalCondition] = useState(condition);
-    // État d'erreur spécifique au modal
     const [modalError, setModalError] = useState(null);
 
     const handleSubmit = (e) => {
       e.preventDefault();
-      setModalError(null); // Reset error on new submit attempt
+      setModalError(null);
 
-      // --- Validation des dates DANS le modal ---
       if (!modalStartDate || !modalEndDate) {
         setModalError("Inserire le due date.");
+        return;
+      }
+      // Validation simple du format YYYY-MM-DD (peut être améliorée)
+      if (
+        !/^\d{4}-\d{2}-\d{2}$/.test(modalStartDate) ||
+        !/^\d{4}-\d{2}-\d{2}$/.test(modalEndDate)
+      ) {
+        setModalError("Formato data non valido (usare YYYY-MM-DD).");
         return;
       }
       const startInputDate = new Date(modalStartDate + "T00:00:00Z");
       const endInputDate = new Date(modalEndDate + "T00:00:00Z");
 
       if (isNaN(startInputDate.getTime()) || isNaN(endInputDate.getTime())) {
-        setModalError("Formato data sbagliato.");
+        setModalError("Date non valide.");
         return;
       }
       if (startInputDate > endInputDate) {
@@ -257,9 +284,7 @@ const Query = () => {
         );
         return;
       }
-      // --- Fin Validation ---
 
-      // Si validation OK, met à jour les états principaux et lance la recherche
       setStartDate(modalStartDate);
       setEndDate(modalEndDate);
       setCondition(modalCondition);
@@ -270,7 +295,6 @@ const Query = () => {
       <div className={styles.modalOverlay}>
         <div className={styles.modalContent}>
           <h2>Interrogazione per Ombrellone: {selectedParasol}</h2>
-          {/* Affiche l'erreur spécifique au modal ici */}
           {modalError && <p className={styles.modalError}>{modalError}</p>}
           <form onSubmit={handleSubmit}>
             <div className={styles.formGroup}>
@@ -292,6 +316,7 @@ const Query = () => {
                 type="date"
                 id="modalEndDate"
                 value={modalEndDate}
+                min={modalStartDate} // Ajout du min pour la cohérence
                 onChange={(e) => {
                   setModalEndDate(e.target.value);
                   setModalError(null);
@@ -300,7 +325,7 @@ const Query = () => {
               />
             </div>
             <div className={styles.formGroup}>
-              <label htmlFor="modalCondition">Condizione:</label>
+              <label htmlFor="modalCondition">Mostra Giorni:</label>
               <select
                 id="modalCondition"
                 value={modalCondition}
@@ -322,7 +347,7 @@ const Query = () => {
                 type="button"
                 onClick={() => {
                   setIsModalOpen(false);
-                  setError(null); /* Efface aussi l'erreur globale */
+                  setError(null);
                 }}
                 className={styles.cancelButton}
               >
@@ -335,25 +360,21 @@ const Query = () => {
     );
   };
 
-  // --- NOUVEAU : Fonction pour rendre la grille de requête ---
+  // --- Fonction pour rendre la grille de requête --- (de l'ancienne version)
   const renderQueryGrid = () => {
     return (
       <div className={styles.queryGridContainer}>
-        {" "}
-        {/* Nouveau conteneur pour la grille */}
         {QUERY_GRID_ROWS.map((rowLabel) => (
           <div key={rowLabel} className={styles.queryRow}>
-            {" "}
-            {/* Nouvelle classe pour la rangée */}
             {Array.from({ length: QUERY_GRID_COLS }).map((_, index) => {
               const col = index + 1;
               const cellCode = `${rowLabel}${String(col).padStart(2, "0")}`;
               return (
                 <div
                   key={cellCode}
-                  className={styles.queryCell} // Nouvelle classe pour la cellule (toujours blanche)
+                  className={styles.queryCell} // Utilise la classe CSS pour la grille
                   onDoubleClick={() => handleCellDoubleClick(cellCode)}
-                  title={`Interroga Ombrellone ${cellCode}`} // Info-bulle
+                  title={`Interroga Ombrellone ${cellCode}`}
                 >
                   {cellCode}
                 </div>
@@ -369,7 +390,7 @@ const Query = () => {
   return (
     <div className={styles.queryContainer}>
       <div className={styles.titre}>
-        <h1>Interrogazione Prenotazioni</h1>
+        <h1>Interrogazione Disponibilità</h1>
         <p>
           Doppio click su un ombrellone per definire il periodo della ricerca.
         </p>
@@ -393,14 +414,16 @@ const Query = () => {
         <p className={styles.error}>{error}</p>
       )}
 
-      {/* Section des résultats */}
+      {/* Section des résultats (Utilise le NOUVEAU style d'affichage) */}
       {!loading && !isModalOpen && results && searchParams && (
         <div className={styles.resultsContainer}>
           <h2>
             Risultati per {searchParams.codeParasol}
             <span className={styles.dateRange}>
               {" "}
-              (dal {searchParams.startDate} al {searchParams.endDate})
+              (dal {formatDateSimple(searchParams.startDate)} al{" "}
+              {formatDateSimple(searchParams.endDate)}){" "}
+              {/* Utilise formatDateSimple */}
             </span>
           </h2>
           {searchParams.condition !== "all" && (
@@ -412,23 +435,47 @@ const Query = () => {
           {results.length === 0 ? (
             <p className={styles.noResults}>
               Nessuna data corrisponde alla condizione '{getConditionLabel()}'
-              per l'ombrellone {searchParams.codeParasol} tra il{" "}
-              {searchParams.startDate} e il {searchParams.endDate}.
+              per l'ombrellone {searchParams.codeParasol} nel periodo
+              selezionato.
             </p>
           ) : (
             <ul className={styles.resultsList}>
               {results.map((item, index) => (
-                <li
-                  key={index}
-                  className={
-                    item.status === "Prenotato"
-                      ? styles.prenotato
-                      : styles.libero
-                  }
-                >
+                <li key={index}>
                   <div>
-                    {item.date}: <strong>{item.status}</strong>
+                    {formatDateSimple(item.date)} -{" "}
+                    {/* Utilise formatDateSimple */}
+                    {item.status === "Prenotato" && item.customer ? (
+                      <>
+                        <strong className={styles.prenotato}> Prenotato</strong>
+                        {/* *** NOUVELLE PARTIE pour la condition colorée *** */}
+                        <span
+                          className={`${styles.conditionText} ${
+                            item.customer.condition === "jour entier"
+                              ? styles.conditionRed
+                              : item.customer.condition === "matin"
+                              ? styles.conditionBlue
+                              : item.customer.condition === "apres-midi"
+                              ? styles.conditionOrange
+                              : ""
+                          }`}
+                        >
+                          (
+                          {item.customer.condition === "jour entier"
+                            ? "Giorno Intero"
+                            : item.customer.condition === "matin"
+                            ? "Mattina"
+                            : item.customer.condition === "apres-midi"
+                            ? "Pomeriggio"
+                            : item.customer.condition || "N/D"}
+                          )
+                        </span>
+                      </>
+                    ) : (
+                      <strong className={styles.libero}> Libero</strong>
+                    )}
                   </div>
+                  {/* Affichage Nom Client (si réservé) */}
                   {item.status === "Prenotato" && item.customer && (
                     <span className={styles.customerName}>
                       {item.customer.firstName} {item.customer.lastName}

@@ -113,12 +113,10 @@ const TestQueryPlan = () => {
           map.set(key, []);
         }
         // Stocker la condition ET un identifiant unique (ex: serialNumber ou id)
-        map
-          .get(key)
-          .push({
-            condition: res.condition,
-            bookingId: res.serialNumber || res.id,
-          });
+        map.get(key).push({
+          condition: res.condition,
+          bookingId: res.serialNumber || res.id,
+        });
         loopDate.setDate(loopDate.getDate() + 1);
       }
     });
@@ -499,16 +497,27 @@ const TestQueryPlan = () => {
 
           for (const existingRes of potentialConflicts) {
             // Conflit Ombrellone
+            console.log(
+              `Vérification conflit: Courant (${currentCondition}) vs Existant (${existingRes.condition}) pour ${currentCellCode}`
+            ); // Log conflit
             if (existingRes.cellCode === currentCellCode) {
+              const existingCondition = existingRes.condition;
+              // Vérification plus explicite, similaire à BeachPlan et ReservationModal
               if (
                 currentCondition === "jour entier" ||
-                existingRes.condition === "jour entier" ||
-                currentCondition === existingRes.condition
+                existingCondition === "jour entier" ||
+                (currentCondition === "matin" &&
+                  existingCondition === "matin") ||
+                (currentCondition === "apres-midi" &&
+                  existingCondition === "apres-midi")
               ) {
+                console.log("--> Conflit Ombrellone DETECTE!"); // Log détection
                 conflictFound = true;
                 conflictMessage = `Conflitto Ombrellone ${currentCellCode} rilevato (${
                   existingRes.condition
-                }) con N° ${existingRes.serialNumber || existingRes.id}.`;
+                }) con N° ${existingRes.serialNumber || existingRes.id} (${
+                  existingRes.startDate
+                } - ${existingRes.endDate}).`; // Message plus détaillé
                 break;
               }
             }
@@ -518,10 +527,11 @@ const TestQueryPlan = () => {
               existingRes.cabina &&
               currentCabin === existingRes.cabina
             ) {
+              console.log("--> Conflit Cabine DETECTE!"); // Log détection
               conflictFound = true;
               conflictMessage = `Conflitto Cabina ${currentCabin} rilevato con N° ${
                 existingRes.serialNumber || existingRes.id
-              }.`;
+              } (${existingRes.startDate} - ${existingRes.endDate}).`; // Message plus détaillé
               break;
             }
           }
@@ -532,6 +542,7 @@ const TestQueryPlan = () => {
         }
 
         if (conflictFound) {
+          console.log("Conflit trouvé, affichage alerte:", conflictMessage); // Log avant alerte
           alert(conflictMessage);
           setIsLoading(false);
           return;
