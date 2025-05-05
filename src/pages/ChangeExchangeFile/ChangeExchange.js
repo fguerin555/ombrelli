@@ -10,7 +10,8 @@ import {
 } from "firebase/firestore"; // Ajout de doc et updateDoc
 import styles from "./ChangeExchange.module.css"; // Nouveau fichier CSS
 import { DndProvider, useDrag, useDrop } from "react-dnd"; // Ajout react-dnd
-import { HTML5Backend } from "react-dnd-html5-backend"; // Ajout backend
+// import { HTML5Backend } from "react-dnd-html5-backend"; // Remplacé par TouchBackend
+import { TouchBackend } from "react-dnd-touch-backend"; // Import du Touch Backend
 import { toast, ToastContainer } from "react-toastify"; // Import ToastContainer
 import "react-toastify/dist/ReactToastify.css"; // CSS pour react-toastify
 import "../../Global.css"; // Pour les variables CSS globales si utilisées
@@ -36,7 +37,7 @@ const formatDateSimple = (date) => {
     return `${day}/${month}/${year}`;
   } catch (e) {
     console.error("Erreur formatage date:", e, date);
-    return "Date invalide";
+    return "Data invalida"; // Message en italien
   }
 };
 
@@ -59,16 +60,42 @@ const ChangeExchangeContent = () => {
       const fetchedReservations = querySnapshot.docs.map((doc) => {
         const data = doc.data();
         // Convertir les Timestamps ou strings en objets Date
-        const startDate = data.startDate
-          ? data.startDate instanceof Timestamp
-            ? data.startDate.toDate()
-            : new Date(data.startDate + "T00:00:00Z") // Assume UTC si string YYYY-MM-DD
-          : null;
-        const endDate = data.endDate
-          ? data.endDate instanceof Timestamp
-            ? data.endDate.toDate()
-            : new Date(data.endDate + "T00:00:00Z") // Assume UTC si string YYYY-MM-DD
-          : null;
+        let startDate = null;
+        if (data.startDate) {
+          if (data.startDate instanceof Timestamp) {
+            startDate = data.startDate.toDate();
+          } else if (typeof data.startDate === "string") {
+            startDate = new Date(data.startDate + "T00:00:00Z");
+          } else if (data.startDate instanceof Date) {
+            startDate = data.startDate;
+          }
+        }
+
+        let endDate = null;
+        if (data.endDate) {
+          if (data.endDate instanceof Timestamp) {
+            endDate = data.endDate.toDate();
+          } else if (typeof data.endDate === "string") {
+            endDate = new Date(data.endDate + "T00:00:00Z");
+          } else if (data.endDate instanceof Date) {
+            endDate = data.endDate;
+          }
+        }
+
+        if (startDate && isNaN(startDate.getTime())) {
+          console.warn(
+            `Date de début invalide pour la réservation ${doc.id}:`,
+            data.startDate
+          );
+          startDate = null;
+        }
+        if (endDate && isNaN(endDate.getTime())) {
+          console.warn(
+            `Date de fin invalide pour la réservation ${doc.id}:`,
+            data.endDate
+          );
+          endDate = null;
+        }
 
         return {
           id: doc.id,
@@ -80,7 +107,7 @@ const ChangeExchangeContent = () => {
       setReservations(fetchedReservations);
     } catch (err) {
       console.error("Erreur lors de la récupération des réservations:", err);
-      setError("Impossibile recuperare le prenotazioni.");
+      setError("Impossibile caricare le prenotazioni."); // Message en italien
     } finally {
       setIsLoading(false);
     }
@@ -92,8 +119,6 @@ const ChangeExchangeContent = () => {
 
   // --- Fonction déclenchée par le bouton Cerca (optionnel) ---
   const handleSearch = () => {
-    // Pour l'instant, le filtre est déjà appliqué en temps réel par findReservationForCellInRange
-    // On pourrait ajouter ici une logique spécifique si nécessaire (ex: afficher un message)
     console.log("Recherche lancée avec dates:", filterStartDate, filterEndDate);
   };
 
@@ -110,8 +135,7 @@ const ChangeExchangeContent = () => {
       console.log(
         `Réservation ${reservationId} déplacée vers ${newCellCode} avec succès.`
       );
-      toast.success(`Ombrellone spostato verso ${newCellCode} !`);
-      // Mettre à jour l'état local pour un retour visuel immédiat
+      toast.success(`Ombrellone spostato con successo a ${newCellCode} !`); // Message en italien
       setReservations((prevReservations) =>
         prevReservations.map((res) =>
           res.id === reservationId ? { ...res, cellCode: newCellCode } : res
@@ -119,25 +143,32 @@ const ChangeExchangeContent = () => {
       );
     } catch (err) {
       console.error("Erreur lors de la mise à jour de la réservation:", err);
-      toast.error("Errore durante lo spostamento dell'ombrellone.");
+      alert("Errore durante spostamento dell'ombrellone"); // Message en italien
     }
   };
 
-  // --- Fonction pour vérifier les conflits de date ---
+  // --- Constantes pour le champ 'condition' ---
+  const CONDITION_FULL_DAY = "jour entier";
+  const CONDITION_MORNING = "matin"; // À vérifier/adapter
+  const CONDITION_AFTERNOON = "après-midi"; // À vérifier/adapter
+
+  // --- Fonction pour vérifier les conflits de date ET de condition ---
   const checkConflict = (
-    reservationToCheck, // La réservation dont on vérifie la période
-    targetCellCode, // La cellule où elle pourrait aller
-    excludedReservationId // L'ID de la réservation à ignorer sur la targetCell (celle avec qui on échange)
+    reservationToCheck,
+    targetCellCode,
+    excludedReservationId
   ) => {
     if (
       !reservationToCheck ||
       !reservationToCheck.startDate ||
-      !reservationToCheck.endDate
+      !reservationToCheck.endDate ||
+      isNaN(reservationToCheck.startDate.getTime()) ||
+      isNaN(reservationToCheck.endDate.getTime())
     ) {
       console.warn(
-        "Vérification de conflit annulée: reservationToCheck invalide"
+        "Vérification de conflit annulée: reservationToCheck invalide ou dates invalides"
       );
-      return false; // Pas de conflit si la réservation à vérifier est invalide
+      return false;
     }
 
     const checkStartUTC = new Date(
@@ -156,12 +187,13 @@ const ChangeExchangeContent = () => {
     );
 
     for (const existingRes of reservations) {
-      // Ignorer la réservation exclue, celles sur d'autres cellules, et celles sans dates valides
       if (
         existingRes.id === excludedReservationId ||
         existingRes.cellCode !== targetCellCode ||
         !existingRes.startDate ||
-        !existingRes.endDate
+        !existingRes.endDate ||
+        isNaN(existingRes.startDate.getTime()) ||
+        isNaN(existingRes.endDate.getTime())
       ) {
         continue;
       }
@@ -181,27 +213,39 @@ const ChangeExchangeContent = () => {
         )
       );
 
-      // Vérification de chevauchement
       if (checkStartUTC <= existingEndUTC && checkEndUTC >= existingStartUTC) {
         console.warn(
-          `Conflitto trovato per la prenotazione ${
+          `Chevauchement de dates détecté pour ${
             reservationToCheck.id
           } sur ${targetCellCode} avec ${existingRes.id} (${formatDateSimple(
             existingRes.startDate
           )}-${formatDateSimple(existingRes.endDate)})`
         );
-        toast.error(
-          `Conflitto su ${targetCellCode} con la penotazione di ${
-            existingRes.nom || "Client"
-          } (${formatDateSimple(existingRes.startDate)} - ${formatDateSimple(
-            existingRes.endDate
-          )})`
-        );
-        return true; // Conflit trouvé
+
+        const checkCondition = reservationToCheck.condition;
+        const existingCondition = existingRes.condition;
+
+        const conditionConflict =
+          checkCondition === CONDITION_FULL_DAY ||
+          existingCondition === CONDITION_FULL_DAY ||
+          (checkCondition === CONDITION_MORNING &&
+            existingCondition === CONDITION_MORNING) ||
+          (checkCondition === CONDITION_AFTERNOON &&
+            existingCondition === CONDITION_AFTERNOON);
+
+        if (conditionConflict) {
+          alert(
+            `Conflitto su ${targetCellCode} con la prenotazione di ${
+              existingRes.nom || "Client"
+            } (${checkCondition} vs ${existingCondition}) per il periodo (${formatDateSimple(
+              existingRes.startDate
+            )} - ${formatDateSimple(existingRes.endDate)})` // Message en italien
+          );
+          return true;
+        }
       }
     }
-
-    return false; // Aucun conflit trouvé
+    return false;
   };
 
   // --- Fonction pour échanger deux réservations dans Firestore ---
@@ -211,7 +255,6 @@ const ChangeExchangeContent = () => {
     draggedOriginalCellCode,
     targetCellCode
   ) => {
-    // Récupérer les objets complets des réservations pour la vérification
     const draggedReservationData = reservations.find(
       (res) => res.id === draggedResId
     );
@@ -220,7 +263,7 @@ const ChangeExchangeContent = () => {
     );
 
     if (!draggedReservationData || !targetReservationData) {
-      toast.error("Dati di prenotazione mancanti per lo scambio.");
+      alert("Dati di prenotazioni mancanti per lo scambio"); // Message en italien
       return;
     }
 
@@ -228,7 +271,6 @@ const ChangeExchangeContent = () => {
       `Tentative d'échange entre réservation ${draggedResId} (sur ${draggedOriginalCellCode}) et ${targetResId} (sur ${targetCellCode})`
     );
 
-    // --- Vérification des conflits ---
     const conflictForDragged = checkConflict(
       draggedReservationData,
       targetCellCode,
@@ -241,27 +283,23 @@ const ChangeExchangeContent = () => {
     );
 
     if (conflictForDragged || conflictForTarget) {
-      // Le message d'erreur détaillé est déjà affiché par checkConflict
-      toast.error("Conflitto date trovato ! Scambio impossibile.");
-      return; // Arrêter l'échange
+      alert("Conflitto di date/condizione! Scambio impossibile."); // Message en italien
+      return;
     }
-    // --- Fin de la vérification des conflits ---
 
     const draggedRef = doc(db, "reservations", draggedResId);
     const targetRef = doc(db, "reservations", targetResId);
-    // Utiliser un batch pour s'assurer que les deux opérations réussissent ou échouent ensemble
     const batch = writeBatch(db);
 
-    batch.update(draggedRef, { cellCode: targetCellCode }); // La résa glissée va sur la cellule cible
-    batch.update(targetRef, { cellCode: draggedOriginalCellCode }); // La résa cible va sur la cellule d'origine de la glissée
+    batch.update(draggedRef, { cellCode: targetCellCode });
+    batch.update(targetRef, { cellCode: draggedOriginalCellCode });
 
     try {
       await batch.commit();
       console.log("Échange effectué avec succès.");
       toast.success(
-        `Ombrelloni ${draggedOriginalCellCode} e ${targetCellCode} scambiati !`
+        `Ombrelloni scambiati con successo fra ${draggedOriginalCellCode} e ${targetCellCode}!` // Message en italien
       );
-      // Mettre à jour l'état local pour un retour visuel immédiat
       setReservations((prevReservations) =>
         prevReservations.map((res) => {
           if (res.id === draggedResId)
@@ -273,21 +311,20 @@ const ChangeExchangeContent = () => {
       );
     } catch (err) {
       console.error("Erreur lors de l'échange des réservations:", err);
-      toast.error("Errore duante lo scambio degli ombrelloni.");
+      alert("Errore durante lo scambio di ombrelli"); // Message en italien
     }
   };
 
   // --- Trouver la réservation qui chevauche la période de filtre pour une cellule ---
   const findReservationForCellInRange = (cellCode) => {
-    // Si pas de dates de filtre valides, on cherche pour aujourd'hui par défaut
     let startFilter = new Date();
     startFilter.setHours(0, 0, 0, 0);
-    let endFilter = new Date(startFilter); // Copie de startFilter
+    let endFilter = new Date(startFilter);
 
     if (filterStartDate && filterEndDate) {
       try {
-        const tempStart = new Date(filterStartDate + "T00:00:00Z"); // Assume UTC
-        const tempEnd = new Date(filterEndDate + "T00:00:00Z"); // Assume UTC
+        const tempStart = new Date(filterStartDate + "T00:00:00Z");
+        const tempEnd = new Date(filterEndDate + "T00:00:00Z");
         if (!isNaN(tempStart) && !isNaN(tempEnd) && tempStart <= tempEnd) {
           startFilter = tempStart;
           endFilter = tempEnd;
@@ -301,7 +338,6 @@ const ChangeExchangeContent = () => {
       }
     }
 
-    // Convertir les dates de filtre en UTC pour la comparaison
     const startFilterUTC = new Date(
       Date.UTC(
         startFilter.getFullYear(),
@@ -318,11 +354,15 @@ const ChangeExchangeContent = () => {
     );
 
     return reservations.find((res) => {
-      if (res.cellCode !== cellCode || !res.startDate || !res.endDate) {
+      if (
+        res.cellCode !== cellCode ||
+        !res.startDate ||
+        !res.endDate ||
+        isNaN(res.startDate.getTime()) ||
+        isNaN(res.endDate.getTime())
+      ) {
         return false;
       }
-      // Vérifie le chevauchement des périodes [resStart, resEnd] et [startFilter, endFilter]
-      // Convertir les dates de réservation en UTC pour la comparaison
       const resStartUTC = new Date(
         Date.UTC(
           res.startDate.getUTCFullYear(),
@@ -337,7 +377,6 @@ const ChangeExchangeContent = () => {
           res.endDate.getUTCDate()
         )
       );
-      // Comparaison avec les dates de filtre en UTC
       return (
         res.cellCode === cellCode &&
         resStartUTC <= endFilterUTC &&
@@ -350,7 +389,6 @@ const ChangeExchangeContent = () => {
   const Cell = ({ cellCode }) => {
     const reservation = findReservationForCellInRange(cellCode);
 
-    // --- Drag Hook (pour les cellules réservées) ---
     const [{ isDragging }, drag] = useDrag(
       () => ({
         type: ItemTypes.PARASOL,
@@ -358,39 +396,33 @@ const ChangeExchangeContent = () => {
           reservationId: reservation?.id,
           originalCellCode: cellCode,
           reservationData: reservation,
-        }, // Inclut la réservation entière
-        canDrag: !!reservation, // On ne peut glisser que si la cellule est réservée
+        },
+        canDrag: !!reservation,
         collect: (monitor) => ({
           isDragging: !!monitor.isDragging(),
         }),
       }),
       [reservation, cellCode]
-    ); // Dépendances
+    );
 
-    // --- Drop Hook (pour les cellules libres ET réservées) ---
     const [{ isOver, canDrop }, drop] = useDrop(
       () => ({
-        accept: ItemTypes.PARASOL, // Accepte les parasols
+        accept: ItemTypes.PARASOL,
         canDrop: (item) => {
-          // Vérifie si on essaie de déposer sur la même cellule
           if (item.originalCellCode === cellCode) {
             return false;
           }
-          // Ici, on pourrait ajouter d'autres logiques si nécessaire
-          // Par exemple, vérifier la compatibilité des périodes en cas d'échange
           return true;
         },
         drop: (item) => {
-          // item contient { reservationId, originalCellCode, reservationData }
           if (item.reservationId && item.originalCellCode !== cellCode) {
-            if (!reservation) {
-              // Si la cellule cible est LIBRE
+            const targetReservation = findReservationForCellInRange(cellCode);
+            if (!targetReservation) {
               moveReservation(item.reservationId, cellCode);
             } else {
-              // Si la cellule cible est RÉSERVÉE (ÉCHANGE)
               exchangeReservations(
                 item.reservationId,
-                reservation.id,
+                targetReservation.id,
                 item.originalCellCode,
                 cellCode
               );
@@ -402,52 +434,63 @@ const ChangeExchangeContent = () => {
           canDrop: !!monitor.canDrop(),
         }),
       }),
-      [reservation, cellCode, moveReservation, exchangeReservations] // Ajout de exchangeReservations aux dépendances
-    ); // Dépendances
+      [
+        cellCode,
+        moveReservation,
+        exchangeReservations,
+        findReservationForCellInRange,
+      ]
+    );
 
-    // Appliquer les refs drag et drop au même élément div
     const ref = React.useRef(null);
-    drag(drop(ref)); // Combine les refs
+    drag(drop(ref));
+
+    const displayReservation = reservation;
 
     return (
       <div
-        ref={ref} // Applique la ref combinée
+        ref={ref}
         className={`${styles.cell} ${
-          reservation ? styles.reservedCell : styles.freeCell
+          displayReservation ? styles.reservedCell : styles.freeCell
         } ${isDragging ? styles.draggingCell : ""} ${
           isOver && canDrop ? styles.dropTargetCell : ""
         }`}
         title={
-          reservation
-            ? `Occupato da ${reservation.nom} ${reservation.prenom}`
-            : `Libero ${cellCode}`
+          displayReservation
+            ? `Occupato da ${displayReservation.nom} ${displayReservation.prenom} (${displayReservation.condition})` // Message en italien
+            : `Libero ${cellCode}` // Message en italien
         }
-        style={{ opacity: isDragging ? 0.5 : 1 }} // Style pendant le drag
+        style={{ opacity: isDragging ? 0.5 : 1 }}
       >
         <div className={styles.cellTop}>
           <div className={styles.cellTopHeader}>
-            {reservation && (
+            {displayReservation && (
               <span className={styles.serialNumber}>
-                N°{reservation.serialNumber || "???"}
+                N°{displayReservation.serialNumber || "???"}
               </span>
             )}
             <span className={styles.cellCodeDisplay}>{cellCode}</span>
           </div>
-          {reservation && (
+          {displayReservation && (
             <>
-              <span className={styles.clientName}>{reservation.nom}</span>
-              <span className={styles.clientName}>{reservation.prenom}</span>
+              <span className={styles.clientName}>
+                {displayReservation.nom}
+              </span>
+              <span className={styles.clientName}>
+                {displayReservation.prenom}
+              </span>
             </>
           )}
         </div>
         <div className={styles.cellBottom}>
-          {reservation ? (
+          {displayReservation ? (
             <span className={styles.period}>
-              {formatDateSimple(reservation.startDate)} -{" "}
-              {formatDateSimple(reservation.endDate)}
+              {formatDateSimple(displayReservation.startDate)} -{" "}
+              {formatDateSimple(displayReservation.endDate)}
+              <br />({displayReservation.condition || "N/A"})
             </span>
           ) : (
-            <span>Libero</span>
+            <span>Libero</span> // Message en italien
           )}
         </div>
       </div>
@@ -458,14 +501,14 @@ const ChangeExchangeContent = () => {
   return (
     <div className={styles.changeExchangeContainer}>
       <div className={styles.titre}>
-        <h1>Gestione Cambi / Scambi Posto</h1>
-        {/* <p>Seleziona un ombrellone per iniziare...</p> Commenté ou supprimé */}
+        <h1>Gestione Cambi / Scambi Posto</h1> {/* Titre en italien */}
       </div>
 
       {/* --- Section Filtre Date --- */}
       <div className={styles.filterContainer}>
         <div className={styles.formGroup}>
-          <label htmlFor="filterStartDate">Data Inizio:</label>
+          <label htmlFor="filterStartDate">Data Inizio:</label>{" "}
+          {/* Label en italien */}
           <input
             type="date"
             id="filterStartDate"
@@ -474,27 +517,25 @@ const ChangeExchangeContent = () => {
           />
         </div>
         <div className={styles.formGroup}>
-          <label htmlFor="filterEndDate">Data Fine:</label>
+          <label htmlFor="filterEndDate">Data Fine:</label>{" "}
+          {/* Label en italien */}
           <input
             type="date"
             id="filterEndDate"
             value={filterEndDate}
-            min={filterStartDate} // Empêche date fin < date début
+            min={filterStartDate}
             onChange={(e) => setFilterEndDate(e.target.value)}
           />
         </div>
-        {/* --- Bouton Cerca --- */}
         <div className={styles.searchAction}>
-          {" "}
-          {/* Conteneur pour aligner le bouton */}
           <button onClick={handleSearch} className={styles.searchButton}>
-            Cerca
+            Cerca {/* Bouton en italien */}
           </button>
         </div>
       </div>
 
       {isLoading && (
-        <div className={styles.loadingIndicator}>Caricamento...</div>
+        <div className={styles.loadingIndicator}>Caricamento...</div> // Message en italien
       )}
       {error && <div className={styles.error}>{error}</div>}
 
@@ -505,7 +546,6 @@ const ChangeExchangeContent = () => {
               {Array.from({ length: COLS }).map((_, index) => {
                 const col = String(index + 1).padStart(2, "0");
                 const cellCode = `${row}${col}`;
-                // Utilise le nouveau composant Cell
                 return <Cell key={cellCode} cellCode={cellCode} />;
               })}
             </div>
@@ -518,12 +558,19 @@ const ChangeExchangeContent = () => {
 
 // --- Composant Principal qui fournit le contexte Dnd ---
 const ChangeExchange = () => {
+  // Options pour le TouchBackend, notamment pour activer les événements souris pour le test
+  const touchBackendOptions = {
+    enableMouseEvents: true, // Permet de tester avec la souris sur desktop
+  };
+
   return (
-    <DndProvider backend={HTML5Backend}>
+    <DndProvider backend={TouchBackend} options={touchBackendOptions}>
+      {" "}
+      {/* Utilisation du TouchBackend avec options */}
       <ChangeExchangeContent />
-      {/* ToastContainer pour afficher les notifications */}
-      <ToastContainer position="bottom-right" autoClose={5000} />{" "}
-      {/* Augmenté autoClose pour lire les erreurs */}
+      {/* ToastContainer pour afficher les notifications de succès */}
+      <ToastContainer position="bottom-right" autoClose={3000} />
+      {/* Les erreurs sont gérées par alert() */}
     </DndProvider>
   );
 };
