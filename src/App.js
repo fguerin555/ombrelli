@@ -4,7 +4,7 @@ import "./Global.css";
 import BeachPlan from "./pages/BeachPlanFile/BeachPlan";
 import ReservationList from "./pages/ReservationListFile/ReservationList";
 import Query from "./pages/QueryFile/Query";
-import CodBarreReader from "./pages/CodBarreReaderFile/CodBarreReader";
+import QRCodeReader from "./pages/QRCodeReaderFile/QRCodeReader";
 import BeachPlanPeriod from "./pages/BeachPlanPeriodFile/BeachPlanPeriod";
 import ChangeExchange from "./pages/ChangeExchangeFile/ChangeExchange";
 import TestQueryName from "./TestQueryName";
@@ -22,7 +22,7 @@ const App = () => {
           <Route path="/beachplan" element={<BeachPlan />} />
           <Route path="/ReservationList" element={<ReservationList />} />
           <Route path="/changeexchange" element={<ChangeExchange />} />
-          <Route path="/codbarrereader" element={<CodBarreReader />} />
+          <Route path="/qrcodereader" element={<QRCodeReader />} />
           <Route path="/beachplanperiod" element={<BeachPlanPeriod />} />
           <Route path="/query" element={<Query />} />
           <Route path="/testqueryplan" element={<TestQueryPlan />} />

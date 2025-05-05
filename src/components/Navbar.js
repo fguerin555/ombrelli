@@ -25,6 +25,9 @@ const Navbar = () => {
         <li>
           <Link to="/testqueryplan">TestQuery Plan</Link>
         </li>
+        <li>
+          <Link to="/qrcodereader">QR CODE Reader</Link>
+        </li>
       </ul>
     </nav>
   );

@@ -11,7 +11,7 @@ const TestQueryName = () => {
   const [searchSerialNumber, setSearchSerialNumber] = useState("");
 
   // État pour les résultats et le chargement
-  const [allSearchResults, setAllSearchResults] = useState([]); // Stocke TOUS les résultats
+  const [allSearchResults, setAllSearchResults] = useState([]); // Stocke les résultats des recherches réussies (array d'arrays)
   const [isLoading, setIsLoading] = useState(false);
   const [searchPerformed, setSearchPerformed] = useState(false); // Pour savoir si une recherche a été faite
 
@@ -26,10 +26,44 @@ const TestQueryName = () => {
     }
   };
 
+  // Fonction pour traduire et formater la condition pour l'affichage
+  const formatCondition = (condition) => {
+    switch (condition) {
+      case "jour entier":
+        return "Giorno intero";
+      case "matin":
+        return "Mattina";
+      case "apres-midi":
+        return "Pomeriggio";
+      default:
+        return condition || "N/D"; // Retourne la condition originale ou N/D si vide
+    }
+  };
+
+  // Fonction pour obtenir le style de couleur basé sur la condition Firestore
+  const getConditionStyle = (condition) => {
+    switch (condition) {
+      case "jour entier":
+        return { color: "red", fontWeight: "bold" };
+      case "matin":
+        return { color: "blue", fontWeight: "bold" };
+      case "apres-midi":
+        return { color: "orange", fontWeight: "bold" };
+      default:
+        return {}; // Pas de style spécifique par défaut
+    }
+  };
+
+  // Fonction utilitaire pour vérifier si au moins une recherche a trouvé des résultats
+  const hasAnyResults = (resultsArray) => {
+    // Vérifie si le tableau principal n'est pas vide (car on n'y met que des résultats non vides)
+    return resultsArray.length > 0;
+  };
+
   // Fonction de recherche
   const handleSearch = useCallback(async () => {
     console.log("handleSearch démarrée !"); // Log 1
-    setIsLoading(true);
+    setIsLoading(true); // Démarre le chargement
     setSearchPerformed(true); // Marquer qu'une recherche a été lancée
 
     try {
@@ -41,7 +75,7 @@ const TestQueryName = () => {
         ...doc.data(),
       }));
 
-      // Filtrage basé sur les critères (insensible à la casse pour les noms)
+      // Filtrage basé sur les critères
       console.log(`Filtrage de ${allReservations.length} réservations...`); // Log 3
       const filteredResults = allReservations.filter((res) => {
         const cognomeMatch =
@@ -54,36 +88,40 @@ const TestQueryName = () => {
             res.prenom.toLowerCase().includes(searchNome.toLowerCase()));
         const serialMatch =
           !searchSerialNumber ||
-          (res.serialNumber && res.serialNumber.includes(searchSerialNumber));
+          (res.serialNumber &&
+            res.serialNumber.toString().includes(searchSerialNumber));
 
-        // La réservation doit correspondre à TOUS les critères non vides
         return cognomeMatch && nomeMatch && serialMatch;
       });
 
-      // Trier les résultats (par exemple, par date de début puis nom)
+      // Trier les résultats
       filteredResults.sort((a, b) => {
         if (a.startDate < b.startDate) return -1;
         if (a.startDate > b.startDate) return 1;
-        if (a.nom < b.nom) return -1;
-        if (a.nom > b.nom) return 1;
+        const nameA = a.nom || "";
+        const nameB = b.nom || "";
+        if (nameA < nameB) return -1;
+        if (nameA > nameB) return 1;
         return 0;
       });
 
       console.log(
         `Recherche terminée. ${filteredResults.length} résultats trouvés.`
       ); // Log 4
-      setAllSearchResults((prevResults) => [...prevResults, filteredResults]); // Ajouter les nouveaux résultats
 
-      // Réinitialiser l'indicateur de recherche effectuée après chaque recherche
-      setSearchPerformed(false);
+      // Ajouter le nouveau tableau de résultats UNIQUEMENT s'il n'est pas vide
+      if (filteredResults.length > 0) {
+        setAllSearchResults((prevResults) => [...prevResults, filteredResults]);
+      }
+      // Si filteredResults est vide, on ne fait rien, il n'est pas ajouté à l'historique.
     } catch (error) {
       console.error("Erreur lors de la recherche:", error);
       alert("Une erreur est survenue pendant la recherche.");
     } finally {
       console.log("Bloc finally atteint, isLoading mis à false."); // Log 5
-      setIsLoading(false);
+      setIsLoading(false); // Fin du chargement
     }
-  }, [searchCognome, searchNome, searchSerialNumber]); // Dépendances de la fonction de recherche
+  }, [searchCognome, searchNome, searchSerialNumber]); // Dépendances
 
   return (
     <div>
@@ -109,11 +147,11 @@ const TestQueryName = () => {
           />
           <input
             type="text"
-            placeholder="25..... (7 cifre)" // Placeholder plus précis
+            placeholder="N° Prenot. (7 cifre)"
             value={searchSerialNumber}
             onChange={(e) => setSearchSerialNumber(e.target.value)}
-            maxLength={7} // Limiter à 7 caractères
-            className={styles.searchInput}
+            maxLength={7}
+            className={`${styles.searchInput} ${styles.serialInput}`}
           />
           <button
             onClick={handleSearch}
@@ -127,44 +165,48 @@ const TestQueryName = () => {
         {/* Section des résultats */}
         <div className={styles.resultsSection}>
           {isLoading ? (
-            <p>Ricerca in corso...</p>
-          ) : allSearchResults.length === 0 && searchPerformed ? (
-            <p>Nessuna prenotazione trovata con questi criteri.</p>
-          ) : (
-            allSearchResults.map((searchResults, index) => (
+            <p>Ricerca in corso...</p> // S'affiche PENDANT la recherche
+          ) : !searchPerformed ? (
+            <p>Inserisci i criteri e clicca 'Cerca'.</p> // Avant la 1ère recherche
+          ) : hasAnyResults(allSearchResults) ? (
+            // Si au moins une recherche a trouvé des résultats
+            allSearchResults.map((resultSet, index) => (
+              // On affiche chaque ensemble de résultats trouvé
               <div key={index} className={styles.resultsTableContainer}>
-                {index > 0 && <hr />}{" "}
-                {/* Ligne de séparation entre les tableaux */}
-                {searchResults.length === 0 ? (
-                  <p>Nessun risultato per questa ricerca.</p>
-                ) : (
-                  <table className={styles.resultsTable}>
-                    <thead>
-                      <tr>
-                        <th>Ombrellone</th>
-                        <th>Cognome</th>
-                        <th>Nome</th>
-                        <th>Data Inizio</th>
-                        <th>Data Fine</th>
-                        <th>N° Prenot.</th>
+                {index > 0 && <hr className={styles.resultSeparator} />}
+                {/* Séparateur */}
+                {/* On affiche directement le tableau car resultSet n'est jamais vide ici */}
+                <table className={styles.resultsTable}>
+                  <thead>
+                    <tr>
+                      <th>Ombrellone</th>
+                      <th>Cognome</th>
+                      <th>Nome</th>
+                      <th>Data Inizio</th>
+                      <th>Data Fine</th>
+                      <th>Condizione</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {resultSet.map((res) => (
+                      <tr key={res.id}>
+                        <td>{res.cellCode || "N/A"}</td>
+                        <td>{res.nom || ""}</td>
+                        <td>{res.prenom || ""}</td>
+                        <td>{formatDateEU(res.startDate)}</td>
+                        <td>{formatDateEU(res.endDate || res.startDate)}</td>
+                        <td style={getConditionStyle(res.condition)}>
+                          {formatCondition(res.condition)}
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {searchResults.map((res) => (
-                        <tr key={res.id}>
-                          <td>{res.cellCode || "N/A"}</td>
-                          <td>{res.nom || ""}</td>
-                          <td>{res.prenom || ""}</td>
-                          <td>{formatDateEU(res.startDate)}</td>
-                          <td>{formatDateEU(res.endDate || res.startDate)}</td>
-                          <td>{res.serialNumber || "N/A"}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
+                    ))}
+                  </tbody>
+                </table>
               </div>
             ))
+          ) : (
+            // Si AUCUNE recherche n'a jamais trouvé de résultat
+            <p>Nessuna prenotazione trovata con questi criteri.</p>
           )}
         </div>
       </div>

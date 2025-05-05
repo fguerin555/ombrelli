@@ -20,7 +20,9 @@
   border-radius: 8px;
   flex-wrap: wrap; /* Permet aux éléments de passer à la ligne si manque de place */
 }
-
+.serialInput {
+  width: 100px;
+}
 .searchInput {
   padding: 8px 12px;
   border: 1px solid #ccc;

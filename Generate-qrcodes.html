@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>QR Codes Parasoli Stampabili</title>
+    <!-- Inclusion de la bibliothèque qrcode.js via CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+    <style>
+      body {
+        font-family: sans-serif;
+        margin: 20px;
+      }
+      .container {
+        display: grid;
+        /* Ajuste le nombre de colonnes selon la taille désirée des étiquettes */
+        grid-template-columns: repeat(3, 1fr);
+        gap: 30px; /* Espace entre les étiquettes */
+        justify-items: center; /* Centre les éléments dans la grille */
+      }
+      .parasol-item {
+        border: 1px solid #ccc;
+        padding: 15px;
+        text-align: center;
+        width: 180px; /* Largeur fixe pour chaque étiquette */
+        page-break-inside: avoid; /* Essaye d'éviter de couper une étiquette entre deux pages */
+      }
+      .parasol-item h3 {
+        margin-top: 0;
+        margin-bottom: 10px;
+        font-size: 1.4em;
+      }
+      .parasol-item img {
+        max-width: 150px; /* Taille maximale du QR code */
+        height: auto;
+        display: block;
+        margin: 0 auto; /* Centre l'image */
+      }
+
+      /* Styles spécifiques pour l'impression */
+      @media print {
+        body {
+          margin: 10mm; /* Marges d'impression */
+          font-size: 10pt; /* Taille de police pour l'impression */
+        }
+        .container {
+          gap: 15mm 10mm; /* Espacement réduit pour l'impression */
+          grid-template-columns: repeat(
+            3,
+            1fr
+          ); /* Force 3 colonnes à l'impression */
+        }
+        .parasol-item {
+          border: 1px dashed #999; /* Bordure plus légère pour découpe */
+          padding: 10px;
+          width: auto; /* Laisse la grille gérer la largeur */
+        }
+        .parasol-item h3 {
+          font-size: 1.2em;
+        }
+        .parasol-item img {
+          max-width: 120px; /* QR code un peu plus petit à l'impression */
+        }
+        /* Cache les éléments non nécessaires à l'impression (si tu ajoutes des boutons etc.) */
+        .no-print {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <h1 style="text-align: center" class="no-print">
+      Generatore QR Code Parasoli
+    </h1>
+    <p style="text-align: center" class="no-print">
+      Apri questa pagina e usa la funzione "Stampa" del tuo browser (Ctrl+P o
+      Cmd+P).
+    </p>
+
+    <div id="qr-container" class="container">
+      <!-- Les QR codes seront insérés ici par JavaScript -->
+    </div>
+
+    <script>
+      // --- PERSONNALISE CETTE LISTE ---
+      // Liste des codes parasols pour lesquels générer un QR code
+      const parasolCodes = [
+        // Exemple: Ligne A
+        "A01",
+        "A02",
+        "A03",
+        "A04",
+        "A05",
+        "A06",
+        "A07",
+        "A08",
+        "A09",
+        "A10",
+        "A11",
+        "A12",
+        "A13",
+        "A14",
+        "A15",
+        "A16",
+        "A17",
+        "A19",
+        "A20",
+        "A21",
+        "A22",
+        "A23",
+        "A24",
+        "A25",
+        "A26",
+        "A27",
+        "A28",
+        "A29",
+        "A30",
+        "A31",
+        "A32",
+        "A33",
+        "A34",
+        "A35",
+        "A36",
+        // Exemple: Ligne B
+        "B01",
+        "B02",
+        "B03",
+        "B04",
+        "B05",
+        "B06",
+        "B07",
+        "B08",
+        "B09",
+        "B10",
+        "B11",
+        "B12",
+        "B13",
+        "B14",
+        "B15",
+        "B16",
+        "B17",
+        "B19",
+        "B20",
+        "B21",
+        "B22",
+        "B23",
+        "B24",
+        "B25",
+        "B26",
+        "B27",
+        "B28",
+        "B29",
+        "B30",
+        "B31",
+        "B32",
+        "B33",
+        "B34",
+        "B35",
+        "B36",
+        // Exemple: Ligne C
+        "C01",
+        "C02",
+        "C03",
+        "C04",
+        "C05",
+        "C06",
+        "C07",
+        "C08",
+        "C09",
+        "C10",
+        "C11",
+        "C12",
+        "C13",
+        "C14",
+        "C15",
+        "C16",
+        "C17",
+        "C19",
+        "C20",
+        "C21",
+        "C22",
+        "C23",
+        "C24",
+        "C25",
+        "C26",
+        "C27",
+        "C28",
+        "C29",
+        "C30",
+        "C31",
+        "C32",
+        "C33",
+        "C34",
+        "C35",
+        "C36",
+        // Ajoute les D
+        "D01",
+        "D02",
+        "D03",
+        "D04",
+        "D05",
+        "D06",
+        "D07",
+        "D08",
+        "D09",
+        "D10",
+        "D11",
+        "D12",
+        "D13",
+        "D14",
+        "D15",
+        "D16",
+        "D17",
+        "D19",
+        "D20",
+        "D21",
+        "D22",
+        "D23",
+        "D24",
+        "D25",
+        "D26",
+        "D27",
+        "D28",
+        "D29",
+        "D30",
+        "D31",
+        "D32",
+        "D33",
+        "D34",
+        "D35",
+        "D36",
+      ];
+      // --- FIN DE LA PERSONNALISATION ---
+
+      const container = document.getElementById("qr-container");
+
+      // Fonction pour générer et ajouter un item parasol
+      async function addParasolItem(code) {
+        try {
+          // Options pour le QR code (taille, niveau de correction d'erreur)
+          const options = {
+            errorCorrectionLevel: "H", // High: plus robuste
+            type: "image/png",
+            quality: 0.9,
+            margin: 1, // Marge autour du QR code
+            width: 150, // Largeur désirée en pixels
+          };
+
+          // Génère le QR code sous forme de Data URL (image encodée)
+          const qrDataURL = await QRCode.toDataURL(code, options);
+
+          // Crée les éléments HTML
+          const itemDiv = document.createElement("div");
+          itemDiv.className = "parasol-item";
+
+          const title = document.createElement("h3");
+          title.textContent = code;
+
+          const img = document.createElement("img");
+          img.src = qrDataURL;
+          img.alt = `QR Code per ${code}`;
+
+          // Ajoute le titre et l'image au div de l'item
+          itemDiv.appendChild(title);
+          itemDiv.appendChild(img);
+
+          // Ajoute l'item complet au conteneur principal
+          container.appendChild(itemDiv);
+        } catch (err) {
+          console.error(
+            `Errore durante la generazione del QR code per ${code}:`,
+            err
+          );
+          // Optionnel: afficher une erreur dans la page pour ce code
+          const errorDiv = document.createElement("div");
+          errorDiv.className = "parasol-item";
+          errorDiv.style.color = "red";
+          errorDiv.textContent = `Errore QR ${code}`;
+          container.appendChild(errorDiv);
+        }
+      }
+
+      // Génère tous les QR codes de la liste
+      async function generateAllQRCodes() {
+        // Utilise Promise.all pour attendre que tous les QR codes soient générés
+        // (même si ici addParasolItem les ajoute séquentiellement)
+        await Promise.all(parasolCodes.map((code) => addParasolItem(code)));
+        console.log("Tutti i QR code sono stati generati.");
+      }
+
+      // Lance la génération au chargement de la page
+      generateAllQRCodes();
+    </script>
+  </body>
+</html>
