@@ -237,6 +237,13 @@
       // Fonction pour générer et ajouter un item parasol
       async function addParasolItem(code) {
         try {
+          // --- MODIFICATION IMPORTANTE ICI ---
+          // Construit l'URL complète à encoder dans le QR code
+          const baseUrl =
+            "https://fguerin555.github.io/ombrelli/qr-scan-resultat?code=";
+          const urlToEncode = baseUrl + code;
+          // --- FIN DE LA MODIFICATION IMPORTANTE ---
+
           // Options pour le QR code (taille, niveau de correction d'erreur)
           const options = {
             errorCorrectionLevel: "H", // High: plus robuste
@@ -246,15 +253,15 @@
             width: 150, // Largeur désirée en pixels
           };
 
-          // Génère le QR code sous forme de Data URL (image encodée)
-          const qrDataURL = await QRCode.toDataURL(code, options);
+          // Génère le QR code sous forme de Data URL (image encodée) en utilisant l'URL complète
+          const qrDataURL = await QRCode.toDataURL(urlToEncode, options);
 
           // Crée les éléments HTML
           const itemDiv = document.createElement("div");
           itemDiv.className = "parasol-item";
 
           const title = document.createElement("h3");
-          title.textContent = code;
+          title.textContent = code; // Le titre reste le code simple du parasol
 
           const img = document.createElement("img");
           img.src = qrDataURL;
