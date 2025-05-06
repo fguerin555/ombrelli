@@ -1,0 +1,24 @@
+{
+  "files": {
+    "main.css": "/ombrelli/static/css/main.f4a7fe53.css",
+    "main.js": "/ombrelli/static/js/main.dfee204d.js",
+    "static/media/Montserrat-LightItalic.ttf": "/ombrelli/static/media/Montserrat-LightItalic.ac3843da62f0afac7929.ttf",
+    "static/media/Montserrat-MediumItalic.ttf": "/ombrelli/static/media/Montserrat-MediumItalic.67e6dda3939a21720991.ttf",
+    "static/media/Montserrat-ExtraLightItalic.ttf": "/ombrelli/static/media/Montserrat-ExtraLightItalic.8df5777e3ea85687bdf0.ttf",
+    "static/media/Montserrat-ThinItalic.ttf": "/ombrelli/static/media/Montserrat-ThinItalic.c9656dd4aed2ca4f5b1d.ttf",
+    "static/media/Montserrat-Medium.ttf": "/ombrelli/static/media/Montserrat-Medium.b8c6753baa964ccac1ba.ttf",
+    "static/media/Montserrat-Light.ttf": "/ombrelli/static/media/Montserrat-Light.7179b7d2ac9b599db5f9.ttf",
+    "static/media/Montserrat-Regular.ttf": "/ombrelli/static/media/Montserrat-Regular.24785cc015b27a3e964b.ttf",
+    "static/media/Montserrat-ExtraLight.ttf": "/ombrelli/static/media/Montserrat-ExtraLight.d928d1131a9af02cb672.ttf",
+    "static/media/Montserrat-Thin.ttf": "/ombrelli/static/media/Montserrat-Thin.9a7aece9cfe235bc0920.ttf",
+    "static/media/source-sans-pro.regular.ttf": "/ombrelli/static/media/source-sans-pro.regular.358e8828cd2fc97c7e74.ttf",
+    "static/media/JosefinSans-Medium.ttf": "/ombrelli/static/media/JosefinSans-Medium.45a5738c27c1bbbecc0c.ttf",
+    "index.html": "/ombrelli/index.html",
+    "main.f4a7fe53.css.map": "/ombrelli/static/css/main.f4a7fe53.css.map",
+    "main.dfee204d.js.map": "/ombrelli/static/js/main.dfee204d.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.f4a7fe53.css",
+    "static/js/main.dfee204d.js"
+  ]
+}
