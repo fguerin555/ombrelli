@@ -1,7 +1,7 @@
 {
   "files": {
     "main.css": "/ombrelli/static/css/main.f4a7fe53.css",
-    "main.js": "/ombrelli/static/js/main.dfee204d.js",
+    "main.js": "/ombrelli/static/js/main.2539753d.js",
     "static/media/Montserrat-LightItalic.ttf": "/ombrelli/static/media/Montserrat-LightItalic.ac3843da62f0afac7929.ttf",
     "static/media/Montserrat-MediumItalic.ttf": "/ombrelli/static/media/Montserrat-MediumItalic.67e6dda3939a21720991.ttf",
     "static/media/Montserrat-ExtraLightItalic.ttf": "/ombrelli/static/media/Montserrat-ExtraLightItalic.8df5777e3ea85687bdf0.ttf",
@@ -15,10 +15,10 @@
     "static/media/JosefinSans-Medium.ttf": "/ombrelli/static/media/JosefinSans-Medium.45a5738c27c1bbbecc0c.ttf",
     "index.html": "/ombrelli/index.html",
     "main.f4a7fe53.css.map": "/ombrelli/static/css/main.f4a7fe53.css.map",
-    "main.dfee204d.js.map": "/ombrelli/static/js/main.dfee204d.js.map"
+    "main.2539753d.js.map": "/ombrelli/static/js/main.2539753d.js.map"
   },
   "entrypoints": [
     "static/css/main.f4a7fe53.css",
-    "static/js/main.dfee204d.js"
+    "static/js/main.2539753d.js"
   ]
 }
