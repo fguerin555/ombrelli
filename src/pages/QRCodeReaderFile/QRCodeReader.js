@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { Html5QrcodeScanner } from "html5-qrcode";
+import { Html5QrcodeScanner } from "html5-qrcode"; // Import pour html5-qrcode
 import { collection, query, where, getDocs, orderBy } from "firebase/firestore";
-import { db } from "../../firebase";
-import styles from "./QRCodeReader.module.css";
-import "../../Global.css";
+import { db } from "../../firebase"; // Ajuste le chemin vers ta config firebase
+import styles from "./QRCodeReader.module.css"; // Importe le CSS module
+import "../../Global.css"; // Si tu as des styles globaux
 
 const QRCodeReader = () => {
   const [scannedCode, setScannedCode] = useState(null);
@@ -13,6 +13,7 @@ const QRCodeReader = () => {
   const [error, setError] = useState("");
   const qrCodeRegionId = "qr-code-reader-region";
 
+  // --- Fonctions utilitaires ---
   const formatDateEU = (dateString) => {
     if (!dateString) return "N/A";
     try {
@@ -29,7 +30,7 @@ const QRCodeReader = () => {
         return "Giorno intero";
       case "matin":
         return "Mattina";
-      case "apres-midi":
+      case "apres-midi": // Assure-toi que c'est bien "apres-midi" et non "après-midi" dans tes données
         return "Pomeriggio";
       default:
         return condition || "N/D";
@@ -49,13 +50,20 @@ const QRCodeReader = () => {
     }
   };
 
+  // --- Effet pour chercher les réservations quand un code est scanné ---
   useEffect(() => {
     const fetchReservations = async () => {
-      if (!scannedCode) return;
+      if (!scannedCode) {
+        setReservations([]); // Vide les réservations si pas de code scanné
+        return;
+      }
 
       setIsLoading(true);
       setError("");
-      setReservations([]);
+      setReservations([]); // Vide les résultats précédents
+      console.log(
+        `Recherche des réservations pour le code parasol : ${scannedCode}`
+      );
 
       try {
         const reservationsRef = collection(db, "reservations");
@@ -72,6 +80,7 @@ const QRCodeReader = () => {
           ...doc.data(),
         }));
 
+        console.log(`Trouvé ${foundReservations.length} réservations.`);
         setReservations(foundReservations);
 
         if (foundReservations.length === 0) {
@@ -80,6 +89,7 @@ const QRCodeReader = () => {
           );
         }
       } catch (err) {
+        console.error("Errore durante il recupero delle prenotazioni:", err);
         setError(
           "Si è verificato un errore durante la ricerca delle prenotazioni."
         );
@@ -87,72 +97,80 @@ const QRCodeReader = () => {
         setIsLoading(false);
       }
     };
+
     fetchReservations();
   }, [scannedCode]);
 
+  // --- Effet pour gérer le cycle de vie du scanner ---
   useEffect(() => {
-    let html5QrCodeScanner;
+    let scannerInstance = null; // Variable locale pour cette instance de l'effet
 
-    const startScanning = () => {
-      setIsScanning(true);
-      setError("");
-
-      html5QrCodeScanner = new Html5QrcodeScanner(
+    if (isScanning) {
+      // Le div avec qrCodeRegionId est maintenant dans le DOM car isScanning est true
+      scannerInstance = new Html5QrcodeScanner(
         qrCodeRegionId,
         {
           fps: 10,
           qrbox: { width: 250, height: 250 },
           rememberLastUsedCamera: true,
         },
-        false
+        /* verbose= */ false
       );
 
       const onScanSuccess = (decodedText, decodedResult) => {
+        console.log(`Code trouvé ! ${decodedText}`, decodedResult);
         setScannedCode(decodedText);
-        setError("");
-        stopScanning();
+        // setIsScanning(false) va déclencher le nettoyage de cet effet,
+        // qui appellera scannerInstance.clear()
+        setIsScanning(false);
       };
 
       const onScanFailure = (errorMessage) => {
-        // (Optional) Handle scan failures, e.g., show a message
+        // Gérer les échecs de scan (souvent des "QR code not found")
+        // console.warn(`Échec du scan QR : ${errorMessage}`);
       };
 
-      html5QrCodeScanner
+      scannerInstance
         .render(onScanSuccess, onScanFailure)
         .catch((renderError) => {
+          console.error("Erreur lors du rendu du scanner:", renderError);
           setError(`Impossibile avviare lo scanner: ${renderError.message}`);
-          stopScanning();
+          setIsScanning(false); // Assure que le mode scan est désactivé en cas d'erreur
         });
-    };
-
-    const stopScanning = () => {
-      setIsScanning(false);
-      if (html5QrCodeScanner) {
-        html5QrCodeScanner.stop().catch((err) => {
-          console.error("Error stopping scanner:", err);
-        });
-      }
-    };
-
-    if (isScanning) {
-      startScanning();
     }
 
+    // Fonction de nettoyage pour arrêter le scanner lors du démontage du composant
+    // ou lorsque isScanning devient false
     return () => {
-      if (html5QrCodeScanner) {
-        html5QrCodeScanner.stop().catch((err) => {
-          console.error("Error stopping scanner on unmount:", err);
+      if (scannerInstance) {
+        scannerInstance.clear().catch((clearError) => {
+          // Il est possible que clear() soit appelé sur une instance déjà nettoyée ou non rendue,
+          // donc on logue l'erreur mais on ne la considère pas comme critique.
+          console.warn(
+            "Avertissement lors du nettoyage du scanner (clear):",
+            clearError
+          );
         });
       }
     };
-  }, [isScanning]);
+  }, [isScanning]); // Dépend de isScanning.
 
-  const newScan = (choice) => {
+  const startScanning = () => {
+    setIsScanning(true);
+    setError(""); // Réinitialise les erreurs
+    setScannedCode(null); // Réinitialise le code scanné précédent
+    setReservations([]); // Vide les réservations précédentes
+  };
+
+  const handleNewScanChoice = (choice) => {
     if (choice === "Si") {
-      setScannedCode(null);
-      setIsScanning(true); // Start a new scan immediately
+      startScanning(); // Relance un nouveau scan
     } else {
-      setIsScanning(false); // Stop scanning if "No" is chosen
+      // Si "No", on ne fait rien de spécial, l'utilisateur peut quitter la page ou autre
+      // On s'assure que le mode scan est désactivé
+      setIsScanning(false);
+      setScannedCode(null); // Optionnel: effacer le dernier code si on ne veut plus l'afficher
+      setReservations([]);
     }
   };
 
@@ -162,24 +180,26 @@ const QRCodeReader = () => {
         <h1>Scanner QR Code Parasole</h1>
       </div>
 
+      {/* Conteneur où le scanner sera rendu, uniquement si isScanning est true */}
       {isScanning && (
         <div id={qrCodeRegionId} className={styles.scannerRegion}></div>
       )}
 
+      {/* Bouton "Scan" : s'affiche si on n'est pas en train de scanner ET qu'aucun code n'a été traité */}
       {!isScanning && !scannedCode && (
-        <button
-          onClick={() => setIsScanning(true)}
-          className={styles.scanButton}
-        >
+        <button onClick={startScanning} className={styles.scanButton}>
           Scan
         </button>
       )}
 
-      {scannedCode && (
+      {/* Affichage du code scanné, des résultats et des options "Nuovo Scan?" */}
+      {/* S'affiche si un code a été scanné ET qu'on n'est PAS en train de scanner activement */}
+      {!isScanning && scannedCode && (
         <>
           {isLoading && <p>Ricerca prenotazioni in corso...</p>}
           {error && <p className={styles.errorMessage}>{error}</p>}
-          {reservations.length > 0 && (
+
+          {!isLoading && reservations.length > 0 && (
             <div className={styles.resultsContainer}>
               <h2>Prenotazioni per Parasole {scannedCode}:</h2>
               {reservations.map((reservation) => (
@@ -209,20 +229,25 @@ const QRCodeReader = () => {
             </div>
           )}
 
-          <div className={styles.buttonGroup}>
-            <button
-              onClick={() => newScan("Si")}
-              className={styles.newScanButton}
-            >
-              Si
-            </button>
-            <button
-              onClick={() => newScan("No")}
-              className={styles.newScanButton}
-            >
-              No
-            </button>
-          </div>
+          {!isLoading && ( // N'afficher les boutons "Nuovo Scan?" qu'après le chargement
+            <div className={styles.newScanPrompt}>
+              <p>Nuovo Scan?</p>
+              <div className={styles.buttonGroup}>
+                <button
+                  onClick={() => handleNewScanChoice("Si")}
+                  className={styles.newScanButton}
+                >
+                  Si
+                </button>
+                <button
+                  onClick={() => handleNewScanChoice("No")}
+                  className={styles.newScanButton}
+                >
+                  No
+                </button>
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>
