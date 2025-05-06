@@ -13,7 +13,7 @@ const scriptToAppendTo404 = `
   // This script takes the current url and converts the path and query
   // string into just a query string, and then redirects the browser
   // to the new url with only a query string and hash fragment.
-  var segmentCount = 1; // IMPORTANT: Ceci doit être à 1 pour /ombrelli
+  var segmentCount = 1; // IMPORTANT: Ceci doit être à 1 pour /ombrelli (si votre repo est fguerin555.github.io/ombrelli)
   var l = window.location;
   l.replace(
     l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
@@ -38,13 +38,16 @@ try {
   let indexContent = fs.readFileSync(indexHtmlPath, "utf8");
   // Ajoute le script avant la balise </body>
   const modifiedContentFor404 = indexContent.replace(
-    "</body>",
-    scriptToAppendTo404 + "</body>"
+    "</body>", // Recherche la balise </body>
+    scriptToAppendTo404 + "</body>" // Insère le script avant </body>
   );
   fs.writeFileSync(fourOhFourHtmlPath, modifiedContentFor404);
   console.log("Fichier build/404.html créé et modifié avec succès.");
 
   // 3. Crée le fichier .nojekyll
+  // Si tu as ajouté .nojekyll dans ton dossier /Users/fredericguerin/Desktop/ombrelli/public/,
+  // cette ligne n'est techniquement plus indispensable, mais elle ne fait pas de mal
+  // car elle s'assurera qu'un fichier .nojekyll vide existe bien à la racine de build/.
   fs.writeFileSync(noJekyllPath, "");
   console.log("Fichier build/.nojekyll créé avec succès.");
 } catch (error) {
