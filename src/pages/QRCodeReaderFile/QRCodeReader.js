@@ -5,10 +5,19 @@ import styles from "./QRCodeReader.module.css"; // Importe le CSS module
 import "../../Global.css"; // Si tu as des styles globaux
 
 const QRCodeReader = ({ initialCodeFromUrl }) => {
+  console.log(
+    "QRCodeReader - Prop initialCodeFromUrl reçue:",
+    initialCodeFromUrl
+  );
   const [scannedCode, setScannedCode] = useState(initialCodeFromUrl || null);
   const [reservations, setReservations] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+
+  console.log(
+    "QRCodeReader - État scannedCode (initial ou après set):",
+    scannedCode
+  );
 
   // --- Fonctions utilitaires ---
   const formatDateEU = (dateString) => {
@@ -51,10 +60,17 @@ const QRCodeReader = ({ initialCodeFromUrl }) => {
   // vers la même page mais avec un code différent dans l'URL)
   useEffect(() => {
     if (initialCodeFromUrl) {
+      console.log(
+        "QRCodeReader - useEffect[initialCodeFromUrl] - Mise à jour de scannedCode avec:",
+        initialCodeFromUrl
+      );
       setScannedCode(initialCodeFromUrl);
     } else {
       // Si initialCodeFromUrl devient null/undefined (par exemple, navigation vers une URL sans code),
       // on pourrait vouloir réinitialiser.
+      console.log(
+        "QRCodeReader - useEffect[initialCodeFromUrl] - initialCodeFromUrl est null/undefined, réinitialisation de scannedCode."
+      );
       setScannedCode(null);
       setReservations([]);
       setError("");
@@ -64,6 +80,10 @@ const QRCodeReader = ({ initialCodeFromUrl }) => {
   // --- Effet pour chercher les réservations quand un code est scanné ---
   useEffect(() => {
     const fetchReservations = async () => {
+      console.log(
+        "QRCodeReader - useEffect[scannedCode] - Début de fetchReservations. scannedCode actuel:",
+        scannedCode
+      );
       if (!scannedCode) {
         setReservations([]); // Vide les réservations si pas de code scanné
         setError(""); // Efface les erreurs précédentes
@@ -79,6 +99,10 @@ const QRCodeReader = ({ initialCodeFromUrl }) => {
 
       try {
         const reservationsRef = collection(db, "reservations");
+        console.log(
+          "QRCodeReader - fetchReservations - Requête Firestore pour cellCode:",
+          scannedCode
+        );
         const q = query(
           reservationsRef,
           where("cellCode", "==", scannedCode),
@@ -92,7 +116,10 @@ const QRCodeReader = ({ initialCodeFromUrl }) => {
           ...doc.data(),
         }));
 
-        console.log(`Trouvé ${foundReservations.length} réservations.`);
+        console.log(
+          `QRCodeReader - fetchReservations - Trouvé ${foundReservations.length} réservations:`,
+          foundReservations
+        );
         setReservations(foundReservations);
 
         if (foundReservations.length === 0) {
@@ -101,7 +128,10 @@ const QRCodeReader = ({ initialCodeFromUrl }) => {
           );
         }
       } catch (err) {
-        console.error("Errore durante il recupero delle prenotazioni:", err);
+        console.error(
+          "QRCodeReader - fetchReservations - Errore durante il recupero delle prenotazioni:",
+          err
+        );
         setError(
           "Si è verificato un errore durante la ricerca delle prenotazioni."
         );
@@ -116,13 +146,37 @@ const QRCodeReader = ({ initialCodeFromUrl }) => {
   return (
     <div className={styles.QRCodeReaderPage}>
       <div className={styles.Titre}>
-        <h1>Dettagli Prenotazione Parasole</h1> {/* Titre mis à jour */}
+        <h1>Dettagli Prenotazione Ombrellone</h1> {/* Titre mis à jour */}
+      </div>
+      {/* Section de débogage visuel */}
+      <div
+        style={{
+          border: "1px solid blue",
+          padding: "10px",
+          margin: "10px",
+          backgroundColor: "#e0e0ff",
+        }}
+      >
+        <p>
+          <strong>DEBUG QRCodeReader:</strong>
+        </p>
+        <p>
+          Prop initialCodeFromUrl:{" "}
+          {initialCodeFromUrl ? `"${initialCodeFromUrl}"` : "Non fournie"}
+        </p>
+        <p>
+          État scannedCode: {scannedCode ? `"${scannedCode}"` : "Non défini"}
+        </p>
+        <p>État isLoading: {isLoading ? "true" : "false"}</p>
+        <p>État error: {error ? `"${error}"` : "Aucune erreur"}</p>
+        <p>Nombre de réservations trouvées: {reservations.length}</p>
       </div>
 
       {!scannedCode && !isLoading && !error && (
         <div style={{ textAlign: "center", marginTop: "20px" }}>
           <p>
-            Scansiona un QR code per visualizzare i dettagli della prenotazione.
+            Scansiona un QR code con lo scanner del tuo smartphone per
+            visualizzare i dettagli della prenotazione.
           </p>
           <p>(Assicurati che l'URL contenga un parametro come "?code=A01")</p>
         </div>
