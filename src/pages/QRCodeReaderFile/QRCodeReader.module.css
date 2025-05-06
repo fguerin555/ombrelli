@@ -89,15 +89,3 @@
 .rescanButton:hover {
   background-color: #0056b3; /* Bleu plus foncé au survol */
 }
-
-/* Styles spécifiques que html5-qrcode pourrait utiliser (optionnel, pour ajuster) */
-/* Par exemple, pour cacher le lien "Scan an Image File" si non désiré */
-/* #html5-qrcode-button-file-selection {
-  display: none !important;
-} */
-
-/* Pour ajuster la taille de la vidéo si nécessaire */
-/* #qr-code-reader-region video {
-  max-width: 100%;
-  height: auto;
-} */
