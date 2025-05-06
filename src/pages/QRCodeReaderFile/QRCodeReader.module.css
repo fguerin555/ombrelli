@@ -2,13 +2,16 @@
   width: 100%;
   padding: 20px;
   box-sizing: border-box; /* Inclut padding dans la largeur */
+  font-family: Arial, sans-serif; /* Une police de base pour la lisibilité */
 }
+
 .Titre h1 {
   display: flex;
   justify-content: center;
   align-items: center;
   color: #0044cc; /* Bleu foncé */
   margin-bottom: 30px;
+  font-size: 24px; /* Taille de police pour le titre */
 }
 
 /* Media query pour les écrans plus petits */
@@ -16,76 +19,72 @@
   .Titre h1 {
     font-size: 20px;
   }
-}
-
-/* Styles pour la région où le scanner s'affiche */
-.scannerRegion {
-  width: 100%; /* Prend toute la largeur disponible */
-  max-width: 500px; /* Limite la largeur max pour une meilleure visibilité */
-  margin: 20px auto; /* Centre la région */
-  border: 1px solid #b2b2b2; /* Optionnel: pour voir la zone */
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  min-height: 300px; /* Hauteur minimale pour que le scanner ait de la place */
+  .QRCodeReaderPage {
+    padding: 15px; /* Moins de padding sur petits écrans */
+  }
 }
 
 /* Styles pour la zone des résultats */
 .resultsContainer {
   margin-top: 20px;
+  max-width: 600px; /* Limite la largeur pour une meilleure présentation */
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .resultsContainer h2 {
   text-align: center;
-  margin-bottom: 15px;
+  margin-bottom: 20px; /* Plus d'espace sous le titre des résultats */
   color: #333;
+  font-size: 20px;
 }
 
 /* Styles pour chaque fiche de réservation */
 .reservationCard {
-  border: 1px solid #ccc;
+  border: 1px solid #e0e0e0; /* Bordure plus douce */
   border-radius: 8px;
-  padding: 15px;
-  margin-bottom: 15px;
-  background-color: #f9f9f9;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Ajoute une légère ombre */
+  padding: 15px 20px; /* Ajustement du padding */
+  margin-bottom: 20px; /* Plus d'espace entre les cartes */
+  background-color: #ffffff; /* Fond blanc pour les cartes */
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08); /* Ombre subtile */
 }
 
 .reservationCard p {
-  margin: 8px 0; /* Espace vertical entre les lignes */
-  line-height: 1.5; /* Améliore la lisibilité */
+  margin: 10px 0; /* Espace vertical entre les lignes */
+  line-height: 1.6; /* Améliore la lisibilité */
   color: #555; /* Couleur de texte un peu plus douce */
+  font-size: 16px;
 }
 
 .reservationCard p strong {
-  color: #333; /* Met en évidence les labels */
-  margin-right: 5px; /* Espace après le label */
+  color: #222; /* Labels un peu plus foncés */
+  margin-right: 8px; /* Espace après le label */
 }
 
+/* Style pour les messages d'erreur */
 .errorMessage {
-  color: red;
-  font-weight: bold;
+  color: #d32f2f; /* Rouge plus standard pour les erreurs */
+  font-weight: 500; /* Un peu moins gras que "bold" */
   text-align: center;
-  margin-top: 15px;
-  padding: 10px;
-  background-color: #ffebee; /* Fond rouge clair pour l'erreur */
-  border: 1px solid red;
-  border-radius: 4px;
+  margin-top: 25px;
+  padding: 12px 15px;
+  background-color: #ffebee; /* Fond rouge très clair */
+  border: 1px solid #ef9a9a; /* Bordure rouge claire */
+  border-radius: 6px;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
-.rescanButton {
-  display: block;
-  margin: 20px auto;
-  padding: 12px 25px; /* Bouton un peu plus grand */
+/* Style pour le message initial si aucun code n'est scanné (si vous décidez de le styler ici) */
+/* Actuellement, il est inline-styled dans le JS. Si vous voulez le déplacer :
+.initialPrompt {
+  text-align: center;
+  margin-top: 20px;
+  color: #757575;
   font-size: 16px;
-  cursor: pointer;
-  background-color: #007bff; /* Couleur bleue */
-  color: white;
-  border: none;
-  border-radius: 5px;
-  transition: background-color 0.2s ease; /* Effet de transition */
 }
-
-.rescanButton:hover {
-  background-color: #0056b3; /* Bleu plus foncé au survol */
+.initialPrompt p {
+  margin-bottom: 8px;
 }
+*/
