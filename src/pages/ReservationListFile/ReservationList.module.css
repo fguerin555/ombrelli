@@ -79,21 +79,11 @@
   vertical-align: middle; /* Alignement vertical */
 }
 
-/* Optionnel: Style spécifique pour la colonne Extra (6ème colonne maintenant) */
-/* .reservationTable th:nth-child(6),
-.reservationTable td:nth-child(6) {
-  text-align: center;
-  min-width: 80px;
-  max-width: 100px;
-} */
-
-/* Optionnel: Style spécifique pour la colonne Cabina (7ème colonne maintenant) */
-/* .reservationTable th:nth-child(7),
-.reservationTable td:nth-child(7) {
-  text-align: center;
-  min-width: 60px;
-  max-width: 80px;
-} */
+/* Cibler la dernière cellule (celle avec les dates) pour réduire la police */
+.reservationTable td:last-child {
+  font-size: 0.8em; /* Réduire la taille de la police, ajuste selon tes préférences */
+  white-space: nowrap; /* Empêcher le passage à la ligne si les dates sont longues */
+}
 
 .reservationTable th {
   background-color: #f2f2f2; /* Fond gris clair pour l'en-tête */

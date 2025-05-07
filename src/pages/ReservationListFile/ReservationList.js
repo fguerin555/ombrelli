@@ -10,7 +10,6 @@ const ReservationList = ({
   columns, // Les colonnes (ex: ['01', '02', ..., '36'])
 }) => {
   // Fonction helper pour obtenir les détails d'une réservation pour une demi-journée
-  // (Déjà modifiée pour inclure cabina et registiPoltrona)
   const getHalfDayReservationDetails = (cellCode, halfDay) => {
     const validReservations = Array.isArray(reservations) ? reservations : [];
     const relevantReservations = validReservations.filter(
@@ -40,25 +39,27 @@ const ReservationList = ({
         prenom: foundRes.prenom || "",
         numBeds: foundRes.numBeds !== undefined ? foundRes.numBeds : "",
         cabina: foundRes.cabina || "",
-        registiPoltrona: foundRes.registiPoltrona || "", // <-- Récupère R ou P
+        registiPoltrona: foundRes.registiPoltrona || "",
         serialNumber: foundRes.serialNumber || "",
         conditionSpecific: foundRes.condition,
+        startDate: foundRes.startDate,
+        endDate: foundRes.endDate,
       };
     } else {
-      // Retourne des champs vides si non réservé
       return {
         nom: "",
         prenom: "",
         numBeds: "",
         cabina: "",
-        registiPoltrona: "", // <-- Valeur par défaut
+        registiPoltrona: "",
         serialNumber: "",
         conditionSpecific: null,
+        startDate: "",
+        endDate: "",
       };
     }
   };
 
-  // Formater la date pour l'affichage du titre (inchangé)
   const formatDate = (dateStr) => {
     if (!dateStr) return "";
     try {
@@ -70,11 +71,10 @@ const ReservationList = ({
     }
   };
 
-  // Fonction pour convertir 'R'/'P' en texte complet
   const formatExtra = (code) => {
     if (code === "R") return "Regista";
     if (code === "P") return "Poltrona";
-    return ""; // Retourne une chaîne vide si ce n'est ni R ni P
+    return "";
   };
 
   return (
@@ -101,93 +101,115 @@ const ReservationList = ({
                 <th>Lettini</th>
                 <th>Extra</th>
                 <th>Cabina</th>
-                <th>N° Pren.</th>
+                <th>Periodo prenotazione</th>
               </tr>
             </thead>
             <tbody>
               {Array.isArray(rows) &&
                 Array.isArray(columns) &&
-                rows.map((row) =>
-                  columns.map((col) => {
-                    const cellCode = `${row}${col}`;
-                    const morningDetails = getHalfDayReservationDetails(
-                      cellCode,
-                      "matin"
-                    );
-                    const afternoonDetails = getHalfDayReservationDetails(
-                      cellCode,
-                      "apres-midi"
-                    );
-
-                    const isFullDaySameRes =
-                      morningDetails.serialNumber &&
-                      afternoonDetails.serialNumber &&
-                      morningDetails.serialNumber ===
-                        afternoonDetails.serialNumber &&
-                      morningDetails.conditionSpecific === "jour entier";
-
-                    // Cas: Réservé toute la journée par la même réservation
-                    if (isFullDaySameRes) {
-                      return (
-                        <tr key={`${cellCode}-FD`} className={styles.bookedRow}>
-                          <td>{cellCode}</td>
-                          <td>Giorno Intero</td>
-                          <td>{morningDetails.nom}</td>
-                          <td>{morningDetails.prenom}</td>
-                          <td>{morningDetails.numBeds}</td>
-                          <td>{formatExtra(morningDetails.registiPoltrona)}</td>
-                          <td>{morningDetails.cabina}</td>
-                          <td>{morningDetails.serialNumber}</td>
-                        </tr>
+                rows.flatMap(
+                  (
+                    row // Utilisation de flatMap pour la boucle extérieure
+                  ) =>
+                    columns.map((col) => {
+                      const cellCode = `${row}${col}`;
+                      const morningDetails = getHalfDayReservationDetails(
+                        cellCode,
+                        "matin"
                       );
-                    }
+                      const afternoonDetails = getHalfDayReservationDetails(
+                        cellCode,
+                        "apres-midi"
+                      );
 
-                    // Cas: Matin et/ou Après-midi
-                    // Retourne un tableau avec les deux lignes
-                    return [
-                      // Ligne Matin (inchangée)
-                      <tr
-                        key={`${cellCode}-M`}
-                        className={
-                          morningDetails.serialNumber
-                            ? styles.bookedRow
-                            : styles.freeRow
-                        }
-                      >
-                        <td>{cellCode}</td>
-                        <td>Mattina</td>
-                        <td>{morningDetails.nom}</td>
-                        <td>{morningDetails.prenom}</td>
-                        <td>{morningDetails.numBeds}</td>
-                        <td>{formatExtra(morningDetails.registiPoltrona)}</td>
-                        <td>{morningDetails.cabina}</td>
-                        <td>{morningDetails.serialNumber}</td>
-                      </tr>,
-                      // Ligne Après-midi (MODIFIÉE)
-                      <tr
-                        key={`${cellCode}-A`}
-                        // Ajout de la classe spécifique 'afternoonRow'
-                        className={`${
-                          afternoonDetails.serialNumber
-                            ? styles.bookedRow
-                            : styles.freeRow
-                        } ${styles.afternoonRow}`} // <-- AJOUT CLASSE ICI
-                      >
-                        {/* La première cellule est maintenant implicitement vide,
-                            car le CSS va la masquer via .afternoonRow td:first-child */}
-                        <td>
-                          {/* Peut rester vide ou contenir cellCode, sera masqué */}
-                        </td>
-                        <td>Pomeriggio</td>
-                        <td>{afternoonDetails.nom}</td>
-                        <td>{afternoonDetails.prenom}</td>
-                        <td>{afternoonDetails.numBeds}</td>
-                        <td>{formatExtra(afternoonDetails.registiPoltrona)}</td>
-                        <td>{afternoonDetails.cabina}</td>
-                        <td>{afternoonDetails.serialNumber}</td>
-                      </tr>,
-                    ];
-                  })
+                      const isFullDaySameRes =
+                        morningDetails.serialNumber &&
+                        afternoonDetails.serialNumber &&
+                        morningDetails.serialNumber ===
+                          afternoonDetails.serialNumber &&
+                        morningDetails.conditionSpecific === "jour entier";
+
+                      if (isFullDaySameRes) {
+                        return (
+                          <tr
+                            key={`${cellCode}-FD`}
+                            className={styles.bookedRow}
+                          >
+                            <td>{cellCode}</td>
+                            <td>Giorno Intero</td>
+                            <td>{morningDetails.nom}</td>
+                            <td>{morningDetails.prenom}</td>
+                            <td>{morningDetails.numBeds}</td>
+                            <td>
+                              {formatExtra(morningDetails.registiPoltrona)}
+                            </td>
+                            <td>{morningDetails.cabina}</td>
+                            <td className={styles.dateCell}>
+                              {formatDate(morningDetails.startDate)} -{" "}
+                              {formatDate(morningDetails.endDate)}
+                            </td>
+                          </tr>
+                        );
+                      }
+
+                      // Cas: Matin et/ou Après-midi
+                      // Retourne un React.Fragment contenant les deux lignes
+                      return (
+                        <React.Fragment key={`${cellCode}-Group`}>
+                          <tr
+                            key={`${cellCode}-M`}
+                            className={
+                              morningDetails.serialNumber
+                                ? styles.bookedRow
+                                : styles.freeRow
+                            }
+                          >
+                            <td>{cellCode}</td>
+                            <td>Mattina</td>
+                            <td>{morningDetails.nom}</td>
+                            <td>{morningDetails.prenom}</td>
+                            <td>{morningDetails.numBeds}</td>
+                            <td>
+                              {formatExtra(morningDetails.registiPoltrona)}
+                            </td>
+                            <td>{morningDetails.cabina}</td>
+                            <td className={styles.dateCell}>
+                              {morningDetails.nom
+                                ? `${formatDate(
+                                    morningDetails.startDate
+                                  )} - ${formatDate(morningDetails.endDate)}`
+                                : ""}
+                            </td>
+                          </tr>
+                          <tr
+                            key={`${cellCode}-A`}
+                            className={`${
+                              afternoonDetails.serialNumber
+                                ? styles.bookedRow
+                                : styles.freeRow
+                            } ${styles.afternoonRow}`}
+                          >
+                            <td></td>{" "}
+                            {/* Cellule vide pour l'alignement, masquée par CSS si besoin */}
+                            <td>Pomeriggio</td>
+                            <td>{afternoonDetails.nom}</td>
+                            <td>{afternoonDetails.prenom}</td>
+                            <td>{afternoonDetails.numBeds}</td>
+                            <td>
+                              {formatExtra(afternoonDetails.registiPoltrona)}
+                            </td>
+                            <td>{afternoonDetails.cabina}</td>
+                            <td className={styles.dateCell}>
+                              {afternoonDetails.nom
+                                ? `${formatDate(
+                                    afternoonDetails.startDate
+                                  )} - ${formatDate(afternoonDetails.endDate)}`
+                                : ""}
+                            </td>
+                          </tr>
+                        </React.Fragment>
+                      );
+                    })
                 )}
             </tbody>
           </table>
