@@ -56,8 +56,7 @@ const QRCodeReader = ({ initialCodeFromUrl }) => {
     }
   };
 
-  // Met à jour scannedCode si la prop initialCodeFromUrl change (par exemple, si l'utilisateur navigue
-  // vers la même page mais avec un code différent dans l'URL)
+  // Met à jour scannedCode si la prop initialCodeFromUrl change
   useEffect(() => {
     if (initialCodeFromUrl) {
       console.log(
@@ -66,8 +65,6 @@ const QRCodeReader = ({ initialCodeFromUrl }) => {
       );
       setScannedCode(initialCodeFromUrl);
     } else {
-      // Si initialCodeFromUrl devient null/undefined (par exemple, navigation vers une URL sans code),
-      // on pourrait vouloir réinitialiser.
       console.log(
         "QRCodeReader - useEffect[initialCodeFromUrl] - initialCodeFromUrl est null/undefined, réinitialisation de scannedCode."
       );
@@ -85,14 +82,14 @@ const QRCodeReader = ({ initialCodeFromUrl }) => {
         scannedCode
       );
       if (!scannedCode) {
-        setReservations([]); // Vide les réservations si pas de code scanné
-        setError(""); // Efface les erreurs précédentes
+        setReservations([]);
+        setError("");
         return;
       }
 
       setIsLoading(true);
       setError("");
-      setReservations([]); // Vide les résultats précédents
+      setReservations([]);
       console.log(
         `Recherche des réservations pour le code parasol : ${scannedCode}`
       );
@@ -146,30 +143,7 @@ const QRCodeReader = ({ initialCodeFromUrl }) => {
   return (
     <div className={styles.QRCodeReaderPage}>
       <div className={styles.Titre}>
-        <h1>Dettagli Prenotazione Ombrellone</h1> {/* Titre mis à jour */}
-      </div>
-      {/* Section de débogage visuel */}
-      <div
-        style={{
-          border: "1px solid blue",
-          padding: "10px",
-          margin: "10px",
-          backgroundColor: "#e0e0ff",
-        }}
-      >
-        <p>
-          <strong>DEBUG QRCodeReader:</strong>
-        </p>
-        <p>
-          Prop initialCodeFromUrl:{" "}
-          {initialCodeFromUrl ? `"${initialCodeFromUrl}"` : "Non fournie"}
-        </p>
-        <p>
-          État scannedCode: {scannedCode ? `"${scannedCode}"` : "Non défini"}
-        </p>
-        <p>État isLoading: {isLoading ? "true" : "false"}</p>
-        <p>État error: {error ? `"${error}"` : "Aucune erreur"}</p>
-        <p>Nombre de réservations trouvées: {reservations.length}</p>
+        <h1>Dettagli Prenotazione Ombrellone</h1>
       </div>
 
       {!scannedCode && !isLoading && !error && (
@@ -216,14 +190,11 @@ const QRCodeReader = ({ initialCodeFromUrl }) => {
                       {formatCondition(reservation.condition)}
                     </span>
                   </p>
+                  {/* Ici, nous ajouterons les nouvelles informations plus tard */}
                 </div>
               ))}
             </div>
           )}
-          {/* Si aucune réservation n'est trouvée mais qu'il n'y a pas d'erreur de chargement,
-              l'erreur spécifique "Nessuna prenotazione..." sera déjà affichée par le bloc {error && ...}
-              si elle a été définie.
-          */}
         </>
       )}
     </div>

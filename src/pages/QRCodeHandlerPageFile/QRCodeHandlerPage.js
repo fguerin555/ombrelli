@@ -5,7 +5,7 @@ import QRCodeReader from "../QRCodeReaderFile/QRCodeReader"; // Ajuste le chemin
 const QRCodeHandlerPage = () => {
   const [searchParams] = useSearchParams();
   const codeFromUrl = searchParams.get("code");
-  console.log("QRCodeHandlerPage - codeFromUrl:", codeFromUrl); // AJOUTÉ ICI
+  console.log("QRCodeHandlerPage - codeFromUrl:", codeFromUrl); // Gardé pour le débogage console
 
   if (!codeFromUrl) {
     return (
@@ -26,25 +26,7 @@ const QRCodeHandlerPage = () => {
   }
 
   // Passe le code extrait de l'URL au composant QRCodeReader
-  // QRCodeReader a déjà été modifié pour accepter cette prop 'initialCodeFromUrl' // Retourne un message de test très simple pour vérifier si le composant est atteint
-  return (
-    <>
-      <div
-        style={{
-          border: "1px solid red",
-          padding: "10px",
-          margin: "10px",
-          backgroundColor: "#ffe0e0",
-        }}
-      >
-        <p>
-          <strong>DEBUG QRCodeHandlerPage:</strong>
-        </p>
-        <p>codeFromUrl: {codeFromUrl ? `"${codeFromUrl}"` : "Non défini"}</p>
-      </div>
-      <QRCodeReader initialCodeFromUrl={codeFromUrl} />
-    </>
-  );
+  return <QRCodeReader initialCodeFromUrl={codeFromUrl} />;
 };
 
 export default QRCodeHandlerPage;
