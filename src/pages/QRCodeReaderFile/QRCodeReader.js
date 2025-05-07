@@ -190,6 +190,16 @@ const QRCodeReader = ({ initialCodeFromUrl }) => {
                       {formatCondition(reservation.condition)}
                     </span>
                   </p>
+                  <p>
+                    <strong>Numero di lettini:</strong> {reservation.numBeds}
+                  </p>
+                  <p>
+                    <strong>Supp Poltrona/Regista:</strong>{" "}
+                    {reservation.registiPoltrona}
+                  </p>
+                  <p>
+                    <strong>Cabina:</strong> {reservation.cabina}
+                  </p>
                   {/* Ici, nous ajouterons les nouvelles informations plus tard */}
                 </div>
               ))}
