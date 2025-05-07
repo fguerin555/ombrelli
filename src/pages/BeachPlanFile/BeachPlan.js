@@ -282,6 +282,7 @@ export default function BeachPlan() {
             serialNumber: targetDaySerialNumber,
             cellCode: cellCode,
             createdAt: originalData.createdAt || serverTimestamp(),
+            status: "active", // Assurer que le jour splitté a un statut
             modifiedAt: serverTimestamp(),
           };
           delete targetDayData.id;
@@ -332,6 +333,7 @@ export default function BeachPlan() {
               serialNumber: afterSerialNumber,
               cellCode: cellCode,
               createdAt: originalData.createdAt || serverTimestamp(),
+              status: "active", // Assurer que le jour splitté a un statut
               modifiedAt: serverTimestamp(),
             };
             delete afterData.id;
@@ -490,6 +492,7 @@ export default function BeachPlan() {
             ...finalData,
             serialNumber: newSerialNumber,
             createdAt: serverTimestamp(),
+            status: "active", // Assurer que le jour splitté a un statut
           };
           const docRef = await addDoc(reservationsCollectionRef, finalData);
           console.log(

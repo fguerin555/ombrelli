@@ -332,6 +332,7 @@ const TestQueryPlan = () => {
             serialNumber: targetDaySerialNumber,
             cellCode: currentCellCode, // Assurer le bon cellCode
             createdAt: originalData.createdAt || serverTimestamp(),
+            status: "active", // Ajout du statut pour le jour cible du split
             modifiedAt: serverTimestamp(),
           };
           delete targetDayData.id; // Ne pas copier l'ID original
@@ -383,6 +384,7 @@ const TestQueryPlan = () => {
               serialNumber: afterSerialNumber,
               cellCode: currentCellCode, // Assurer le bon cellCode
               createdAt: originalData.createdAt || serverTimestamp(),
+              status: "active", // Ajout du statut pour la période aprés le  split
               modifiedAt: serverTimestamp(),
             };
             delete afterData.id;

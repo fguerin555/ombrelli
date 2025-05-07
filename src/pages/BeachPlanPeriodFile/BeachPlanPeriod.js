@@ -535,6 +535,7 @@ export default function BeachPlanPeriod() {
             serialNumber: targetDaySerialNumber,
             cellCode: selectedResBase,
             createdAt: originalData.createdAt || serverTimestamp(),
+            status: "active", // Ajout du statut pour le jour cible du split
             modifiedAt: serverTimestamp(),
           };
           delete targetDayData.id;
@@ -584,6 +585,7 @@ export default function BeachPlanPeriod() {
               serialNumber: afterSerialNumber,
               cellCode: selectedResBase,
               createdAt: originalData.createdAt || serverTimestamp(),
+              status: "active", // Ajout du statut pour la période "après" le split
               modifiedAt: serverTimestamp(),
             };
             delete afterData.id;
@@ -674,6 +676,7 @@ export default function BeachPlanPeriod() {
           // Nouvelle réservation
           payload.serialNumber = await getNextSerialNumber();
           payload.createdAt = serverTimestamp();
+          payload.status = "active"; // Ajout du statut pour les nouvelles réservations
           const docRef = await addDoc(collection(db, "reservations"), payload);
           payload.id = docRef.id; // Ajouter l'ID pour la mise à jour de l'état local
           console.log(
