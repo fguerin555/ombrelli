@@ -28,6 +28,9 @@ const Navbar = () => {
         <li>
           <Link to="/qrcodereader">QR CODE Reader</Link>
         </li>
+        <li>
+          <Link to="/scan-interne">Scanner Interne</Link>
+        </li>
       </ul>
     </nav>
   );

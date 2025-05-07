@@ -11,6 +11,7 @@ import ChangeExchange from "./pages/ChangeExchangeFile/ChangeExchange";
 import TestQueryName from "./TestQueryName";
 import TestQueryPlan from "./TestQueryPlan";
 import Navbar from "./components/Navbar";
+import InternalScannerPage from "./pages/InternalScannerPage/InternalScannerPage";
 
 const App = () => {
   return (
@@ -28,7 +29,7 @@ const App = () => {
           <Route path="/query" element={<Query />} />
           <Route path="/testqueryplan" element={<TestQueryPlan />} />
           <Route path="/testqueryname" element={<TestQueryName />} />
-
+          <Route path="/scan-interne" element={<InternalScannerPage />} />
           <Route path="/qr-scan-resultat" element={<QRCodeHandlerPage />} />
         </Routes>
       </div>

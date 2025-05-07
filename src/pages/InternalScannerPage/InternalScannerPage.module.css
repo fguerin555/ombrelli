@@ -1,0 +1,33 @@
+.internalScannerPage {
+  padding: 20px;
+  text-align: center;
+}
+
+.scannerContainer {
+  margin: 20px auto;
+  max-width: 400px; /* Ajustez selon vos besoins */
+  border: 2px solid #ccc;
+  padding: 10px;
+  border-radius: 8px;
+}
+
+.scannerVideo {
+  width: 100%;
+  height: auto;
+  display: block; /* Pour éviter l'espace en dessous */
+}
+
+.errorMessage {
+  color: red;
+  margin-top: 10px;
+}
+
+.actionButton {
+  margin-top: 20px;
+  padding: 10px 20px;
+  font-size: 16px;
+}
+
+.resultsSection {
+  margin-top: 20px;
+}
