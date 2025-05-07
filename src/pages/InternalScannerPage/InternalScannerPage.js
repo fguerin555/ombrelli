@@ -1,27 +1,21 @@
 import React, { useState } from "react";
-
 import { useZxing } from "react-zxing";
 import QRCodeReaderResults from "../QRCodeReaderFile/QRCodeReader"; // Notre composant existant
-import styles from "./InternalScannerPage.module.css"; // Nous créerons ce fichier CSS
+import styles from "./InternalScannerPage.module.css";
 
 const InternalScannerPage = () => {
   const [scannedCode, setScannedCode] = useState(null);
-  const [showScanner, setShowScanner] = useState(true);
+  const [showScanner, setShowScanner] = useState(true); // Afficher le scanner par défaut
   const [error, setError] = useState("");
 
   const { ref } = useZxing({
     onDecodeResult: (result) => {
-      const code = result.getText();
-      console.log("Code scanné en interne:", code);
-      setScannedCode(code);
       let codeValue = result.getText();
-      console.log("Code brut scanné en interne:", codeValue); // Log du code brut
+      console.log("Code brut scanné en interne:", codeValue);
 
-      // Essayer d'extraire le paramètre 'code' si c'est une URL
       try {
-        // Vérifier si codeValue est une chaîne et non null/undefined avant de créer l'URL
         if (typeof codeValue === "string" && codeValue) {
-          const url = new URL(codeValue); // Peut lever une erreur si codeValue n'est pas une URL valide
+          const url = new URL(codeValue);
           const params = new URLSearchParams(url.search);
           if (params.has("code")) {
             codeValue = params.get("code");
@@ -34,7 +28,6 @@ const InternalScannerPage = () => {
           }
         }
       } catch (e) {
-        // Si ce n'est pas une URL valide (ex: c'est déjà "A01"), on suppose que c'est directement le code
         console.log(
           "La valeur scannée n'est pas une URL valide ou erreur de parsing, utilisation directe:",
           codeValue
@@ -42,7 +35,28 @@ const InternalScannerPage = () => {
       }
 
       setScannedCode(codeValue);
-      setShowScanner(false);
+      setShowScanner(false); // Masquer le scanner après un scan réussi
+      setError(""); // Effacer les erreurs précédentes en cas de succès
+    },
+    onDecodeError: (decodeError) => {
+      // Gérer les erreurs de décodage si nécessaire, mais souvent on les ignore
+      // pour permettre de continuer à scanner.
+      // console.error("Erreur de décodage:", decodeError);
+      // setError("Impossible de décoder le QR code. Veuillez réessayer.");
+    },
+    onError: (error) => {
+      // Gérer les erreurs d'initialisation de la caméra, etc.
+      console.error("Erreur du scanner:", error);
+      if (error.name === "NotAllowedError") {
+        setError(
+          "È richiesto l'accesso alla videocamera. Si prega di consentire l'accesso nelle impostazioni del browser."
+        );
+      } else {
+        setError(
+          "Errore durante l'inizializzazione della fotocamera. Assicurati che nessun'altra applicazione la stia usando o sia connessa."
+        );
+      }
+      setShowScanner(false); // Masquer le scanner en cas d'erreur d'initialisation
     },
     constraints: { video: { facingMode: "environment" } }, // Utiliser la caméra arrière
     timeBetweenDecodingAttempts: 300, // Temps entre les tentatives de décodage
@@ -51,31 +65,32 @@ const InternalScannerPage = () => {
   const handleRescan = () => {
     setScannedCode(null);
     setError("");
-    setShowScanner(true);
+    setShowScanner(true); // Important: réactiver le scanner
   };
 
   return (
     <div className={styles.internalScannerPage}>
-      <h1>Scanner un QR Code</h1>
+      <h1>Scansiona un codice QR</h1>
       {error && <p className={styles.errorMessage}>{error}</p>}
 
       {showScanner && !error && (
         <div className={styles.scannerContainer}>
-          <p>Pointez la caméra vers un QR code.</p>
+          <p>Puntare la fotocamera verso un codice QR.</p>
           <video ref={ref} className={styles.scannerVideo} />
         </div>
       )}
 
+      {/* Bouton pour activer le scanner si masqué et pas d'erreur et pas de code scanné */}
       {!showScanner && !scannedCode && !error && (
         <button onClick={handleRescan} className={styles.actionButton}>
-          Activer le Scanner
+          Attivare lo scanner
         </button>
       )}
 
       {scannedCode && (
         <div className={styles.resultsSection}>
           <button onClick={handleRescan} className={styles.actionButton}>
-            Scanner un autre code
+            Scansiona un altro codice
           </button>
           <QRCodeReaderResults initialCodeFromUrl={scannedCode} />
         </div>

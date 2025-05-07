@@ -167,25 +167,25 @@ const QRCodeReader = ({ initialCodeFromUrl }) => {
 
           {!isLoading && !error && reservations.length > 0 && (
             <div className={styles.resultsContainer}>
-              <h2>Prenotazioni per Parasole {scannedCode}:</h2>
+              <h2>Prenotazioni per l'ombrellone {scannedCode}:</h2>
               {reservations.map((reservation) => (
                 <div key={reservation.id} className={styles.reservationCard}>
                   <p>
-                    <strong>Nome:</strong> {reservation.nom}
+                    <strong>Cognome:</strong> {reservation.nom}
                   </p>
                   <p>
-                    <strong>Prénom:</strong> {reservation.prenom}
+                    <strong>Nome:</strong> {reservation.prenom}
                   </p>
                   <p>
-                    <strong>Date de début:</strong>{" "}
+                    <strong>Data inizio:</strong>{" "}
                     {formatDateEU(reservation.startDate)}
                   </p>
                   <p>
-                    <strong>Date de fin:</strong>{" "}
+                    <strong>Data fine:</strong>{" "}
                     {formatDateEU(reservation.endDate)}
                   </p>
                   <p>
-                    <strong>Condition:</strong>{" "}
+                    <strong>Condizionre:</strong>{" "}
                     <span style={getConditionStyle(reservation.condition)}>
                       {formatCondition(reservation.condition)}
                     </span>
@@ -194,7 +194,7 @@ const QRCodeReader = ({ initialCodeFromUrl }) => {
                     <strong>Numero di lettini:</strong> {reservation.numBeds}
                   </p>
                   <p>
-                    <strong>Supp Poltrona/Regista:</strong>{" "}
+                    <strong>Suppl. Poltrona/Regista:</strong>{" "}
                     {reservation.registiPoltrona}
                   </p>
                   <p>
