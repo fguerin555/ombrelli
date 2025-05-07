@@ -14,26 +14,34 @@ const InternalScannerPage = () => {
       const code = result.getText();
       console.log("Code scanné en interne:", code);
       setScannedCode(code);
-      setShowScanner(false); // Masquer le scanner après un scan réussi
-      setError("");
-    },
-    onDecodeError: (decodeError) => {
-      // Gérer les erreurs de décodage si nécessaire, mais souvent on les ignore pour permettre de continuer à scanner
-      // console.error("Erreur de décodage:", decodeError);
-      // setError("Impossible de décoder le QR code. Veuillez réessayer.");
-    },
-    onError: (error) => {
-      // Gérer les erreurs d'initialisation de la caméra, etc.
-      console.error("Erreur du scanner:", error);
-      if (error.name === "NotAllowedError") {
-        setError(
-          "L'accès à la caméra est requis. Veuillez autoriser l'accès dans les paramètres de votre navigateur."
-        );
-      } else {
-        setError(
-          "Erreur lors de l'initialisation de la caméra. Assurez-vous qu'aucune autre application ne l'utilise."
+      let codeValue = result.getText();
+      console.log("Code brut scanné en interne:", codeValue); // Log du code brut
+
+      // Essayer d'extraire le paramètre 'code' si c'est une URL
+      try {
+        // Vérifier si codeValue est une chaîne et non null/undefined avant de créer l'URL
+        if (typeof codeValue === "string" && codeValue) {
+          const url = new URL(codeValue); // Peut lever une erreur si codeValue n'est pas une URL valide
+          const params = new URLSearchParams(url.search);
+          if (params.has("code")) {
+            codeValue = params.get("code");
+            console.log("Code extrait de l'URL:", codeValue);
+          } else {
+            console.log(
+              "URL scannée, mais pas de paramètre 'code' trouvé. Utilisation de la valeur brute:",
+              codeValue
+            );
+          }
+        }
+      } catch (e) {
+        // Si ce n'est pas une URL valide (ex: c'est déjà "A01"), on suppose que c'est directement le code
+        console.log(
+          "La valeur scannée n'est pas une URL valide ou erreur de parsing, utilisation directe:",
+          codeValue
         );
       }
+
+      setScannedCode(codeValue);
       setShowScanner(false);
     },
     constraints: { video: { facingMode: "environment" } }, // Utiliser la caméra arrière
