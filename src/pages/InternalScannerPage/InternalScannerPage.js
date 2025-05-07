@@ -6,6 +6,7 @@ import styles from "./InternalScannerPage.module.css";
 const InternalScannerPage = () => {
   const [scannedCode, setScannedCode] = useState(null);
   const [showScanner, setShowScanner] = useState(true); // Afficher le scanner par défaut
+  const [scannerKey, setScannerKey] = useState(Date.now()); // Nouvel état pour la clé
   const [error, setError] = useState("");
 
   const { ref } = useZxing({
@@ -66,6 +67,7 @@ const InternalScannerPage = () => {
     setScannedCode(null);
     setError("");
     setShowScanner(true); // Important: réactiver le scanner
+    setScannerKey(Date.now()); // Changer la clé pour forcer le remontage de la vidéo
   };
 
   return (
@@ -76,7 +78,12 @@ const InternalScannerPage = () => {
       {showScanner && !error && (
         <div className={styles.scannerContainer}>
           <p>Puntare la fotocamera verso un codice QR.</p>
-          <video ref={ref} className={styles.scannerVideo} />
+          <video
+            key={scannerKey}
+            ref={ref}
+            className={styles.scannerVideo}
+          />{" "}
+          {/* Ajout de la prop key */}
         </div>
       )}
 

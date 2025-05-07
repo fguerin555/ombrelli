@@ -185,7 +185,7 @@ const QRCodeReader = ({ initialCodeFromUrl }) => {
                     {formatDateEU(reservation.endDate)}
                   </p>
                   <p>
-                    <strong>Condizionre:</strong>{" "}
+                    <strong>Condizione:</strong>{" "}
                     <span style={getConditionStyle(reservation.condition)}>
                       {formatCondition(reservation.condition)}
                     </span>
