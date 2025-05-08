@@ -1,3 +1,4 @@
+// /Users/fredericguerin/Desktop/ombrelli/src/TestQueryPlan.js
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   collection,
@@ -62,9 +63,7 @@ const TestQueryPlan = () => {
   const [conditionUsedForLastSearch, setConditionUsedForLastSearch] =
     useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedCellForModal, setSelectedCellForModal] = useState(null);
-  const [modalStartDate, setModalStartDate] = useState("");
-  const [modalEndDate, setModalEndDate] = useState("");
+  const [selectedCellForModal, setSelectedCellForModal] = useState(null); // Gardé pour la prop cellCode du modal
   const [reservationToEdit, setReservationToEdit] = useState(null); // Pour passer la résa au modal
 
   // --- Chargement initial des données ---
@@ -86,6 +85,7 @@ const TestQueryPlan = () => {
       }));
       setAllReservations(fetchedReservations);
     } catch (error) {
+      // Correction de la syntaxe ici
       console.error("Erreur lors de la récupération des réservations:", error);
       alert("Erreur lors du chargement des réservations.");
       setAllReservations([]);
@@ -216,46 +216,102 @@ const TestQueryPlan = () => {
       conditionUsedForLastSearch === "free_only_morning" ||
       conditionUsedForLastSearch === "free_only_afternoon";
 
-    // CAS 1: Clic sur une cellule affichée comme LIBRE (pour créer)
     if (isFreeCondition) {
+      // CAS 1: Clic sur une cellule affichée comme LIBRE (pour créer)
+      let newCondition = "jour entier";
+      if (conditionUsedForLastSearch === "free_only_morning") {
+        newCondition = "matin";
+      } else if (conditionUsedForLastSearch === "free_only_afternoon") {
+        newCondition = "apres-midi";
+      }
+
+      const newReservationPayload = {
+        nom: "",
+        prenom: "",
+        startDate: startDate, // Date de début de la période de recherche
+        endDate: endDate, // Date de fin de la période de recherche
+        condition: newCondition,
+        numBeds: 2,
+        registiPoltrona: "",
+        serialNumber: null,
+        id: null, // Indique une nouvelle réservation
+        cabina: null,
+        // cellCode n'est pas nécessaire ici, il sera passé comme prop au modal
+      };
       setSelectedCellForModal(cellCode);
-      setReservationToEdit(null); // Pas de réservation à éditer
-      // Pré-remplir les dates du modal avec celles de la recherche
-      setModalStartDate(startDate);
-      setModalEndDate(endDate);
+      setReservationToEdit(newReservationPayload);
       setIsModalOpen(true);
       console.log(`Ouverture modal pour NOUVELLE réservation sur ${cellCode}`);
 
       // CAS 2: Clic sur une cellule affichée comme RÉSERVÉE (pour voir/modifier)
     } else {
-      // Trouver la/les réservation(s) pour cette cellule à la date de début de la période
-      const key = `${cellCode}_${startDate}`;
-      const bookingsOnStartDate = reservationsMap.get(key) || [];
+      // Analyser les réservations pour cellCode au startDate de la recherche
+      // pour simuler le comportement de BeachPlan.js pour un jour donné.
+      // Le `startDate` de la recherche agit ici comme le `selectedDate` de BeachPlan.js.
+      const reservationsForCellOnRefDate = allReservations.filter(
+        (res) =>
+          res.cellCode === cellCode &&
+          res.startDate && // Assurer que startDate existe
+          res.endDate && // Assurer que endDate existe
+          startDate >= res.startDate && // Utiliser le startDate de la recherche comme date de référence
+          startDate <= res.endDate
+      );
 
-      if (bookingsOnStartDate.length > 0) {
-        // Prendre la première réservation trouvée pour cette date comme référence
-        const firstBookingInfo = bookingsOnStartDate[0];
-        const fullReservationData = allReservations.find(
-          (res) => (res.serialNumber || res.id) === firstBookingInfo.bookingId
-        );
+      const fullDayRes = reservationsForCellOnRefDate.find(
+        (res) => res.condition === "jour entier"
+      );
+      const morningResOnly = reservationsForCellOnRefDate.find(
+        (res) => res.condition === "matin"
+      );
+      const afternoonResOnly = reservationsForCellOnRefDate.find(
+        (res) => res.condition === "apres-midi"
+      );
 
-        if (fullReservationData) {
-          setSelectedCellForModal(cellCode);
-          setReservationToEdit(fullReservationData); // Passer la réservation trouvée
-          setModalStartDate(startDate); // On peut aussi passer les dates de la résa trouvée si pertinent
-          setModalEndDate(endDate);
-          setIsModalOpen(true);
-          console.log(
-            `Ouverture modal pour VOIR/MODIFIER réservation sur ${cellCode} (ID: ${fullReservationData.id})`
-          );
+      let dataForModalOnClick = null;
+
+      if (fullDayRes) {
+        dataForModalOnClick = { ...fullDayRes };
+      } else if (morningResOnly && afternoonResOnly) {
+        // Important: vérifier si ce sont des réservations différentes (par ID)
+        if (morningResOnly.id !== afternoonResOnly.id) {
+          dataForModalOnClick = {
+            morning: { ...morningResOnly },
+            afternoon: { ...afternoonResOnly },
+            type: "dual", // C'est la structure attendue par ReservationModal
+          };
         } else {
-          console.warn(
-            `Réservation avec ID ${firstBookingInfo.bookingId} non trouvée dans allReservations.`
-          );
+          // Cas improbable où matin et après-midi sont la même résa mais pas "jour entier"
+          // On prend l'une ou l'autre.
+          dataForModalOnClick = { ...morningResOnly };
         }
+      } else if (morningResOnly) {
+        dataForModalOnClick = { ...morningResOnly };
+      } else if (afternoonResOnly) {
+        dataForModalOnClick = { ...afternoonResOnly };
       } else {
         console.log(
-          `Aucune réservation trouvée pour ${cellCode} le ${startDate} malgré le filtre.`
+          `Aucune réservation spécifique (jour entier, matin, ou après-midi) trouvée pour ${cellCode} le ${startDate} pour construire dataForModalOnClick.`
+        );
+        // Si aucun des cas ci-dessus n'est trouvé, cela signifie qu'il n'y a pas de réservation claire
+        // pour cette cellule à cette date de référence pour un affichage simple ou dual.
+        // On pourrait choisir de ne pas ouvrir le modal ou d'ouvrir un modal "nouvelle réservation"
+        // mais comme on est dans le 'else' de 'isFreeCondition', on s'attend à une réservation.
+        // Il est possible que le filtre de TestQueryPlan montre la cellule comme réservée sur la période,
+        // mais qu'au `startDate` spécifique, il n'y ait pas de résa simple/dual claire.
+        // Pour l'instant, on ne fait rien si dataForModalOnClick reste null.
+      }
+
+      if (dataForModalOnClick) {
+        setSelectedCellForModal(cellCode);
+        setReservationToEdit(dataForModalOnClick); // C'est cette donnée qui sera passée au modal
+        setIsModalOpen(true);
+        console.log(
+          `Ouverture modal pour ${cellCode} avec données:`,
+          dataForModalOnClick
+        );
+      } else {
+        console.log(
+          `Aucune donnée de réservation pertinente à afficher dans le modal pour ${cellCode} le ${startDate}.`
         );
       }
     }
@@ -264,27 +320,31 @@ const TestQueryPlan = () => {
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setSelectedCellForModal(null);
-    setModalStartDate("");
-    setModalEndDate("");
     setReservationToEdit(null); // Réinitialiser la réservation à éditer
   };
 
   // --- LOGIQUE DE SAUVEGARDE (handleSaveReservation) ---
-  const handleSaveReservation = async (reservationData) => {
-    const currentCellCode = selectedCellForModal || reservationData.cellCode; // Utiliser cellCode du modal si MAJ
-    if (!currentCellCode) return;
+  const handleSaveReservation = async (reservationDataFromModal) => {
+    const currentCellCode =
+      selectedCellForModal || reservationDataFromModal.cellCode;
+    if (!currentCellCode) {
+      console.error(
+        "Erreur: currentCellCode est indéfini dans handleSaveReservation."
+      );
+      alert("Erreur interne: Code cellule manquant.");
+      return;
+    }
 
-    setIsLoading(true); // Utiliser isLoading ou isSaving pour la sauvegarde
+    setIsLoading(true); // Utiliser isLoading ou isSearching pour la sauvegarde
 
     const {
-      // cellCode, // On utilise currentCellCode défini ci-dessus
       modifySingleDay,
       targetDate,
       targetDateCondition,
-      id: reservationId, // ID de la réservation à modifier/splitter
-      serialNumber: existingSerialNumber, // SN existant si modification
-      ...dataToSave // Le reste des données du formulaire
-    } = reservationData;
+      id: reservationId,
+      serialNumber: existingSerialNumber,
+      ...dataToSave
+    } = reservationDataFromModal;
 
     try {
       // --- CAS 1: Modification d'un seul jour (SPLIT) ---
@@ -300,13 +360,12 @@ const TestQueryPlan = () => {
         let targetDaySerialNumber = null;
         let afterSerialNumber = null;
 
-        // Pré-générer les numéros de série nécessaires
         targetDaySerialNumber = await getNextSerialNumber();
         const originalResCheck = allReservations.find(
           (res) => res.id === reservationId
         );
         if (originalResCheck && originalResCheck.endDate > targetDate) {
-          afterSerialNumber = await getNextSerialNumber(); // SN pour la partie "après"
+          afterSerialNumber = await getNextSerialNumber();
         }
 
         const newReservationsForState = [];
@@ -319,35 +378,26 @@ const TestQueryPlan = () => {
             throw new Error("Prenotazione originale non trovata per lo split.");
           const originalData = originalDoc.data();
 
-          // --- Vérification Conflit pour le jour cible (simplifiée, à affiner) ---
-          // Il faudrait vérifier si targetDateCondition entre en conflit avec une autre résa ce jour-là
-
-          // 1. Créer résa jour cible
           const targetDayData = {
-            ...originalData, // Base de l'originale
-            ...dataToSave, // Données modifiées (nom, lits, etc.)
+            ...originalData,
+            ...dataToSave,
             startDate: targetDate,
             endDate: targetDate,
             condition: targetDateCondition,
             serialNumber: targetDaySerialNumber,
-            cellCode: currentCellCode, // Assurer le bon cellCode
+            cellCode: currentCellCode,
             createdAt: originalData.createdAt || serverTimestamp(),
-            status: "active", // Ajout du statut pour le jour cible du split
+            status: "active",
             modifiedAt: serverTimestamp(),
           };
-          delete targetDayData.id; // Ne pas copier l'ID original
+          delete targetDayData.id;
           const targetDayDocRef = doc(collection(db, "reservations"));
           transaction.set(targetDayDocRef, targetDayData);
           newReservationsForState.push({
             id: targetDayDocRef.id,
             ...targetDayData,
           });
-          console.log(
-            "Split: Creata prenotazione giorno target",
-            targetDayData.serialNumber
-          );
 
-          // 2. Gérer période AVANT
           if (originalData.startDate < targetDate) {
             const newEndDate = addDays(targetDate, -1);
             if (!newEndDate)
@@ -357,18 +407,8 @@ const TestQueryPlan = () => {
               modifiedAt: serverTimestamp(),
             });
             updatesToOriginalForState.endDate = newEndDate;
-            console.log(
-              "Split: Aggiornata prenotazione originale (prima)",
-              originalData.serialNumber,
-              "nuova fine:",
-              newEndDate
-            );
-          } else {
-            // Si targetDate est le premier jour, l'originale sera supprimée ou deviendra la partie "après"
-            console.log("Split: Giorno target è startDate originale.");
           }
 
-          // 3. Gérer période APRÈS
           if (originalData.endDate > targetDate) {
             if (!afterSerialNumber)
               throw new Error(
@@ -378,70 +418,43 @@ const TestQueryPlan = () => {
             if (!newStartDate)
               throw new Error("Errore calcolo data inizio periodo 'après'.");
             const afterData = {
-              ...originalData, // Base de l'originale
+              ...originalData,
               startDate: newStartDate,
-              endDate: originalData.endDate, // Garde la date de fin originale
+              endDate: originalData.endDate,
               serialNumber: afterSerialNumber,
-              cellCode: currentCellCode, // Assurer le bon cellCode
+              cellCode: currentCellCode,
               createdAt: originalData.createdAt || serverTimestamp(),
-              status: "active", // Ajout du statut pour la période aprés le  split
+              status: "active",
               modifiedAt: serverTimestamp(),
             };
             delete afterData.id;
             const afterDocRef = doc(collection(db, "reservations"));
             transaction.set(afterDocRef, afterData);
             newReservationsForState.push({ id: afterDocRef.id, ...afterData });
-            console.log(
-              "Split: Creata prenotazione periodo dopo",
-              afterData.serialNumber,
-              "inizio:",
-              newStartDate
-            );
 
-            // Si la période "avant" n'existait pas, il faut supprimer l'originale car elle est remplacée par "après"
             if (originalData.startDate >= targetDate) {
               transaction.delete(originalDocRef);
               updatesToOriginalForState.deleted = true;
-              console.log(
-                "Split: Prenotazione originale eliminata (remplacée par 'après').",
-                originalData.serialNumber
-              );
             }
-          } else {
-            // Si targetDate est le dernier jour, et qu'il y avait une période avant, l'originale est juste modifiée (endDate)
-            // Si targetDate est le seul jour, l'originale est supprimée (géré ci-dessous)
-            console.log("Split: Giorno target è endDate originale.");
           }
 
-          // 4. Supprimer l'originale si elle n'a plus de période valide (cas où targetDate était le seul jour)
           if (
             originalData.startDate === targetDate &&
             originalData.endDate === targetDate
           ) {
             transaction.delete(originalDocRef);
             updatesToOriginalForState.deleted = true;
-            console.log(
-              "Split: Prenotazione originale eliminata (jour unique remplacé).",
-              originalData.serialNumber
-            );
           } else if (
             originalData.startDate > targetDate ||
             originalData.endDate < targetDate
           ) {
-            // Cas où l'originale devient invalide après MAJ/création (ne devrait pas arriver avec la logique ci-dessus mais sécurité)
             if (!updatesToOriginalForState.deleted) {
-              // Ne pas essayer de supprimer 2x
               transaction.delete(originalDocRef);
               updatesToOriginalForState.deleted = true;
-              console.log(
-                "Split: Prenotazione originale eliminata (devenue invalide).",
-                originalData.serialNumber
-              );
             }
           }
-        }); // --- Fin Transaction ---
+        });
 
-        // --- MàJ État Local ---
         setAllReservations((prev) => {
           let newState = [...prev];
           if (updatesToOriginalForState.deleted) {
@@ -463,16 +476,14 @@ const TestQueryPlan = () => {
               ...nr,
               createdAt: new Date(),
               modifiedAt: new Date(),
-            })), // Simplifié pour l'état local
+            })),
           ];
           return newState;
         });
         console.log("Split completato con successo.");
-
-        // --- CAS 2: Sauvegarde Normale (Nouvelle ou Mise à jour globale) ---
       } else {
+        // --- CAS 2: Sauvegarde Normale ---
         console.log(`Tentativo di salvataggio normale per ${currentCellCode}`);
-        // --- Vérification Conflit Globale (Ombrellone + Cabine) ---
         let conflictFound = false;
         let conflictMessage = "";
 
@@ -484,27 +495,22 @@ const TestQueryPlan = () => {
           const currentStart = dataToSave.startDate;
           const currentEnd = dataToSave.endDate;
           const currentCondition = dataToSave.condition;
-          const currentCabin = dataToSave.cabina; // Peut être null
+          const currentCabin = dataToSave.cabina;
 
           const potentialConflicts = allReservations.filter(
             (res) =>
-              res.id !== reservationId && // Exclure soi-même si update
+              res.id !== reservationId &&
               res.startDate &&
               res.endDate &&
               currentStart <= res.endDate &&
-              currentEnd >= res.startDate && // Overlap dates
+              currentEnd >= res.startDate &&
               (res.cellCode === currentCellCode ||
-                (currentCabin && res.cabina && currentCabin === res.cabina)) // Même ombrellone OU même cabine
+                (currentCabin && res.cabina && currentCabin === res.cabina))
           );
 
           for (const existingRes of potentialConflicts) {
-            // Conflit Ombrellone
-            console.log(
-              `Vérification conflit: Courant (${currentCondition}) vs Existant (${existingRes.condition}) pour ${currentCellCode}`
-            ); // Log conflit
             if (existingRes.cellCode === currentCellCode) {
               const existingCondition = existingRes.condition;
-              // Vérification plus explicite, similaire à BeachPlan et ReservationModal
               if (
                 currentCondition === "jour entier" ||
                 existingCondition === "jour entier" ||
@@ -513,27 +519,24 @@ const TestQueryPlan = () => {
                 (currentCondition === "apres-midi" &&
                   existingCondition === "apres-midi")
               ) {
-                console.log("--> Conflit Ombrellone DETECTE!"); // Log détection
                 conflictFound = true;
                 conflictMessage = `Conflitto Ombrellone ${currentCellCode} rilevato (${
                   existingRes.condition
                 }) con N° ${existingRes.serialNumber || existingRes.id} (${
                   existingRes.startDate
-                } - ${existingRes.endDate}).`; // Message plus détaillé
+                } - ${existingRes.endDate}).`;
                 break;
               }
             }
-            // Conflit Cabine
             if (
               currentCabin &&
               existingRes.cabina &&
               currentCabin === existingRes.cabina
             ) {
-              console.log("--> Conflit Cabine DETECTE!"); // Log détection
               conflictFound = true;
               conflictMessage = `Conflitto Cabina ${currentCabin} rilevato con N° ${
                 existingRes.serialNumber || existingRes.id
-              } (${existingRes.startDate} - ${existingRes.endDate}).`; // Message plus détaillé
+              } (${existingRes.startDate} - ${existingRes.endDate}).`;
               break;
             }
           }
@@ -544,22 +547,18 @@ const TestQueryPlan = () => {
         }
 
         if (conflictFound) {
-          console.log("Conflit trouvé, affichage alerte:", conflictMessage); // Log avant alerte
           alert(conflictMessage);
           setIsLoading(false);
           return;
         }
-        // --- Fin Vérification Conflit Globale ---
 
-        // --- Logique de sauvegarde Add/Set ---
         let finalData = {
           ...dataToSave,
-          cellCode: currentCellCode, // Assurer le bon cellCode
+          cellCode: currentCellCode,
           modifiedAt: serverTimestamp(),
         };
 
         if (!reservationId) {
-          // --- NOUVELLE réservation ---
           const newSerialNumber = await getNextSerialNumber();
           finalData = {
             ...finalData,
@@ -571,12 +570,6 @@ const TestQueryPlan = () => {
             collection(db, "reservations"),
             finalData
           );
-          console.log(
-            "Nuova prenotazione creata:",
-            docRef.id,
-            "SN:",
-            newSerialNumber
-          );
           setAllReservations((prev) => [
             ...prev,
             {
@@ -587,16 +580,12 @@ const TestQueryPlan = () => {
             },
           ]);
         } else {
-          // --- MISE À JOUR globale ---
           const docRef = doc(db, "reservations", reservationId);
-          finalData.serialNumber = existingSerialNumber; // Conserver SN existant
-          if (
-            !finalData.createdAt // Ajouter createdAt si manquant (vieilles données?)
-          ) {
+          finalData.serialNumber = existingSerialNumber;
+          if (!finalData.createdAt) {
             finalData.createdAt = serverTimestamp();
           }
-          await setDoc(docRef, finalData, { merge: true }); // Utiliser set avec merge pour MAJ ou recréer si supprimé
-          console.log("Prenotazione aggiornata:", reservationId);
+          await setDoc(docRef, finalData, { merge: true });
           setAllReservations((prev) =>
             prev.map((res) =>
               res.id === reservationId
@@ -605,26 +594,25 @@ const TestQueryPlan = () => {
             )
           );
         }
-      } // --- Fin CAS 1 / CAS 2 ---
+      }
 
       alert("Prenotazione salvata con successo!");
       handleCloseModal();
-      await fetchReservations(); // Recharger toutes les réservations
-      handleSearch(); // Relancer la recherche pour MAJ l'affichage
+      await fetchReservations();
+      handleSearch();
     } catch (error) {
       console.error("Erreur lors de la sauvegarde de la réservation:", error);
       alert(`Errore durante il salvataggio: ${error.message}`);
     } finally {
       setIsLoading(false);
     }
-  }; // --- Fin handleSaveReservation ---
+  };
 
   // --- Fonction pour vérifier si une cellule est réservée matin/aprem par différents clients sur TOUTE la période ---
   const checkIfSplitBookingForPeriod = (cellCode, start, end, map) => {
     let currentDay = new Date(start);
     const lastDay = new Date(end);
 
-    // Si la période est invalide, retourner false
     if (currentDay > lastDay) return false;
 
     while (currentDay <= lastDay) {
@@ -640,7 +628,6 @@ const TestQueryPlan = () => {
         (b) => b.condition === "jour entier"
       );
 
-      // Condition pour être un "split booking" CE JOUR-LÀ:
       const isSplitToday =
         morningRes &&
         afternoonRes &&
@@ -648,25 +635,21 @@ const TestQueryPlan = () => {
         morningRes.bookingId !== afternoonRes.bookingId;
 
       if (!isSplitToday) {
-        return false; // Condition non remplie pour ce jour
+        return false;
       }
 
       currentDay.setDate(currentDay.getDate() + 1);
     }
-    // Si on a passé tous les jours sans retourner false
     return true;
   };
 
   // --- Rendu du Plan Filtré ---
   const renderFilteredPlan = () => {
-    // Afficher chargement initial des données
     if (isLoading && !searchPerformed)
       return <div className={styles.loadingIndicator}>Caricamento dati...</div>;
-    // Afficher chargement pendant la recherche manuelle
     if (isSearching)
       return <div className={styles.loadingIndicator}>Ricerca in corso...</div>;
 
-    // Si une recherche a été faite mais sans résultat
     if (searchPerformed && filteredCells.length === 0)
       return (
         <div className={styles.noResults}>
@@ -674,7 +657,6 @@ const TestQueryPlan = () => {
         </div>
       );
 
-    // Si aucune recherche n'a encore été faite
     if (!searchPerformed)
       return (
         <div className={styles.noResults}>
@@ -682,7 +664,6 @@ const TestQueryPlan = () => {
         </div>
       );
 
-    // Si la recherche a été faite et a des résultats
     return (
       <div className={styles.beach_plan}>
         {rows.map((row) => (
@@ -695,22 +676,19 @@ const TestQueryPlan = () => {
               let afternoonClass = styles.colorEmpty;
 
               if (isCellFiltered) {
-                // Vérification spéciale pour le cas matin/aprem par différents clients
                 const isSplitBooking = checkIfSplitBookingForPeriod(
                   cellCode,
                   startDate,
                   endDate,
-                  reservationsMap // Passer la map mémoïsée
+                  reservationsMap
                 );
 
                 if (isSplitBooking) {
-                  // Appliquer les couleurs spécifiques bleu/orange
                   morningClass = styles.colorMatin;
                   afternoonClass = styles.colorApresMidi;
                 } else {
-                  // Sinon, appliquer la couleur basée sur le filtre utilisé
                   switch (conditionUsedForLastSearch) {
-                    case "booked_full": // Cas normal jour entier (ou matin+aprem même client)
+                    case "booked_full":
                       morningClass = afternoonClass = styles.colorJourEntier;
                       break;
                     case "booked_morning":
@@ -738,7 +716,6 @@ const TestQueryPlan = () => {
                 }
               }
 
-              // Rendre TOUTES les cellules filtrées cliquables
               const isClickableForModal = isCellFiltered;
 
               return (
@@ -746,13 +723,13 @@ const TestQueryPlan = () => {
                   key={cellCode}
                   className={`${styles.cell} ${
                     !isCellFiltered ? styles.filteredOut : ""
-                  } ${isClickableForModal ? styles.clickable : ""}`} // Appliquer .clickable si filtré
+                  } ${isClickableForModal ? styles.clickable : ""}`}
                   title={
                     isCellFiltered
                       ? `Ombrellone ${cellCode} - Corrisponde (Clicca per dettagli/modifica)`
                       : `Ombrellone ${cellCode} - Non corrisponde`
                   }
-                  onClick={() => handleCellClick(cellCode)} // Toujours appeler handleCellClick si filtré
+                  onClick={() => handleCellClick(cellCode)}
                 >
                   <div className={`${styles.cellHalf} ${morningClass}`}>
                     {cellCode}
@@ -774,9 +751,10 @@ const TestQueryPlan = () => {
           <h1>Test Query Plan</h1>
         </div>
 
-        {/* Contrôles de Période et Condition */}
         <div className={styles.controlsHeader}>
-          <div className={styles.dateSelector}>
+          <div className={styles.filterGroup}>
+            {" "}
+            {/* Nouveau groupe pour la date de début */}
             <label htmlFor="startDate">Dal:</label>
             <input
               type="date"
@@ -784,6 +762,10 @@ const TestQueryPlan = () => {
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
             />
+          </div>
+          <div className={styles.filterGroup}>
+            {" "}
+            {/* Nouveau groupe pour la date de fin */}
             <label htmlFor="endDate">Al:</label>
             <input
               type="date"
@@ -793,13 +775,16 @@ const TestQueryPlan = () => {
               onChange={(e) => setEndDate(e.target.value)}
             />
           </div>
-          <div className={styles.conditionSelector}>
+          <div className={styles.filterGroup}>
+            {" "}
+            {/* Nouveau groupe pour la condition */}
             <label htmlFor="condition">Mostra Ombrelloni:</label>
             <select
               id="condition"
               value={selectedCondition}
               onChange={(e) => setSelectedCondition(e.target.value)}
             >
+              {/* Les options restent les mêmes */}
               <optgroup label="Prenotati">
                 <option value="booked_full">Prenotati Giorni Interi</option>
                 <option value="booked_morning">Prenotati Solo Mattina</option>
@@ -818,32 +803,26 @@ const TestQueryPlan = () => {
               </optgroup>
             </select>
           </div>
-          {/* --- Bouton Cerca --- */}
           <button
             onClick={handleSearch}
-            disabled={isSearching || isLoading} // Désactivé pendant chargement initial ou recherche
+            disabled={isSearching || isLoading}
             className={styles.searchButton}
           >
             {isSearching ? "Ricerca..." : "Cerca"}
           </button>
         </div>
 
-        {/* Affichage du Plan Filtré */}
         {renderFilteredPlan()}
 
-        {/* Modal de Réservation */}
-        {isModalOpen && selectedCellForModal && (
+        {isModalOpen && selectedCellForModal && reservationToEdit && (
           <ReservationModal
             isOpen={isModalOpen}
             onClose={handleCloseModal}
             onSave={handleSaveReservation}
             cellCode={selectedCellForModal}
-            defaultStartDate={modalStartDate}
-            defaultEndDate={modalEndDate}
-            allReservations={allReservations} // <-- Passer allReservations
-            selectedDate={startDate} // <-- Passer la date de début comme référence pour le split
-            reservationToEdit={reservationToEdit} // <-- Passer la réservation à éditer/voir
-            // onDelete n'est pas géré dans ce contexte, mais pourrait l'être si nécessaire
+            allReservations={allReservations}
+            selectedDate={startDate} // Le startDate de la recherche, qui a servi de référence pour construire reservationToEdit
+            reservationData={reservationToEdit}
           />
         )}
       </div>

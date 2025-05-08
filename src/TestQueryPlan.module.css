@@ -14,7 +14,7 @@
 .controlsHeader {
   display: flex;
   justify-content: space-between; /* Aligne les éléments sur les côtés */
-  align-items: center;
+  align-items: center; /* Aligne verticalement les .filterGroup et .searchButton */
   margin-bottom: 20px;
   padding: 15px;
   background-color: #f0f0f0;
@@ -23,25 +23,44 @@
   gap: 15px; /* Espace entre les groupes de contrôles */
 }
 
+/* Les classes .dateSelector et .conditionSelector ne sont plus utilisées pour la structure principale des filtres.
+   Elles sont remplacées par .filterGroup pour chaque contrôle individuel.
+   Si vous les utilisiez pour autre chose, vous pouvez les conserver ou les adapter.
+   Pour l'instant, je les commente/supprime pour éviter la confusion. */
+/*
 .dateSelector,
-.conditionSelector {
+.conditionSelector { ... }
+.dateSelector label,
+.conditionSelector label { ... }
+.dateSelector input[type="date"],
+.conditionSelector select { ... }
+*/
+
+.filterGroup {
+  /* Nouvelle classe pour chaque groupe de filtre individuel */
   display: flex;
-  align-items: center;
-  gap: 8px; /* Espace entre label et input/select */
+  flex-direction: column; /* Label au-dessus du champ */
+  flex-grow: 1; /* Permet aux groupes de grandir et de remplir l'espace sur les grands écrans */
+  min-width: 180px; /* Largeur minimale pour chaque groupe de filtre lorsque en ligne */
 }
 
-.dateSelector label,
-.conditionSelector label {
+.filterGroup label {
+  display: block; /* Assure que le label prend sa propre ligne */
+  margin-bottom: 5px; /* Espace entre le label et le champ */
   font-weight: bold;
   white-space: nowrap; /* Empêche le label de se couper */
+  color: #555; /* Cohérence avec ReservationModal */
+  font-size: 0.9rem; /* Cohérence avec ReservationModal */
 }
 
-.dateSelector input[type="date"],
-.conditionSelector select {
+.filterGroup input[type="date"],
+.filterGroup select {
+  width: 100%; /* Le champ prend toute la largeur de son .filterGroup */
   padding: 8px 10px;
   border: 1px solid #ccc;
   border-radius: 4px;
   font-size: 0.95rem;
+  box-sizing: border-box; /* Important pour que width: 100% inclue padding et border */
 }
 
 .loadingIndicator,
@@ -66,16 +85,42 @@
   max-width: 100%; /* Assure que le plan ne dépasse pas */
   overflow-x: auto; /* Scroll horizontal si nécessaire */
 }
+
 .searchButton {
   padding: 10px 20px;
   background-color: aqua;
   color: black;
-  border: solid 1 px black;
+  border: 1px solid black; /* Typo corrigée de "solid 1 px black" */
   border-radius: 4px;
   cursor: pointer;
-  font-size: 1em;
+  font-size: 1em; /* ou 1rem pour la consistance */
   font-weight: bold;
+  transition: background-color 0.2s ease, opacity 0.2s ease; /* Ajouté pour des transitions douces */
+  align-self: center; /* Pour un bon alignement vertical dans le flex .controlsHeader */
+  /* Pour que le bouton ait la même hauteur que les inputs/selects : */
+  /* Ajuster le padding vertical pour correspondre à celui des inputs/selects */
+  /* Par exemple, si les inputs ont padding: 8px 10px;, et une bordure de 1px,
+     la hauteur interne est 8+8 = 16px.
+     Pour que le bouton ait une hauteur similaire, son padding vertical doit être ajusté.
+     Si la font-size est similaire, un padding vertical de 8px devrait donner une hauteur comparable.
+  */
+  padding-top: 8px; /* Ajuster pour correspondre au padding vertical des inputs */
+  padding-bottom: 8px; /* Ajuster pour correspondre au padding vertical des inputs */
+  line-height: normal; /* Assure que le texte est bien centré verticalement */
+  height: auto; /* Laisse le padding définir la hauteur */
 }
+
+.searchButton:hover:not(:disabled) {
+  background-color: #00e0e0; /* Un aqua un peu plus foncé ou une autre couleur de survol */
+}
+
+.searchButton:disabled {
+  background-color: #cccccc;
+  color: #666666; /* Optionnel: changer la couleur du texte pour le bouton désactivé */
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
 .row {
   /* Plus nécessaire avec display: grid sur le parent */
   display: contents; /* Permet aux cellules d'être des enfants directs de la grille */
@@ -90,9 +135,17 @@
   font-size: 0.8em;
   font-weight: bold;
   text-align: center;
-  cursor: default; /* Curseur normal, pas de clic ici */
+  cursor: default; /* Curseur normal, pas de clic ici par défaut */
   overflow: hidden; /* Empêche le contenu de déborder */
   border-radius: 3px;
+}
+
+.cell.clickable {
+  /* Style pour rendre la cellule explicitement cliquable */
+  cursor: pointer;
+}
+.cell.clickable:hover {
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.3); /* Effet de survol pour les cellules cliquables */
 }
 
 .cellHalf {
@@ -107,6 +160,7 @@
   background-color: #e0e0e0; /* Grisé pour les cellules non concernées */
   border-color: #bdbdbd;
   color: #9e9e9e;
+  cursor: not-allowed; /* Indique que la cellule n'est pas interactive */
 }
 .cell.filteredOut .cellHalf {
   background-color: #e0e0e0 !important; /* Force le fond grisé */
@@ -125,53 +179,74 @@
 .colorApresMidi {
   background-color: #ffe0b2; /* Orange clair */
 }
+
+/* --- Styles Responsifs --- */
 @media (max-width: 1224px) {
+  /* Pour tablettes */
   .controlsHeader {
-    flex-direction: column; /* Empile les groupes de contrôles (date, condition) */
+    flex-direction: column; /* Empile les groupes de contrôles (date, condition, bouton) */
     align-items: stretch; /* Étire les groupes pour qu'ils prennent la largeur */
   }
 
-  .dateSelector,
-  .conditionSelector {
-    flex-direction: column; /* Empile label et input/select à l'intérieur de chaque groupe */
-    align-items: flex-start; /* Aligne le label et l'input/select à gauche */
-    width: 100%; /* Chaque groupe de contrôle prend toute la largeur */
+  /* Les .filterGroup (qui remplacent .dateSelector et .conditionSelector comme enfants directs de .controlsHeader)
+     vont maintenant s'empiler grâce à la configuration de .controlsHeader. */
+  .filterGroup {
+    min-width: 0; /* Annule la largeur minimale pour permettre width: 100% (via align-items: stretch du parent) */
+    /* width: 100%; est implicitement géré par align-items: stretch sur .controlsHeader */
   }
 
-  .dateSelector label,
-  .conditionSelector label {
-    margin-bottom: 5px; /* Espace entre le label et son input/select */
+  /* Les styles pour label, input et select dans .filterGroup sont déjà corrects pour l'empilement vertical. */
+  .filterGroup input[type="date"],
+  .filterGroup select {
+    /* Ajustements spécifiques pour tablette si nécessaire, par exemple la taille de la police */
+    font-size: 0.9rem;
   }
 
-  .dateSelector input[type="date"],
-  .conditionSelector select {
-    width: 100%; /* L'input/select prend toute la largeur de son conteneur (.dateSelector ou .conditionSelector) */
-    box-sizing: border-box; /* S'assure que padding et border sont inclus dans la largeur */
+  .searchButton {
+    /* Le bouton de recherche suit la même logique */
+    width: 100%;
+    box-sizing: border-box;
+    /* Ajustements spécifiques pour le bouton sur tablette si nécessaire */
+    margin-top: 10px; /* Espace si le bouton est sur sa propre "ligne" */
+    padding: 9px 18px; /* Padding légèrement réduit */
+    font-size: 0.95rem; /* Taille de police légèrement réduite */
   }
 }
 
-/* --- Styles Responsifs --- */
 @media (max-width: 509px) {
+  /* Pour smartphones */
   .controlsHeader {
-    flex-direction: column; /* Empile les groupes de contrôles (date, condition) */
-    align-items: stretch; /* Étire les groupes pour qu'ils prennent la largeur */
+    flex-direction: column;
+    align-items: stretch;
   }
 
-  .dateSelector,
-  .conditionSelector {
-    flex-direction: column; /* Empile label et input/select à l'intérieur de chaque groupe */
-    align-items: flex-start; /* Aligne le label et l'input/select à gauche */
-    width: 100%; /* Chaque groupe de contrôle prend toute la largeur */
+  .filterGroup {
+    min-width: 0; /* Annule la largeur minimale */
+    /* width: 100%; est implicitement géré par align-items: stretch sur .controlsHeader */
   }
 
-  .dateSelector label,
-  .conditionSelector label {
-    margin-bottom: 5px; /* Espace entre le label et son input/select */
+  /* Les styles pour label, input et select dans .filterGroup sont déjà corrects pour l'empilement vertical. */
+  .filterGroup input[type="date"],
+  .filterGroup select {
+    font-size: 1rem; /* Assurer une bonne lisibilité sur mobile */
   }
 
-  .dateSelector input[type="date"],
-  .conditionSelector select {
-    width: 100%; /* L'input/select prend toute la largeur de son conteneur (.dateSelector ou .conditionSelector) */
-    box-sizing: border-box; /* S'assure que padding et border sont inclus dans la largeur */
+  .searchButton {
+    width: 100%;
+    box-sizing: border-box;
+    /* Ajustements spécifiques pour le bouton sur mobile */
+    margin-top: 10px; /* Espace si le bouton est sur sa propre "ligne" */
+    padding: 12px 20px; /* Padding confortable pour le tactile */
+    font-size: 1rem; /* Taille de police lisible */
+  }
+
+  /* Ajustements optionnels pour le plan sur très petits écrans */
+  .beach_plan {
+    grid-template-columns: repeat(auto-fill, minmax(45px, 1fr));
+    gap: 3px;
+  }
+  .cell {
+    min-height: 40px;
+    font-size: 0.7em;
   }
 }
