@@ -396,7 +396,7 @@ const ReservationModal = ({
     let processedValue = value;
     if (name === "registiPoltrona") {
       const upperValue = value.toUpperCase();
-      processedValue = ["R", "P", ""].includes(upperValue)
+      processedValue = ["R", "T", ""].includes(upperValue)
         ? upperValue
         : formData.registiPoltrona;
     } else if (name === "nom" || name === "prenom") {
@@ -722,7 +722,7 @@ const ReservationModal = ({
               </div>
               <div className={styles.formGroup} style={{ flex: 1 }}>
                 <label htmlFor="registiPoltrona">
-                  + Regista (R) / Poltrona (P):
+                  + Regista (R) / Transat (T)
                 </label>
                 <input
                   id="registiPoltrona"
@@ -730,7 +730,7 @@ const ReservationModal = ({
                   value={formData.registiPoltrona || ""}
                   onChange={handleChange}
                   maxLength="1"
-                  placeholder="R / P"
+                  placeholder="R / T"
                   style={{ textTransform: "uppercase" }}
                   type="text"
                 />

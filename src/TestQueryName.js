@@ -40,6 +40,13 @@ const TestQueryName = () => {
     }
   };
 
+  // Fonction pour convertir 'R'/'P' en texte complet
+  const formatExtra = (code) => {
+    if (code === "R") return "Regista";
+    if (code === "T") return "Transat";
+    return ""; // Retourne une chaîne vide si ce n'est ni R ni P ou si code est undefined/null
+  };
+
   // Fonction pour obtenir le style de couleur basé sur la condition Firestore
   const getConditionStyle = (condition) => {
     switch (condition) {
@@ -185,6 +192,9 @@ const TestQueryName = () => {
                       <th>Data Inizio</th>
                       <th>Data Fine</th>
                       <th>Condizione</th>
+                      <th>Lettini</th>
+                      <th>Extra</th>
+                      <th>Cabina</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -198,6 +208,9 @@ const TestQueryName = () => {
                         <td style={getConditionStyle(res.condition)}>
                           {formatCondition(res.condition)}
                         </td>
+                        <td>{res.numBeds !== undefined ? res.numBeds : ""}</td>
+                        <td>{formatExtra(res.registiPoltrona)}</td>
+                        <td>{res.cabina || ""}</td>
                       </tr>
                     ))}
                   </tbody>

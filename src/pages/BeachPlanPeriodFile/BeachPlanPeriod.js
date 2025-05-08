@@ -906,19 +906,19 @@ export default function BeachPlanPeriod() {
           {/* Extra */}
           <TextField
             margin="dense"
-            label="+ Regista (R) / Poltrona (P)"
+            label="+ Regista (R) / Transat (T)"
             value={formData.registiPoltrona || ""}
             onChange={(e) => {
               const upperValue = e.target.value.toUpperCase();
               setFormData({
                 ...formData,
-                registiPoltrona: ["R", "P", ""].includes(upperValue)
+                registiPoltrona: ["R", "T", ""].includes(upperValue)
                   ? upperValue
                   : formData.registiPoltrona,
               });
             }}
             inputProps={{ maxLength: 1 }}
-            placeholder="R / P"
+            placeholder="R / T"
             fullWidth
           />
           {/* Cabine */}

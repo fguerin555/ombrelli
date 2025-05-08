@@ -42,7 +42,7 @@ const formatDateSimple = (dateStr) => {
 // --- Fonction pour convertir 'R'/'P' en texte complet ---
 const formatExtra = (code) => {
   if (code === "R") return "Regista";
-  if (code === "P") return "Poltrona";
+  if (code === "T") return "Transat";
   return ""; // Retourne une chaîne vide si ce n'est ni R ni P ou si code est undefined/null
 };
 
