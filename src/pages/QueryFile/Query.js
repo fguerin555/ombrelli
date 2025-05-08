@@ -1,3 +1,4 @@
+// /Users/fredericguerin/Desktop/ombrelli/src/pages/QueryFile/Query.js
 import React, { useState } from "react";
 import { db } from "../../firebase";
 import {
@@ -38,6 +39,13 @@ const formatDateSimple = (dateStr) => {
   }
 };
 
+// --- Fonction pour convertir 'R'/'P' en texte complet ---
+const formatExtra = (code) => {
+  if (code === "R") return "Regista";
+  if (code === "P") return "Poltrona";
+  return ""; // Retourne une chaîne vide si ce n'est ni R ni P ou si code est undefined/null
+};
+
 // Helper function pour les dates (de l'ancienne version)
 const getDatesInRange = (startDateStr, endDateStr) => {
   const dates = [];
@@ -64,43 +72,34 @@ const getDatesInRange = (startDateStr, endDateStr) => {
     console.error("Erreur getDatesInRange:", error, startDateStr, endDateStr);
     return [];
   }
-  // console.log(`getDatesInRange(${startDateStr}, ${endDateStr}) =>`, dates); // Peut être bruyant
   return dates;
 };
 
 const Query = () => {
-  // États pour le formulaire DANS LE MODAL (de l'ancienne version)
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [condition, setCondition] = useState("all"); // 'all', 'reserved', 'not_reserved'
-
-  // États pour le fonctionnement général et le modal (de l'ancienne version)
+  const [condition, setCondition] = useState("all");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedParasol, setSelectedParasol] = useState(null);
-
-  // États pour les résultats et le chargement/erreurs (de l'ancienne version)
-  const [results, setResults] = useState(null); // Sera notre 'dailyStatus'
+  const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [searchParams, setSearchParams] = useState(null); // Pour afficher les infos de recherche
+  const [searchParams, setSearchParams] = useState(null);
 
-  // --- Gère le double-clic sur une cellule de la GRILLE INTERNE --- (de l'ancienne version)
   const handleCellDoubleClick = (cellCode) => {
-    console.log("Query Grid: Cell double-clicked:", cellCode);
     setSelectedParasol(cellCode);
-    setStartDate(""); // Réinitialise les dates pour la nouvelle requête
+    setStartDate("");
     setEndDate("");
     setCondition("all");
-    setError(null); // Efface les erreurs précédentes du modal ou globales
-    setResults(null); // Efface les résultats précédents
-    setIsModalOpen(true); // Ouvre le modal de requête
+    setError(null);
+    setResults(null);
+    setIsModalOpen(true);
   };
 
-  // --- Fonction de recherche (déclenchée par le modal) --- (Adaptée pour inclure la condition)
   const handleSearch = async (
     searchStartDate,
     searchEndDate,
-    searchCondition // 'all', 'reserved', 'not_reserved'
+    searchCondition
   ) => {
     setIsModalOpen(false);
     setLoading(true);
@@ -111,7 +110,7 @@ const Query = () => {
       codeParasol: selectedParasol,
       startDate: searchStartDate,
       endDate: searchEndDate,
-      condition: searchCondition, // Stocke la condition de recherche
+      condition: searchCondition,
     });
 
     try {
@@ -123,20 +122,18 @@ const Query = () => {
 
       const querySnapshot = await getDocs(q);
       const fetchedReservations = [];
-      // console.log(`Recherche Firestore pour cellCode: ${selectedParasol}`); // Peut être bruyant
       querySnapshot.forEach((doc) => {
         const data = doc.data();
         let resStartDate, resEndDate;
         try {
-          // Gestion des dates (Timestamp ou string)
           resStartDate =
             data.startDate instanceof Timestamp
               ? data.startDate.toDate()
-              : new Date(data.startDate + "T00:00:00Z"); // Assume UTC si string
+              : new Date(data.startDate + "T00:00:00Z");
           resEndDate =
             data.endDate instanceof Timestamp
               ? data.endDate.toDate()
-              : new Date(data.endDate + "T00:00:00Z"); // Assume UTC si string
+              : new Date(data.endDate + "T00:00:00Z");
 
           if (isNaN(resStartDate.getTime()) || isNaN(resEndDate.getTime())) {
             console.warn(
@@ -145,14 +142,14 @@ const Query = () => {
               data.startDate,
               data.endDate
             );
-            return; // Ignore cette réservation
+            return;
           }
 
           fetchedReservations.push({
             id: doc.id,
-            ...data, // Inclut prenom, nom, condition, etc.
-            startDate: resStartDate, // Garde comme objet Date
-            endDate: resEndDate, // Garde comme objet Date
+            ...data,
+            startDate: resStartDate,
+            endDate: resEndDate,
           });
         } catch (conversionError) {
           console.error(
@@ -163,25 +160,27 @@ const Query = () => {
           );
         }
       });
-      // console.log("Total réservations Firestore trouvées:", fetchedReservations.length); // Peut être bruyant
 
       const requestedDates = getDatesInRange(searchStartDate, searchEndDate);
       if (requestedDates.length === 0 && searchStartDate && searchEndDate) {
-        // Affiche une erreur seulement si les dates étaient valides mais la plage est vide (ex: start > end)
         setError("Errore nell'intervallo di date richiesto.");
         setResults([]);
         setLoading(false);
         return;
       }
 
-      let dailyStatus = requestedDates.map((dateStr) => {
+      let dailyStatusList = []; // Sera une liste d'objets, potentiellement plusieurs par date
+
+      for (const dateStr of requestedDates) {
         const [year, month, day] = dateStr.split("-").map(Number);
-        const currentDateUTC = new Date(Date.UTC(year, month - 1, day)); // Date courante en UTC pour comparaison
-        let isReserved = false;
-        let reservationDetails = null;
+        const currentDateUTC = new Date(Date.UTC(year, month - 1, day));
+
+        let morningReservationDetails = null;
+        let afternoonReservationDetails = null;
+        let fullDayReservationDetails = null;
 
         for (const reservation of fetchedReservations) {
-          // Convertir les dates de réservation en UTC pour la comparaison jour par jour
+          // Assurez-vous que reservation.startDate et reservation.endDate sont bien des objets Date
           const resStartUTC = new Date(
             Date.UTC(
               reservation.startDate.getUTCFullYear(),
@@ -197,36 +196,78 @@ const Query = () => {
             )
           );
 
-          // Comparaison stricte des temps UTC
           if (
             currentDateUTC.getTime() >= resStartUTC.getTime() &&
             currentDateUTC.getTime() <= resEndUTC.getTime()
           ) {
-            isReserved = true;
-            reservationDetails = {
+            const details = {
               firstName: reservation.prenom || "N/A",
               lastName: reservation.nom || "N/A",
-              condition: reservation.condition || "N/A", // *** Récupère la condition de la réservation ***
+              condition: reservation.condition || "N/A",
+              numBeds:
+                reservation.numBeds !== undefined ? reservation.numBeds : "",
+              registiPoltrona: reservation.registiPoltrona || "",
+              cabina: reservation.cabina || "",
             };
-            break; // Une seule réservation suffit pour marquer le jour comme réservé
+
+            if (reservation.condition === "jour entier") {
+              fullDayReservationDetails = details;
+              break; // Une réservation "jour entier" prime pour cette date
+            } else if (reservation.condition === "matin") {
+              morningReservationDetails = details;
+            } else if (reservation.condition === "apres-midi") {
+              afternoonReservationDetails = details;
+            }
           }
         }
-        return {
-          date: dateStr, // Garde le format YYYY-MM-DD
-          status: isReserved ? "Prenotato" : "Libero",
-          customer: reservationDetails, // Contient maintenant la condition si réservé
-        };
-      });
 
-      // Appliquer le filtre de condition APRÈS avoir déterminé le statut de chaque jour
-      if (searchCondition === "reserved") {
-        dailyStatus = dailyStatus.filter((day) => day.status === "Prenotato");
-      } else if (searchCondition === "not_reserved") {
-        dailyStatus = dailyStatus.filter((day) => day.status === "Libero");
+        if (fullDayReservationDetails) {
+          dailyStatusList.push({
+            date: dateStr,
+            periodDisplay: "Giorno Intero", // Pour l'affichage
+            status: "Prenotato",
+            customer: fullDayReservationDetails,
+          });
+        } else {
+          if (morningReservationDetails) {
+            dailyStatusList.push({
+              date: dateStr,
+              periodDisplay: "Mattina",
+              status: "Prenotato",
+              customer: morningReservationDetails,
+            });
+          }
+          if (afternoonReservationDetails) {
+            dailyStatusList.push({
+              date: dateStr,
+              periodDisplay: "Pomeriggio",
+              status: "Prenotato",
+              customer: afternoonReservationDetails,
+            });
+          }
+          if (!morningReservationDetails && !afternoonReservationDetails) {
+            // Si ni matin, ni après-midi (et pas jour entier)
+            dailyStatusList.push({
+              date: dateStr,
+              periodDisplay: "Libero",
+              status: "Libero",
+              customer: null,
+            });
+          }
+        }
       }
 
-      // console.log("Statut journalier final:", dailyStatus); // Peut être bruyant
-      setResults(dailyStatus); // Met à jour l'état des résultats
+      if (searchCondition === "reserved") {
+        dailyStatusList = dailyStatusList.filter(
+          (day) => day.status === "Prenotato"
+        );
+      } else if (searchCondition === "not_reserved") {
+        dailyStatusList = dailyStatusList.filter(
+          (day) => day.status === "Libero"
+        );
+      }
+
+      setResults(dailyStatusList);
     } catch (err) {
       console.error("Erreur lors de la recherche Firestore:", err);
       setError("Une erreur est survenue lors de la recherche.");
@@ -236,7 +277,6 @@ const Query = () => {
     }
   };
 
-  // Fonction pour obtenir le label de la condition (de l'ancienne version)
   const getConditionLabel = () => {
     switch (searchParams?.condition) {
       case "reserved":
@@ -248,7 +288,6 @@ const Query = () => {
     }
   };
 
-  // --- Composant Modal de Requête --- (de l'ancienne version)
   const QueryModal = () => {
     const [modalStartDate, setModalStartDate] = useState(startDate);
     const [modalEndDate, setModalEndDate] = useState(endDate);
@@ -263,7 +302,6 @@ const Query = () => {
         setModalError("Inserire le due date.");
         return;
       }
-      // Validation simple du format YYYY-MM-DD (peut être améliorée)
       if (
         !/^\d{4}-\d{2}-\d{2}$/.test(modalStartDate) ||
         !/^\d{4}-\d{2}-\d{2}$/.test(modalEndDate)
@@ -316,7 +354,7 @@ const Query = () => {
                 type="date"
                 id="modalEndDate"
                 value={modalEndDate}
-                min={modalStartDate} // Ajout du min pour la cohérence
+                min={modalStartDate}
                 onChange={(e) => {
                   setModalEndDate(e.target.value);
                   setModalError(null);
@@ -360,7 +398,6 @@ const Query = () => {
     );
   };
 
-  // --- Fonction pour rendre la grille de requête --- (de l'ancienne version)
   const renderQueryGrid = () => {
     return (
       <div className={styles.queryGridContainer}>
@@ -372,7 +409,7 @@ const Query = () => {
               return (
                 <div
                   key={cellCode}
-                  className={styles.queryCell} // Utilise la classe CSS pour la grille
+                  className={styles.queryCell}
                   onDoubleClick={() => handleCellDoubleClick(cellCode)}
                   title={`Interroga Ombrellone ${cellCode}`}
                 >
@@ -386,7 +423,6 @@ const Query = () => {
     );
   };
 
-  // --- Rendu principal du composant Query ---
   return (
     <div className={styles.queryContainer}>
       <div className={styles.titre}>
@@ -396,25 +432,19 @@ const Query = () => {
         </p>
       </div>
 
-      {/* Affiche la grille de requête interne */}
       {renderQueryGrid()}
-
-      {/* Affiche le modal si isModalOpen est true */}
       {isModalOpen && <QueryModal />}
 
-      {/* Indicateur de chargement global */}
       {loading && (
         <div className={styles.loadingIndicator}>
           <p>Caricamento risultati...</p>
         </div>
       )}
 
-      {/* Affichage de l'erreur globale (si pas de chargement et modal fermé) */}
       {!loading && !isModalOpen && error && (
         <p className={styles.error}>{error}</p>
       )}
 
-      {/* Section des résultats (Utilise le NOUVEAU style d'affichage) */}
       {!loading && !isModalOpen && results && searchParams && (
         <div className={styles.resultsContainer}>
           <h2>
@@ -423,7 +453,6 @@ const Query = () => {
               {" "}
               (dal {formatDateSimple(searchParams.startDate)} al{" "}
               {formatDateSimple(searchParams.endDate)}){" "}
-              {/* Utilise formatDateSimple */}
             </span>
           </h2>
           {searchParams.condition !== "all" && (
@@ -440,49 +469,79 @@ const Query = () => {
             </p>
           ) : (
             <ul className={styles.resultsList}>
-              {results.map((item, index) => (
-                <li key={index}>
-                  <div>
-                    {formatDateSimple(item.date)} -{" "}
-                    {/* Utilise formatDateSimple */}
-                    {item.status === "Prenotato" && item.customer ? (
-                      <>
-                        <strong className={styles.prenotato}> Prenotato</strong>
-                        {/* *** NOUVELLE PARTIE pour la condition colorée *** */}
-                        <span
-                          className={`${styles.conditionText} ${
-                            item.customer.condition === "jour entier"
-                              ? styles.conditionRed
-                              : item.customer.condition === "matin"
-                              ? styles.conditionBlue
-                              : item.customer.condition === "apres-midi"
-                              ? styles.conditionOrange
-                              : ""
-                          }`}
-                        >
-                          (
-                          {item.customer.condition === "jour entier"
-                            ? "Giorno Intero"
-                            : item.customer.condition === "matin"
-                            ? "Mattina"
-                            : item.customer.condition === "apres-midi"
-                            ? "Pomeriggio"
-                            : item.customer.condition || "N/D"}
-                          )
-                        </span>
-                      </>
-                    ) : (
-                      <strong className={styles.libero}> Libero</strong>
+              {results.map((item, index) => {
+                // Détermine si une ligne de séparation doit être affichée avant cet item
+                const showSeparator =
+                  index > 0 && item.date !== results[index - 1].date;
+
+                return (
+                  <React.Fragment
+                    key={`${item.date}-${item.periodDisplay}-${index}-group`}
+                  >
+                    {showSeparator && (
+                      <li
+                        key={`${results[index - 1].date}-separator`}
+                        className={styles.dateSeparator}
+                      ></li>
                     )}
-                  </div>
-                  {/* Affichage Nom Client (si réservé) */}
-                  {item.status === "Prenotato" && item.customer && (
-                    <span className={styles.customerName}>
-                      {item.customer.firstName} {item.customer.lastName}
-                    </span>
-                  )}
-                </li>
-              ))}
+                    <li
+                      key={`${item.date}-${item.periodDisplay}-${index}-item`}
+                    >
+                      <div>
+                        {formatDateSimple(item.date)}
+                        {item.status === "Prenotato"
+                          ? ` - ${item.periodDisplay}`
+                          : ""}{" "}
+                        {item.status === "Prenotato" && item.customer ? (
+                          <>
+                            <strong className={styles.prenotato}>
+                              {" "}
+                              Prenotato
+                            </strong>
+                            <span
+                              className={`${styles.conditionText} ${
+                                item.customer.condition === "jour entier"
+                                  ? styles.conditionRed
+                                  : item.customer.condition === "matin"
+                                  ? styles.conditionBlue
+                                  : item.customer.condition === "apres-midi"
+                                  ? styles.conditionOrange
+                                  : ""
+                              }`}
+                            >
+                              {" ("}
+                              {item.customer.condition === "jour entier"
+                                ? "Giorno Intero"
+                                : item.customer.condition === "matin"
+                                ? "Mattina"
+                                : item.customer.condition === "apres-midi"
+                                ? "Pomeriggio"
+                                : item.customer.condition || "N/D"}
+                              {")"}
+                            </span>
+                            {/* Affichage des détails supplémentaires */}
+                            <span className={styles.customerDetails}>
+                              {` - Lettini: ${item.customer.numBeds}`}
+                              {item.customer.registiPoltrona &&
+                                ` - Supplemento: ${formatExtra(
+                                  item.customer.registiPoltrona
+                                )}`}
+                              {item.customer.cabina &&
+                                ` - Cabina: ${item.customer.cabina}`}
+                              {` - `}
+                              <span className={styles.customerName}>
+                                {`${item.customer.firstName} ${item.customer.lastName}`}
+                              </span>
+                            </span>
+                          </>
+                        ) : (
+                          <strong className={styles.libero}> Libero</strong>
+                        )}
+                      </div>
+                    </li>
+                  </React.Fragment>
+                );
+              })}
             </ul>
           )}
         </div>

@@ -1,270 +1,70 @@
 /* /Users/fredericguerin/Desktop/ombrelli/src/pages/QueryFile/Query.module.css */
-
-/* --- Styles Généraux et Conteneur Principal --- */
 .queryContainer {
-  padding: 25px;
-  max-width: 95%; /* Utiliser un pourcentage pour la flexibilité */
-  margin: 30px auto;
-  background-color: #fdfdfd;
-  border-radius: 8px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  font-family: sans-serif;
+  padding: 20px;
+  font-family: Arial, sans-serif;
+  background-color: #f0f0f0; /* Couleur de fond pour la page entière */
+  min-height: 100vh; /* Assure que le fond couvre toute la hauteur */
 }
 
-/* --- Section Titre --- */
 .titre {
   text-align: center;
   margin-bottom: 30px;
-  color: var(
-    --primary-color,
-    #007bff
-  ); /* Couleur par défaut si variable non définie */
-  border-bottom: 2px solid var(--primary-color, #007bff);
-  padding-bottom: 10px;
+  color: #333;
 }
 
 .titre h1 {
-  margin: 0 0 5px 0; /* Ajout marge basse */
-  font-size: 1.8em;
+  font-size: 2.5em;
+  color: #005a9c; /* Bleu institutionnel */
+  margin-bottom: 10px;
 }
+
 .titre p {
-  /* Style pour le sous-titre ajouté */
-  margin: 5px 0 0 0;
-  font-size: 0.9em;
+  font-size: 1.1em;
   color: #555;
 }
 
-/* --- Styles pour la Grille de Requête Interne --- */
+/* --- Styles pour la GRILLE DE REQUÊTE --- */
 .queryGridContainer {
-  margin: 20px 0;
+  margin-bottom: 30px;
   padding: 15px;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  background-color: #f8f9fa; /* Fond légèrement différent pour distinguer */
-  overflow-x: auto; /* Défilement horizontal si besoin */
+  background-color: #ffffff; /* Fond blanc pour la grille */
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  overflow-x: auto; /* Ajoute une barre de défilement horizontale si nécessaire */
+  width: 100%; /* S'assure que le conteneur prend la largeur disponible */
 }
 
 .queryRow {
   display: flex;
-  flex-wrap: nowrap; /* Empêche le retour à la ligne */
-  margin-bottom: 5px; /* Espace réduit entre les rangées */
-  justify-content: flex-start; /* Aligne les cells au début à gauche*/
+  flex-wrap: nowrap; /* Empêche les cellules de passer à la ligne suivante */
+  justify-content: flex-start; /* Aligne les cellules au début de la ligne (gauche) */
+  margin-bottom: 5px; /* Espace entre les rangées */
 }
 
 .queryCell {
-  border: 1px solid #ced4da; /* Bordure grise standard */
-  background-color: white; /* TOUJOURS BLANC */
-  padding: 8px 5px;
-  margin: 2px;
-  min-width: 45px;
-  text-align: center;
-  font-size: 0.8em;
+  width: 50px; /* Largeur fixe pour chaque cellule */
+  height: 35px; /* Hauteur fixe */
+  border: 1px solid #ccc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 2px; /* Petit espace autour de chaque cellule */
+  cursor: pointer;
+  font-size: 0.9em;
   font-weight: bold;
-  color: #495057; /* Couleur du texte */
-  cursor: pointer; /* Indique cliquable */
-  border-radius: 3px;
-  transition: background-color 0.2s ease, transform 0.1s ease;
-  user-select: none; /* Empêche la sélection de texte */
+  color: #333;
+  background-color: #e9ecef; /* Fond légèrement gris pour les cellules */
+  border-radius: 4px;
+  transition: background-color 0.2s, transform 0.1s;
 }
 
 .queryCell:hover {
-  background-color: #e9ecef; /* Léger gris au survol */
-  transform: scale(1.05);
-}
-
-/* --- Styles pour le formulaire (dans le modal) --- */
-.formGroup {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-bottom: 15px;
-}
-
-.formGroup label {
-  font-weight: bold;
-  font-size: 0.9em;
-  color: #444;
-}
-
-.formGroup input[type="text"],
-.formGroup input[type="date"],
-.formGroup select {
-  padding: 12px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  font-size: 1em;
-  box-sizing: border-box;
-}
-
-/* --- Bouton de recherche (utilisé dans le modal) --- */
-.searchButton {
-  padding: 12px 20px;
-  background-color: var(--primary-color, #007bff);
+  background-color: #007bff; /* Bleu au survol */
   color: white;
-  text-shadow: 2px 2px 4px #15459e;
-  box-shadow: 3px 3px 10px rgba(0, 0, 0, 0.3);
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 1.1em;
-  font-weight: bold;
-  transition: background-color 0.2s ease, box-shadow 0.2s ease;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transform: scale(1.05); /* Léger agrandissement */
 }
 
-.searchButton:hover {
-  background-color: var(--secondary-color, #0056b3);
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
-  text-shadow: 2px 2px 4px #15459e;
-  box-shadow: 3px 3px 10px rgba(0, 0, 0, 0.3);
-}
-
-.searchButton:disabled {
-  background-color: #cccccc;
-  color: #666666;
-  cursor: not-allowed;
-  text-shadow: 2px 2px 4px #15459e;
-  box-shadow: 3px 3px 10px rgba(0, 0, 0, 0.3);
-}
-
-/* --- Message d'erreur Global (hors modal) --- */
-.error {
-  color: #d9534f;
-  background-color: #f2dede;
-  border: 1px solid #ebccd1;
-  padding: 15px;
-  border-radius: 4px;
-  margin-top: 20px;
-  margin-bottom: 20px;
-  text-align: center;
-  font-weight: bold;
-}
-
-/* --- Indicateur de chargement Global --- */
-.loadingIndicator {
-  text-align: center;
-  padding: 30px;
-  color: #555;
-  font-size: 1.1em;
-  font-style: italic;
-}
-
-/* --- Conteneur des résultats --- */
-.resultsContainer {
-  margin-top: 30px;
-  padding: 25px;
-  background-color: #fff;
-  border: 1px solid #e0e0e0;
-  border-radius: 6px;
-}
-
-.resultsContainer h2 {
-  margin-top: 0;
-  margin-bottom: 20px;
-  color: #333;
-  border-bottom: 1px solid #eee;
-  padding-bottom: 10px;
-  font-size: 1.5em;
-}
-
-.dateRange {
-  font-size: 0.8em;
-  color: #777;
-  font-weight: normal;
-  margin-left: 10px;
-}
-
-.conditionHeader {
-  margin-bottom: 15px;
-  font-size: 1em;
-  color: #666;
-  background-color: #f8f8f8;
-  padding: 8px;
-  border-radius: 4px;
-  border-left: 3px solid var(--secondary-color, #0056b3);
-}
-
-.noResults {
-  color: #888;
-  font-style: italic;
-  text-align: center;
-  padding: 20px;
-  background-color: #f9f9f9;
-  border-radius: 4px;
-}
-
-/* --- Liste des résultats --- */
-.resultsList {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.resultsList li {
-  padding: 12px 8px;
-  border-bottom: 1px dashed #e8e8e8;
-  margin-bottom: 6px;
-  font-size: 1em;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.resultsList li:last-child {
-  border-bottom: none;
-}
-
-/* Cible la partie gauche (date/statut/condition) pour la flexibilité */
-.resultsList li > div:first-child {
-  flex-grow: 1; /* Permet à cette partie de prendre l'espace */
-  margin-right: 10px; /* Espace avant le nom du client */
-}
-
-/* --- Styles pour les statuts et conditions colorés (Mis à jour) --- */
-.prenotato {
-  /* Applique directement la couleur */
-  color: #d9534f; /* Rouge */
-  font-weight: bold; /* Assure le gras */
-}
-
-.libero {
-  /* Applique directement la couleur */
-  color: #5cb85c; /* Vert */
-  font-weight: bold; /* Assure le gras */
-}
-
-.conditionText {
-  /* Style pour le span de la condition */
-  font-weight: bold; /* Mettre en gras comme le statut */
-  margin-left: 5px; /* Petit espace après "Prenotato" */
-}
-
-.conditionRed {
-  /* Classe pour la condition rouge */
-  color: #d9534f; /* Même rouge que .prenotato */
-}
-
-.conditionBlue {
-  /* Classe pour la condition bleue */
-  color: #007bff; /* Bleu standard */
-}
-
-.conditionOrange {
-  /* Classe pour la condition orange */
-  color: #fd7e14; /* Orange Bootstrap */
-}
-
-.customerName {
-  font-style: italic;
-  color: #555;
-  font-size: 0.9em;
-  text-align: right;
-  flex-shrink: 0; /* Empêche le nom de rétrécir */
-  white-space: nowrap; /* Tente de garder le nom sur une ligne */
-}
-
-/* --- Styles pour le Modal --- */
+/* --- Styles pour le MODAL --- */
 .modalOverlay {
   position: fixed;
   top: 0;
@@ -273,123 +73,212 @@
   bottom: 0;
   background-color: rgba(0, 0, 0, 0.6);
   display: flex;
-  justify-content: center;
   align-items: center;
-  z-index: 1000;
+  justify-content: center;
+  z-index: 1000; /* Assure que le modal est au-dessus des autres éléments */
 }
 
 .modalContent {
-  background-color: #fff;
-  padding: 30px 40px;
+  background-color: white;
+  padding: 30px;
   border-radius: 8px;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-  min-width: 400px;
-  max-width: 90%;
-  max-height: 90vh; /* Hauteur max */
-  overflow-y: auto; /* Ajoute une barre de scroll si nécessaire */
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  width: 90%;
+  max-width: 500px; /* Limite la largeur maximale du modal */
+  text-align: left;
 }
 
 .modalContent h2 {
   margin-top: 0;
-  margin-bottom: 25px;
+  color: #005a9c;
+  font-size: 1.8em;
+  margin-bottom: 20px;
   text-align: center;
-  color: var(--primary-color, #007bff);
-  font-size: 1.4em; /* Taille ajustée pour le modal */
 }
 
-/* Message d'erreur spécifique au Modal */
-.modalError {
-  color: #d9534f;
-  background-color: #f2dede;
-  border: 1px solid #ebccd1;
-  padding: 10px 15px; /* Padding ajusté */
-  border-radius: 4px;
-  margin-bottom: 20px; /* Espace avant le formulaire */
-  text-align: center;
-  font-size: 0.9em;
+.formGroup {
+  margin-bottom: 20px;
+}
+
+.formGroup label {
+  display: block;
+  margin-bottom: 8px;
   font-weight: bold;
+  color: #333;
 }
 
-/* Conteneur pour les boutons du modal */
+.formGroup input[type="date"],
+.formGroup select {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-sizing: border-box; /* Assure que padding et border n'augmentent pas la largeur totale */
+  font-size: 1em;
+}
+
 .modalActions {
   display: flex;
-  justify-content: space-between; /* Boutons aux extrémités */
-  gap: 15px; /* Espace entre les boutons si côte à côte */
-  margin-top: 30px;
-  padding-top: 20px; /* Espace au dessus des boutons */
-  border-top: 1px solid #eee; /* Ligne de séparation */
+  justify-content: flex-end; /* Aligne les boutons à droite */
+  gap: 10px; /* Espace entre les boutons */
+  margin-top: 25px;
 }
 
-/* Bouton Annuler spécifique au modal */
+.searchButton,
 .cancelButton {
-  padding: 12px 20px; /* Même padding que searchButton */
-  background-color: #6c757d;
-  color: white;
-  text-shadow: 2px 2px 4px #15459e;
-  box-shadow: 3px 3px 10px rgba(0, 0, 0, 0.3);
+  padding: 10px 20px;
   border: none;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 1.1em; /* Même taille que searchButton */
-  font-weight: bold; /* Même graisse */
-  transition: background-color 0.2s ease;
+  font-size: 1em;
+  font-weight: bold;
+}
+
+.searchButton {
+  background-color: #28a745; /* Vert pour chercher */
+  color: white;
+}
+
+.searchButton:hover {
+  background-color: #218838;
+}
+
+.cancelButton {
+  background-color: #dc3545; /* Rouge pour annuler */
+  color: white;
 }
 
 .cancelButton:hover {
-  background-color: #5a6268;
-  text-shadow: 2px 2px 4px #15459e;
-  box-shadow: 3px 3px 10px rgba(0, 0, 0, 0.3);
+  background-color: #c82333;
 }
 
-/* --- Media Queries --- */
-@media (max-width: 768px) {
-  /* Point de rupture ajusté */
-  .modalContent {
-    min-width: 300px; /* Réduit la largeur min du modal */
-    padding: 20px 25px; /* Réduit le padding */
-  }
-  .modalActions {
-    flex-direction: column-reverse; /* Empile les boutons, Annuler en bas */
-    gap: 10px;
-  }
-  .searchButton,
-  .cancelButton {
-    width: 100%; /* Boutons pleine largeur */
-  }
-
-  /* Ajustement pour la grille sur écrans moyens si nécessaire */
-  .queryCell {
-    min-width: 40px; /* Réduire légèrement la largeur min */
-    font-size: 0.75em; /* Réduire la police */
-    padding: 6px 4px;
-  }
+.modalError {
+  color: red;
+  font-weight: bold;
+  margin-bottom: 15px;
+  text-align: center;
 }
 
-@media (max-width: 600px) {
-  /* La media query pour .resultsList li reste pertinente */
-  .resultsList li {
-    flex-direction: column;
-    align-items: flex-start;
-  }
+/* --- Styles pour les RÉSULTATS --- */
+.resultsContainer {
+  margin-top: 30px;
+  padding: 20px;
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
 
-  .resultsList li > div:first-child {
-    margin-right: 0; /* Pas de marge droite en colonne */
-    margin-bottom: 5px; /* Espace avant le nom */
-  }
+.resultsContainer h2 {
+  color: #005a9c;
+  font-size: 2em;
+  margin-bottom: 10px;
+  border-bottom: 2px solid #005a9c;
+  padding-bottom: 10px;
+}
 
-  .customerName {
-    margin-left: 0;
-    margin-top: 5px;
-    text-align: left;
-    width: 100%;
-    white-space: normal; /* Permet au nom de passer à la ligne */
-  }
+.dateRange {
+  font-size: 0.8em;
+  color: #555;
+  font-weight: normal;
+}
 
-  /* Ajustement plus important pour la grille sur petits écrans */
-  .queryCell {
-    min-width: 35px; /* Réduire encore la largeur min */
-    font-size: 0.7em; /* Réduire encore la police */
-    padding: 5px 3px;
-    margin: 1px; /* Réduire la marge */
-  }
+.conditionHeader {
+  font-size: 1.1em;
+  color: #333;
+  margin-bottom: 15px;
+  padding: 8px;
+  background-color: #e9ecef;
+  border-left: 4px solid #007bff;
+  border-radius: 4px;
+}
+
+.resultsList {
+  list-style-type: none;
+  padding: 0;
+}
+
+.resultsList li {
+  padding: 12px 0;
+  border-bottom: 1px solid #eee;
+  font-size: 1.1em;
+  color: #333;
+}
+
+.resultsList li:last-child {
+  border-bottom: none;
+}
+
+.resultsList li div {
+  display: flex; /* Permet d'aligner les éléments sur la même ligne */
+  align-items: center; /* Centre verticalement les éléments */
+  flex-wrap: wrap; /* Permet le retour à la ligne si l'espace manque */
+}
+
+.prenotato {
+  color: #dc3545; /* Rouge pour "Prenotato" */
+  font-weight: bold;
+  margin-left: 5px;
+}
+
+.libero {
+  color: #28a745; /* Vert pour "Libero" */
+  font-weight: bold;
+  margin-left: 5px;
+}
+
+.customerName {
+  margin-left: 10px;
+  font-style: italic;
+  color: #490b5b;
+}
+
+.conditionText {
+  margin-left: 5px;
+  font-weight: bold;
+}
+
+.conditionRed {
+  color: red;
+}
+
+.conditionBlue {
+  color: blue;
+}
+
+.conditionOrange {
+  color: orange;
+}
+
+.loadingIndicator {
+  text-align: center;
+  padding: 20px;
+  font-size: 1.2em;
+  color: #005a9c;
+}
+
+.error {
+  color: red;
+  font-weight: bold;
+  text-align: center;
+  padding: 20px;
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
+  border-radius: 4px;
+}
+
+.noResults {
+  text-align: center;
+  padding: 20px;
+  font-size: 1.1em;
+  color: #555;
+  background-color: #fff3cd;
+  border: 1px solid #ffeeba;
+  border-radius: 4px;
+}
+
+/* Style pour les détails supplémentaires du client */
+.customerDetails {
+  margin-left: 5px; /* Espace après la condition */
+  font-size: 0.95em; /* Légèrement plus petit pour ne pas surcharger */
+  color: #444; /* Couleur un peu plus discrète */
 }
