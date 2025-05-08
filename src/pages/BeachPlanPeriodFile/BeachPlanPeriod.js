@@ -133,7 +133,7 @@ export default function BeachPlanPeriod() {
       const endCal = addDays(endValid, 1);
       const bedsText = item.numBeds !== undefined ? `(${item.numBeds}L` : "";
       const extraText = item.registiPoltrona ? `+${item.registiPoltrona}` : "";
-      const cabinText = cabina ? `C${cabina}` : ""; // ajout du texte pour la cabine
+      const cabinText = cabina ? `Cab: ${cabina}` : ""; // ajout du texte pour la cabine
       const title =
         `${nom || ""} ${prenom || ""} ${bedsText}${extraText}${
           bedsText ? ")" : ""

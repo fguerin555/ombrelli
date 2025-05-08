@@ -316,3 +316,33 @@
   color: #666;
   font-style: italic;
 }
+
+/* Styles pour le mode dual (deux formulaires) */
+.halfDayFormSection {
+  padding: 15px;
+  border: 1px solid #e0e0e0; /* Bordure un peu plus visible */
+  border-radius: 6px; /* Coins arrondis */
+  margin-bottom: 20px; /* Espace sous chaque section de demi-journée */
+  background-color: #f9f9f9; /* Fond très léger pour distinguer */
+}
+
+.halfDayFormSection h3 {
+  margin-top: 0;
+  color: #005a9c; /* Couleur titre section */
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 8px;
+  margin-bottom: 18px;
+  font-size: 1.1rem; /* Taille titre section */
+}
+
+.formSeparator {
+  border: 0;
+  height: 1px;
+  background-image: linear-gradient(
+    to right,
+    rgba(0, 0, 0, 0),
+    rgba(0, 0, 0, 0.15),
+    rgba(0, 0, 0, 0)
+  ); /* Séparateur plus subtil */
+  margin: 25px 0; /* Espace vertical autour du séparateur */
+}

@@ -1,4 +1,4 @@
-// src/pages/BeachPlanFile/BeachPlan.js
+// /Users/fredericguerin/Desktop/ombrelli/src/pages/BeachPlanFile/BeachPlan.js
 import React, { useState, useEffect, useCallback } from "react";
 import styles from "./BeachPlan.module.css"; // Assurez-vous que le chemin est correct
 import ReservationModal from "./ReservationModal";
@@ -133,7 +133,6 @@ export default function BeachPlan() {
 
   // --- Gestionnaires d'Événements UI ---
   const handleDoubleClick = (cellCode, clickedHalf) => {
-    // Ajout de clickedHalf
     setSelectedCellCode(cellCode);
     if (!Array.isArray(allReservations)) {
       console.error(
@@ -150,29 +149,37 @@ export default function BeachPlan() {
         selectedDate >= res.startDate &&
         selectedDate <= res.endDate
     );
+
     const fullDayRes = reservationsForCellOnDate.find(
       (res) => res.condition === "jour entier"
     );
-    const morningRes = reservationsForCellOnDate.find(
+    const morningResOnly = reservationsForCellOnDate.find(
       (res) => res.condition === "matin"
     );
-    const afternoonRes = reservationsForCellOnDate.find(
+    const afternoonResOnly = reservationsForCellOnDate.find(
       (res) => res.condition === "apres-midi"
     );
 
-    // Logique pour choisir quelle réservation ouvrir en fonction du clic
     let dataForModal = null;
-    if (clickedHalf === "matin") {
-      dataForModal = morningRes || fullDayRes; // Priorité matin, sinon jour entier
-    } else if (clickedHalf === "apres-midi") {
-      dataForModal = afternoonRes || fullDayRes; // Priorité après-midi, sinon jour entier
-    } else {
-      // Fallback si clickedHalf n'est pas défini (ne devrait pas arriver)
-      dataForModal = fullDayRes || morningRes || afternoonRes;
-    }
 
-    // Si aucune réservation existante trouvée pour la moitié cliquée, préparer une nouvelle
-    if (!dataForModal) {
+    if (fullDayRes) {
+      // Si une réservation "jour entier" existe, elle prime.
+      dataForModal = { ...fullDayRes }; // Copie pour éviter mutations directes
+    } else if (morningResOnly && afternoonResOnly) {
+      // Si matin ET après-midi sont réservés séparément
+      dataForModal = {
+        morning: { ...morningResOnly }, // Copie
+        afternoon: { ...afternoonResOnly }, // Copie
+        type: "dual", // Indique au modal qu'il y a deux réservations distinctes
+      };
+    } else if (morningResOnly) {
+      // Si seulement le matin est réservé
+      dataForModal = { ...morningResOnly }; // Copie
+    } else if (afternoonResOnly) {
+      // Si seulement l'après-midi est réservé
+      dataForModal = { ...afternoonResOnly }; // Copie
+    } else {
+      // Aucune réservation existante pour cette cellule à cette date, préparer une nouvelle
       dataForModal = {
         nom: "",
         prenom: "",
@@ -180,33 +187,31 @@ export default function BeachPlan() {
         registiPoltrona: "",
         startDate: selectedDate,
         endDate: selectedDate,
-        // Pré-remplir la condition en fonction de la moitié cliquée
         condition:
           clickedHalf === "matin"
             ? "matin"
             : clickedHalf === "apres-midi"
             ? "apres-midi"
-            : "jour entier",
+            : "jour entier", // Pré-remplir la condition en fonction de la moitié cliquée
         serialNumber: null,
         id: null,
-        cabina: null,
+        cabina: null, // Assurer que cabina est null pour une nouvelle résa
       };
     }
 
-    // Assurer que cabina est null et non undefined
-    if (dataForModal && dataForModal.cabina === undefined) {
+    // Assurer que cabina est null et non undefined pour les réservations existantes (non-dual) si elle manque.
+    // Pour le mode dual, le modal gère la cabina pour chaque demi-journée.
+    // Pour une nouvelle réservation, cabina est déjà initialisée à null.
+    if (
+      dataForModal &&
+      !dataForModal.type &&
+      dataForModal.cabina === undefined
+    ) {
       dataForModal.cabina = null;
     }
 
-    if (dataForModal) {
-      setCurrentReservationData(dataForModal);
-      setIsModalOpen(true);
-    } else {
-      console.error(
-        "ERREUR: dataForModal est null, le modal ne peut pas s'ouvrir."
-      );
-      alert("Erreur lors de la récupération des données de réservation.");
-    }
+    setCurrentReservationData(dataForModal);
+    setIsModalOpen(true);
   };
 
   const handleCloseModal = () => {

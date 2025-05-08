@@ -15,12 +15,24 @@
 }
 
 /* --- Zone de Contrôles (Style Original .dateSelector) --- */
-/* Utiliser .dateSelector dans le JSX */
-.dateSelector {
-  margin: 15px;
+/* Utiliser .controlsHeader pour le conteneur global des contrôles */
+.controlsHeader {
+  display: flex;
+  justify-content: space-between; /* Ou center si tu préfères tout au centre */
+  align-items: center;
   padding: 10px;
-  background-color: #f0f0f0;
-  border-radius: 5px;
+  margin-bottom: 20px; /* Espace avant le plan */
+  background-color: #f0f0f0; /* Gardé de ta version .dateSelector */
+  border-radius: 5px; /* Gardé de ta version .dateSelector */
+  flex-wrap: wrap; /* Permet le retour à la ligne */
+}
+
+/* Style pour la partie sélection de date */
+.dateSelector {
+  /* margin: 15px; */ /* Peut-être plus nécessaire si .controlsHeader gère l'espacement */
+  /* padding: 10px; */ /* Idem */
+  /* background-color: #f0f0f0; */ /* Déplacé vers .controlsHeader */
+  /* border-radius: 5px; */ /* Déplacé vers .controlsHeader */
   text-align: center;
   display: flex;
   justify-content: center;
@@ -28,46 +40,6 @@
   gap: 10px;
   flex-wrap: wrap;
 }
-/* Renommé en classe CSS (commence par un point) */
-.myButton {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin-top: 20px;
-  font-size: 18px;
-  padding: 10px 20px;
-  border-radius: 7px;
-  cursor: pointer;
-  margin-left: auto;
-  margin-right: auto;
-  background-color: #eab8f0a8 !important;
-  color: beige;
-  box-shadow: 3px 3px 10px rgba(0, 0, 0, 0.3);
-  border: none;
-  text-shadow: 2px 2px 4px #15459e;
-}
-.myButton:hover {
-  background-color: #3518c4a3;
-  transition: 0.2s;
-}
-.viewListButton {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin-top: 20px;
-  font-size: 18px;
-  padding: 10px 20px;
-  border-radius: 7px;
-  cursor: pointer;
-  margin-left: auto;
-  margin-right: auto;
-  background-color: #eab8f0a8 !important;
-  color: beige;
-  box-shadow: 3px 3px 10px rgba(0, 0, 0, 0.3);
-  border: none;
-  text-shadow: 2px 2px 4px #15459e;
-}
-/* Applique le hover à la classe */
 
 .dateSelector label {
   margin-right: 10px;
@@ -75,7 +47,6 @@
   color: #333;
 }
 
-/* Style direct pour l'input date dans .dateSelector */
 .dateSelector input[type="date"] {
   padding: 5px;
   border: 1px solid #ccc;
@@ -83,12 +54,47 @@
   font-size: 1rem;
 }
 
+/* Styles pour les boutons (myButton et viewListButton) */
+/* Tu avais .myButton et .viewListButton avec des styles très similaires.
+   On peut créer une classe de base et une classe spécifique si besoin,
+   ou garder les deux si elles ont des rôles distincts malgré la similarité.
+   Ici, je garde .viewListButton comme dans ton JSX et j'ajoute .my-button
+   car il était dans ton JSX aussi.
+*/
+.my-button, /* Assure-toi que cette classe est utilisée dans ton JSX si besoin */
+.viewListButton {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  /* margin-top: 20px; */ /* Peut être géré par le flex container .controlsHeader */
+  font-size: 18px;
+  padding: 10px 20px;
+  border-radius: 7px;
+  cursor: pointer;
+  /* margin-left: auto; */ /* Peut être géré par le flex container .controlsHeader */
+  /* margin-right: auto; */ /* Peut être géré par le flex container .controlsHeader */
+  background-color: #eab8f0a8 !important;
+  color: beige;
+  box-shadow: 3px 3px 10px rgba(0, 0, 0, 0.3);
+  border: none;
+  text-shadow: 2px 2px 4px #15459e;
+}
+
+.my-button:hover,
+.viewListButton:hover {
+  background-color: #3518c4a3; /* Couleur de survol commune */
+  transition: 0.2s;
+}
+
 /* Styles erreur/chargement */
 .loadingIndicator {
+  text-align: center; /* Ajout pour centrer */
+  padding: 20px; /* Ajout pour espacement */
   font-style: italic;
   color: #555;
 }
 .errorLoading {
+  text-align: center; /* Ajout pour centrer */
   color: #dc3545;
   background-color: #f8d7da;
   border: 1px solid #f5c6cb;
@@ -98,7 +104,6 @@
 }
 
 /* --- Ligne de Cellules (Style Original INCHANGÉ) --- */
-/* Utiliser .row dans le JSX */
 .row {
   display: flex;
   flex-direction: row;
@@ -108,7 +113,6 @@
 }
 
 /* --- Cellule (Style Original MODIFIÉ pour contenir les moitiés) --- */
-/* Utiliser .cell dans le JSX */
 .cell {
   width: 50px;
   height: 50px;
@@ -140,13 +144,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  /* Hérite font-weight, color, text-align de .cell */
   line-height: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   padding: 1px;
   box-sizing: border-box;
+  font-size: 0.8em; /* Ajusté pour que le code de la cellule soit lisible */
 }
 
 /* --- Classes de couleur pour les moitiés (Utilisant les couleurs originales) --- */
@@ -156,17 +160,17 @@
 }
 
 .colorMatin {
-  background-color: #9de8ff; /* Couleur "jaune" originale */
+  background-color: #9de8ff; /* Couleur "jaune" originale pour matin */
   color: #070400; /* Texte foncé original pour matin */
 }
 
 .colorApresMidi {
-  background-color: #ffcc80; /* Orange clair original */
+  background-color: #ffcc80; /* Orange clair original pour après-midi */
   color: #0b0401; /* Texte foncé original pour après-midi */
 }
 
 .colorJourEntier {
-  background-color: #ef9a9a; /* Rouge clair original */
+  background-color: #ef9a9a; /* Rouge clair original pour jour entier */
   color: #080000; /* Texte foncé original pour jour entier */
 }
 
@@ -177,10 +181,24 @@
     height: 40px;
   }
   .beach_plan {
-    padding: 5px;
+    padding: 5px; /* Réduit le padding du plan global */
   }
   .row {
     gap: 3px;
+  }
+  .controlsHeader {
+    /* Ajuste le header sur tablette */
+    padding: 8px;
+    margin-bottom: 15px;
+  }
+  .dateSelector label,
+  .dateSelector input[type="date"] {
+    font-size: 0.9rem; /* Réduit un peu la taille du texte */
+  }
+  .my-button,
+  .viewListButton {
+    font-size: 16px;
+    padding: 8px 15px;
   }
 }
 
@@ -191,6 +209,28 @@
   }
   .row {
     gap: 2px;
+  }
+  .beach_plan {
+    padding: 3px; /* Encore moins de padding */
+    gap: 4px; /* Réduit l'espace entre les rangées si .beach_plan est flex column */
+  }
+  .controlsHeader {
+    /* Ajuste le header sur mobile */
+    flex-direction: column; /* Empile les éléments */
+    gap: 10px;
+    padding: 10px;
+  }
+  .dateSelector {
+    width: 100%; /* Prend toute la largeur */
+    justify-content: space-around; /* Mieux espacer label et input */
+  }
+  .my-button,
+  .viewListButton {
+    width: 90%; /* Boutons plus larges */
+    margin-left: auto;
+    margin-right: auto;
+    font-size: 14px;
+    padding: 10px 15px;
   }
 }
 

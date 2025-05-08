@@ -66,7 +66,16 @@
   max-width: 100%; /* Assure que le plan ne dépasse pas */
   overflow-x: auto; /* Scroll horizontal si nécessaire */
 }
-
+.searchButton {
+  padding: 10px 20px;
+  background-color: aqua;
+  color: black;
+  border: solid 1 px black;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1em;
+  font-weight: bold;
+}
 .row {
   /* Plus nécessaire avec display: grid sur le parent */
   display: contents; /* Permet aux cellules d'être des enfants directs de la grille */
@@ -115,4 +124,54 @@
 }
 .colorApresMidi {
   background-color: #ffe0b2; /* Orange clair */
+}
+@media (max-width: 1224px) {
+  .controlsHeader {
+    flex-direction: column; /* Empile les groupes de contrôles (date, condition) */
+    align-items: stretch; /* Étire les groupes pour qu'ils prennent la largeur */
+  }
+
+  .dateSelector,
+  .conditionSelector {
+    flex-direction: column; /* Empile label et input/select à l'intérieur de chaque groupe */
+    align-items: flex-start; /* Aligne le label et l'input/select à gauche */
+    width: 100%; /* Chaque groupe de contrôle prend toute la largeur */
+  }
+
+  .dateSelector label,
+  .conditionSelector label {
+    margin-bottom: 5px; /* Espace entre le label et son input/select */
+  }
+
+  .dateSelector input[type="date"],
+  .conditionSelector select {
+    width: 100%; /* L'input/select prend toute la largeur de son conteneur (.dateSelector ou .conditionSelector) */
+    box-sizing: border-box; /* S'assure que padding et border sont inclus dans la largeur */
+  }
+}
+
+/* --- Styles Responsifs --- */
+@media (max-width: 509px) {
+  .controlsHeader {
+    flex-direction: column; /* Empile les groupes de contrôles (date, condition) */
+    align-items: stretch; /* Étire les groupes pour qu'ils prennent la largeur */
+  }
+
+  .dateSelector,
+  .conditionSelector {
+    flex-direction: column; /* Empile label et input/select à l'intérieur de chaque groupe */
+    align-items: flex-start; /* Aligne le label et l'input/select à gauche */
+    width: 100%; /* Chaque groupe de contrôle prend toute la largeur */
+  }
+
+  .dateSelector label,
+  .conditionSelector label {
+    margin-bottom: 5px; /* Espace entre le label et son input/select */
+  }
+
+  .dateSelector input[type="date"],
+  .conditionSelector select {
+    width: 100%; /* L'input/select prend toute la largeur de son conteneur (.dateSelector ou .conditionSelector) */
+    box-sizing: border-box; /* S'assure que padding et border sont inclus dans la largeur */
+  }
 }
