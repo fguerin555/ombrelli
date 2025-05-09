@@ -1,14 +1,8 @@
 /* /Users/fredericguerin/Desktop/ombrelli/src/pages/BeachPlanFile/BeachPlan.module.css */
-/* STRICTEMENT basé sur l'original + modifs minimales pour moitiés */
-
-/* --- Conteneur Principal (Style Original) --- */
-/* Utiliser .beach_plan dans le JSX */
 .beach_plan {
-  /* display: flex; */ /* Supprimé */
-  /* flex-direction: column; */ /* Supprimé */
   gap: 8px;
-  padding: 20px;
-  background-color: #224449;
+  padding: 30px 20px;
+  background-color: #f7ce8b;
   overflow-x: auto;
   width: 100%;
   box-sizing: border-box;
@@ -22,29 +16,40 @@
   align-items: center;
   padding: 10px;
   margin-bottom: 20px; /* Espace avant le plan */
-  background-color: #f0f0f0; /* Gardé de ta version .dateSelector */
+  background-color: #f7ce8b;
+
   border-radius: 5px; /* Gardé de ta version .dateSelector */
   flex-wrap: wrap; /* Permet le retour à la ligne */
 }
 
 /* Style pour la partie sélection de date */
 .dateSelector {
-  /* margin: 15px; */ /* Peut-être plus nécessaire si .controlsHeader gère l'espacement */
-  /* padding: 10px; */ /* Idem */
-  /* background-color: #f0f0f0; */ /* Déplacé vers .controlsHeader */
-  /* border-radius: 5px; */ /* Déplacé vers .controlsHeader */
   text-align: center;
   display: flex;
   justify-content: center;
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
+  /* border: 1px solid #ccc; */
+
+  font-size: 1rem;
+  border-radius: 5cqmax; /* Optionnel: ajuster la bordure aussi */
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.dateSelector input[type="date"]:hover {
+  cursor: pointer;
+  background-color: violet;
+  color: white;
+  border-color: darkviolet;
+  border-radius: 5cqmax;
 }
 
 .dateSelector label {
   margin-right: 10px;
   font-weight: bold;
   color: #333;
+  font-family: "source-sans-pro.regular", Arial, sans-serif;
 }
 
 .dateSelector input[type="date"] {
@@ -54,25 +59,17 @@
   font-size: 1rem;
 }
 
-/* Styles pour les boutons (myButton et viewListButton) */
-/* Tu avais .myButton et .viewListButton avec des styles très similaires.
-   On peut créer une classe de base et une classe spécifique si besoin,
-   ou garder les deux si elles ont des rôles distincts malgré la similarité.
-   Ici, je garde .viewListButton comme dans ton JSX et j'ajoute .my-button
-   car il était dans ton JSX aussi.
-*/
 .my-button, /* Assure-toi que cette classe est utilisée dans ton JSX si besoin */
 .viewListButton {
   display: flex;
   justify-content: center;
   align-items: center;
-  /* margin-top: 20px; */ /* Peut être géré par le flex container .controlsHeader */
+
   font-size: 18px;
   padding: 10px 20px;
   border-radius: 7px;
   cursor: pointer;
-  /* margin-left: auto; */ /* Peut être géré par le flex container .controlsHeader */
-  /* margin-right: auto; */ /* Peut être géré par le flex container .controlsHeader */
+
   background-color: #eab8f0a8 !important;
   color: beige;
   box-shadow: 3px 3px 10px rgba(0, 0, 0, 0.3);
@@ -117,16 +114,18 @@
   width: 50px;
   height: 50px;
   font-weight: bold;
-  border: 1px solid #0288d1;
-  border-radius: 4px;
+  border: 3px solid #0288d1;
+  border-radius: 5px;
   cursor: pointer;
   user-select: none;
   transition: box-shadow 0.2s ease;
   white-space: nowrap;
   color: #333;
-  overflow: hidden;
+  /* overflow: hidden; */
   position: relative;
   text-align: center;
+  margin-bottom: 3px;
+  font-family: "source-sans-pro.regular", Arial, sans-serif;
 
   /* Structure interne flex */
   display: flex;
@@ -136,6 +135,32 @@
 }
 .cell:hover {
   box-shadow: 0 0 5px rgba(2, 136, 209, 0.7);
+}
+
+/* Bulle d'aide pour le double clic sur les cellules */
+.cell::after {
+  content: "doppio click";
+  position: absolute;
+  bottom: 40%; /* Positionne la bulle au-dessus de la cellule */
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgb(179, 14, 179); /* Fond de la bulle */
+  color: white; /* Texte de la bulle */
+  padding: 5px 8px; /* Un peu moins de padding horizontal pour la bulle */
+  border-radius: 4px;
+  font-size: 0.75em;
+  white-space: nowrap; /* Empêche le texte de se couper */
+  z-index: 10; /* S'assure que la bulle est au-dessus des autres éléments */
+  /* État initial pour la transition */
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+}
+
+.cell:hover::after {
+  opacity: 1; /* Visible au survol */
+  visibility: visible;
 }
 
 /* --- Styles pour les moitiés de cellule (Nécessaires) --- */
@@ -154,6 +179,7 @@
 }
 
 /* --- Classes de couleur pour les moitiés (Utilisant les couleurs originales) --- */
+
 .colorEmpty {
   background-color: #ffffff; /* Blanc original */
   color: inherit; /* Hérite #333 de .cell pour le code */
@@ -177,6 +203,7 @@
 /* --- Styles Responsifs (Adaptés de l'original) --- */
 @media (max-width: 1224px) {
   .cell {
+    /* Ces styles s'appliquent à .cell directement à ce breakpoint */
     width: 40px;
     height: 40px;
   }

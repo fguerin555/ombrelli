@@ -670,7 +670,7 @@ export default function BeachPlan() {
     <>
       <div className={styles.controlsHeader}>
         <div className={styles.dateSelector}>
-          <label htmlFor="planDate">BEACH PLAN per il giorno : </label>
+          <label htmlFor="planDate">BEACH PLAN per il giorno :&nbsp; </label>
           <input
             type="date"
             id="planDate"

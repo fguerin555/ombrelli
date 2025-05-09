@@ -2,7 +2,12 @@
 .queryContainer {
   padding: 20px;
   font-family: Arial, sans-serif;
-  background-color: #f0f0f0; /* Couleur de fond pour la page entière */
+  background-color: rgba(
+    200,
+    251,
+    245,
+    0.831
+  ); /* Couleur de fond pour la page entière */
   min-height: 100vh; /* Assure que le fond couvre toute la hauteur */
 }
 
@@ -26,12 +31,13 @@
 /* --- Styles pour la GRILLE DE REQUÊTE --- */
 .queryGridContainer {
   margin-bottom: 30px;
-  padding: 15px;
-  background-color: #ffffff; /* Fond blanc pour la grille */
+  padding: 22px 10px;
+  background-color: #f7ce8b; /* Fond blanc pour la grille */
   border-radius: 8px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   overflow-x: auto; /* Ajoute une barre de défilement horizontale si nécessaire */
   width: 100%; /* S'assure que le conteneur prend la largeur disponible */
+  box-sizing: border-box;
 }
 
 .queryRow {
@@ -42,12 +48,13 @@
 }
 
 .queryCell {
-  width: 50px; /* Largeur fixe pour chaque cellule */
+  width: 60px; /* Largeur fixe pour chaque cellule */
   height: 35px; /* Hauteur fixe */
   border: 1px solid #ccc;
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
   margin: 2px; /* Petit espace autour de chaque cellule */
   cursor: pointer;
   font-size: 0.9em;
@@ -59,11 +66,34 @@
 }
 
 .queryCell:hover {
-  background-color: #007bff; /* Bleu au survol */
+  background-color: #8bf0e4; /* Bleu au survol */
   color: white;
   transform: scale(1.05); /* Léger agrandissement */
 }
+/* Bulle d'aide pour le double clic sur les cellules de requête */
+.queryCell::after {
+  content: "doppio click";
+  position: absolute;
+  bottom: 105%; /* Positionne la bulle au-dessus de la cellule */
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #6e1175; /* Fond de la bulle (similaire à BeachPlan) */
+  color: white; /* Texte de la bulle */
+  padding: 5px 8px;
+  border-radius: 4px;
+  font-size: 0.75em;
+  white-space: nowrap;
+  z-index: 10; /* S'assure que la bulle est au-dessus des autres éléments */
+  opacity: 0; /* Invisible par défaut */
+  visibility: hidden; /* Caché par défaut */
+  pointer-events: none; /* Empêche la bulle d'intercepter les clics */
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+}
 
+.queryCell:hover::after {
+  opacity: 1; /* Visible au survol */
+  visibility: visible;
+}
 /* --- Styles pour le MODAL --- */
 .modalOverlay {
   position: fixed;

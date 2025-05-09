@@ -134,7 +134,7 @@ const TestQueryName = () => {
     <div>
       <div className={styles.TestQueryNamePage}>
         <div className={styles.Titre}>
-          <h1>Test Query Name</h1>
+          <h1>Ricerca per Cognome/ N° Prenotazione</h1>
         </div>
         {/* Section des contrôles de recherche */}
         <div className={styles.searchControls}>

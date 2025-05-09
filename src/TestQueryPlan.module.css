@@ -17,24 +17,11 @@
   align-items: center; /* Aligne verticalement les .filterGroup et .searchButton */
   margin-bottom: 20px;
   padding: 15px;
-  background-color: #f0f0f0;
+  background-color: #f7ce8b;
   border-radius: 8px;
   flex-wrap: wrap; /* Permet le retour à la ligne sur petits écrans */
   gap: 15px; /* Espace entre les groupes de contrôles */
 }
-
-/* Les classes .dateSelector et .conditionSelector ne sont plus utilisées pour la structure principale des filtres.
-   Elles sont remplacées par .filterGroup pour chaque contrôle individuel.
-   Si vous les utilisiez pour autre chose, vous pouvez les conserver ou les adapter.
-   Pour l'instant, je les commente/supprime pour éviter la confusion. */
-/*
-.dateSelector,
-.conditionSelector { ... }
-.dateSelector label,
-.conditionSelector label { ... }
-.dateSelector input[type="date"],
-.conditionSelector select { ... }
-*/
 
 .filterGroup {
   /* Nouvelle classe pour chaque groupe de filtre individuel */
@@ -57,12 +44,18 @@
 .filterGroup select {
   width: 100%; /* Le champ prend toute la largeur de son .filterGroup */
   padding: 8px 10px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+  border: 1px solid yellow;
+  border-radius: 5cqmax;
   font-size: 0.95rem;
   box-sizing: border-box; /* Important pour que width: 100% inclue padding et border */
 }
 
+.filterGroup input[type="date"]:hover,
+.filterGroup select:hover {
+  background-color: rgb(114, 242, 174);
+  border-color: goldenrod;
+  cursor: pointer;
+}
 .loadingIndicator,
 .errorLoading,
 .noResults {
@@ -90,8 +83,8 @@
   padding: 10px 20px;
   background-color: aqua;
   color: black;
-  border: 1px solid black; /* Typo corrigée de "solid 1 px black" */
-  border-radius: 4px;
+  border: 1px solid yellow; /* Typo corrigée de "solid 1 px black" */
+  border-radius: 5cqmax;
   cursor: pointer;
   font-size: 1em; /* ou 1rem pour la consistance */
   font-weight: bold;
@@ -111,7 +104,8 @@
 }
 
 .searchButton:hover:not(:disabled) {
-  background-color: #00e0e0; /* Un aqua un peu plus foncé ou une autre couleur de survol */
+  background-color: #e9a0f4;
+  border-color: goldenrod;
 }
 
 .searchButton:disabled {

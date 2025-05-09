@@ -3,7 +3,7 @@
 .TestQueryNamePage {
   padding: 20px;
   font-family: Arial, sans-serif;
-  background-color: #f4f7f6;
+  background-color: #f7ce8b;
   min-height: 100vh;
 }
 
@@ -24,7 +24,7 @@
   gap: 15px;
   margin-bottom: 30px;
   padding: 20px;
-  background-color: #ffffff;
+  background-color: rgba(200, 251, 245, 0.831);
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   flex-wrap: wrap; /* Permet le retour à la ligne sur petits écrans */
@@ -32,19 +32,24 @@
 
 .searchInput {
   padding: 10px 15px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+  border: 1px solid #718df5;
+  border-radius: 5cqmax;
   font-size: 1em;
+  color: black;
   min-width: 180px; /* Donne une largeur minimale */
 }
-
+.searchInput:hover {
+  background-color: rgba(250, 200, 251, 0.831);
+  cursor: pointer;
+  color: black;
+}
 .serialInput {
   width: 180px; /* Largeur plus spécifique pour le numéro de série */
 }
 
 .searchButton {
   padding: 10px 25px;
-  background-color: #28a745;
+  background-color: #007bff;
   color: white;
   border: none;
   border-radius: 4px;
@@ -55,7 +60,7 @@
 }
 
 .searchButton:hover {
-  background-color: #218838;
+  background-color: #ae4eda;
 }
 
 .searchButton:disabled {
@@ -88,7 +93,7 @@
 .resultsTable {
   width: 100%;
   border-collapse: collapse;
-  background-color: #fff;
+  background-color: rgba(200, 251, 245, 0.831);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   border-radius: 6px;
   overflow: hidden; /* Pour que le border-radius s'applique aux coins de la table */
@@ -96,7 +101,7 @@
 
 .resultsTable th,
 .resultsTable td {
-  border: 1px solid #e0e0e0;
+  border: 3px solid rgba(92, 136, 248, 0.831);
   padding: 12px 15px;
   text-align: left;
   font-size: 0.95em;
@@ -109,11 +114,13 @@
 }
 
 .resultsTable tr:nth-child(even) {
-  background-color: #f8f9fa;
+  background-color: rgba(200, 251, 245, 0.831);
 }
 
 .resultsTable tr:hover {
-  background-color: #e9ecef;
+  background-color: rgba(250, 200, 251, 0.831);
+  cursor: pointer;
+  border-color: rgba(92, 136, 248, 0.831);
 }
 
 /* Media query pour améliorer l'affichage sur petits écrans */
