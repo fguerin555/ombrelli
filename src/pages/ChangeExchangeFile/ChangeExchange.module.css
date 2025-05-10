@@ -4,7 +4,7 @@
   padding: 20px;
   max-width: 98%; /* Très large pour accommoder la grille */
   margin: 20px auto;
-  background-color: #f8f9fa;
+  background-color: rgba(200, 251, 245, 0.831);
   border-radius: 8px;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
@@ -14,7 +14,8 @@
   margin-bottom: 25px;
   color: var(--primary-color, #007bff);
   padding-bottom: 10px;
-  border-bottom: 1px solid #dee2e6;
+  /* border-bottom: 1px solid #dee2e6; */
+  font-family: "source-sans-pro.regular", Arial, sans-serif;
 }
 
 .titre h1 {
@@ -34,7 +35,7 @@
   gap: 15px; /* Espace entre les éléments */
   padding: 15px;
   margin-bottom: 20px;
-  background-color: #e9ecef; /* Fond légèrement différent */
+  background-color: #f7ce8b;
   border-radius: 6px;
   align-items: flex-end; /* Aligne les éléments en bas */
 }
@@ -42,6 +43,7 @@
 .formGroup {
   display: flex;
   flex-direction: column;
+  /* background-color: #f7ce8b; */
   gap: 5px;
   flex: 1 1 180px; /* Permet de grandir/rétrécir, base de 180px */
 }
@@ -49,20 +51,25 @@
 .formGroup label {
   font-weight: bold;
   font-size: 0.9em;
-  color: #495057;
+  color: #007bff;
+  font-family: "source-sans-pro.regular", Arial, sans-serif;
 }
 
 .formGroup input[type="date"] {
   padding: 8px 10px;
   border: 1px solid #ced4da;
-  border-radius: 4px;
+  border-radius: 5cqmax;
   font-size: 0.95em;
   max-width: 160px;
 }
+.formGroup input[type="date"]:hover {
+  background-color: rgba(250, 200, 251, 0.831);
+  border-color: goldenrod;
+  cursor: pointer;
+}
+
 .searchAction {
-  /* Conteneur pour le bouton, permet de l'aligner correctement avec flex-end du .filterContainer */
-  /* Peut être ajusté si besoin d'un alignement différent */
-  margin-left: auto; /* Pousse le bouton vers la droite si espace dispo */
+  margin-left: auto;
 }
 
 .searchButton {
@@ -113,7 +120,7 @@
   width: 100%;
   /* overflow-x: auto; Supprimé car on va utiliser flex-wrap */
   padding: 10px 0;
-  background-color: #fff;
+  background-color: #f7ce8b;
   border: 1px solid #dee2e6;
   border-radius: 6px;
 }
@@ -139,7 +146,7 @@
   flex-grow: 0; /* Ne pas grandir */
   flex-shrink: 1; /* Rétrécir si nécessaire */
   font-size: 0.75em; /* Police plus petite pour contenir les infos */
-  overflow: hidden; /* Cache le texte qui dépasse */
+
   cursor: pointer; /* Indique qu'on pourra cliquer */
   transition: transform 0.1s ease, box-shadow 0.2s ease;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
@@ -190,6 +197,32 @@
 
 .reservedCell {
   background-color: #fff3cd; /* Jaune pâle Bootstrap pour réservé */
+  position: relative;
+}
+
+/* Bulle d'aide pour le drag & drop */
+.reservedCell::after {
+  content: "premi e trascina verso un ombrellone"; /* Texte de la bulle, avec l'apostrophe échappée */
+  position: absolute;
+  bottom: 105%; /* Positionne la bulle au-dessus de la cellule */
+  left: 50%;
+  transform: translateX(-50%); /* Centre la bulle horizontalement */
+  background-color: darkviolet;
+  color: white;
+  padding: 6px 10px; /* Un peu plus de padding pour un texte plus long */
+  border-radius: 4px;
+  font-size: 1.2em; /* Ajuster si besoin */
+  white-space: nowrap; /* Empêche le texte de la bulle de passer à la ligne */
+  z-index: 100; /* S'assure que la bulle est au-dessus d'autres éléments */
+  opacity: 0; /* Invisible par défaut */
+  visibility: hidden; /* Cachée par défaut */
+  pointer-events: none; /* Empêche la bulle d'intercepter les clics */
+  transition: opacity 0.2s ease, visibility 0.2s ease; /* Transition douce */
+}
+
+.reservedCell:hover::after {
+  opacity: 1; /* Visible au survol */
+  visibility: visible;
 }
 
 .freeCell {
@@ -228,6 +261,20 @@
   .period {
     font-size: 0.85em;
   }
+
+  /* Ajustements pour le filterContainer sur tablette */
+  .filterContainer {
+    align-items: stretch; /* Étire les formGroup pour qu'ils aient la même hauteur */
+  }
+  .formGroup {
+    flex-basis: calc(
+      50% - 7.5px
+    ); /* Environ 2 par ligne, ajuste le 8px en fonction du gap/2 */
+  }
+  .searchAction {
+    margin-left: 0; /* Annule le margin-left auto */
+    flex-basis: 100%; /* Prend toute la largeur s'il passe à la ligne */
+  }
 }
 
 /* Mobiles (ex: <= 576px) */
@@ -253,5 +300,16 @@
   }
   .period {
     font-size: 0.8em;
+  }
+  /* Ajustements pour le filterContainer sur mobile */
+  .filterContainer {
+    flex-direction: column; /* Empile tous les enfants verticalement */
+    align-items: stretch; /* Étire chaque enfant sur toute la largeur */
+  }
+  .formGroup,
+  .searchAction {
+    flex-basis: auto; /* Annule le flex-basis précédent */
+    width: 100%; /* Chaque élément prend toute la largeur */
+    margin-left: 0; /* Assure qu'il n'y a pas de décalage */
   }
 }

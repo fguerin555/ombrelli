@@ -776,6 +776,34 @@ export default function BeachPlanPeriod() {
             backgroundColor: theme.palette.background.paper,
             borderRight: `1px solid ${theme.palette.divider}`, // Ligne de séparation
           },
+          // Styles pour le curseur et la bulle sur les événements
+          "& .fc-event": {
+            cursor: "pointer",
+            position: "relative", // Pour positionner la bulle
+          },
+          "& .fc-event::after": {
+            content: '"Clicka"',
+            position: "absolute",
+            bottom: "105%", // Au-dessus de l'événement
+            left: "5%",
+            // transform: "none",
+            transform: "translateX(-50%)",
+            backgroundColor: "darkviolet",
+            color: "white",
+            padding: "3px 6px",
+            borderRadius: "3px",
+            fontSize: "0.7em",
+            whiteSpace: "nowrap",
+            zIndex: 2000, // S'assurer qu'elle est au-dessus
+            opacity: 0,
+            visibility: "hidden",
+            pointerEvents: "none", // Pour ne pas interférer avec le clic sur l'événement
+            transition: "opacity 0.2s ease, visibility 0.2s ease",
+          },
+          "& .fc-event:hover::after": {
+            opacity: 1,
+            visibility: "visible",
+          },
         }}
       >
         <FullCalendar

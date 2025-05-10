@@ -52,7 +52,7 @@
 
 .filterGroup input[type="date"]:hover,
 .filterGroup select:hover {
-  background-color: rgb(114, 242, 174);
+  background-color: rgba(250, 200, 251, 0.831);
   border-color: goldenrod;
   cursor: pointer;
 }
@@ -73,7 +73,8 @@
   ); /* Ajustement responsive */
   gap: 5px; /* Espace entre les cellules */
   padding: 10px;
-  background-color: #e0e0e0; /* Fond gris clair pour le plan */
+  /* background-color: #e0e0e0; Fond gris clair pour le plan */
+  background-color: #f7ce8b;
   border-radius: 5px;
   max-width: 100%; /* Assure que le plan ne dépasse pas */
   overflow-x: auto; /* Scroll horizontal si nécessaire */
@@ -90,13 +91,7 @@
   font-weight: bold;
   transition: background-color 0.2s ease, opacity 0.2s ease; /* Ajouté pour des transitions douces */
   align-self: center; /* Pour un bon alignement vertical dans le flex .controlsHeader */
-  /* Pour que le bouton ait la même hauteur que les inputs/selects : */
-  /* Ajuster le padding vertical pour correspondre à celui des inputs/selects */
-  /* Par exemple, si les inputs ont padding: 8px 10px;, et une bordure de 1px,
-     la hauteur interne est 8+8 = 16px.
-     Pour que le bouton ait une hauteur similaire, son padding vertical doit être ajusté.
-     Si la font-size est similaire, un padding vertical de 8px devrait donner une hauteur comparable.
-  */
+
   padding-top: 8px; /* Ajuster pour correspondre au padding vertical des inputs */
   padding-bottom: 8px; /* Ajuster pour correspondre au padding vertical des inputs */
   line-height: normal; /* Assure que le texte est bien centré verticalement */
@@ -121,7 +116,7 @@
 }
 
 .cell {
-  border: 1px solid #ccc;
+  border: 3px solid #161618;
   background-color: #fff; /* Fond blanc par défaut */
   min-height: 50px; /* Hauteur minimale */
   display: flex;
@@ -130,16 +125,41 @@
   font-weight: bold;
   text-align: center;
   cursor: default; /* Curseur normal, pas de clic ici par défaut */
-  overflow: hidden; /* Empêche le contenu de déborder */
+
   border-radius: 3px;
 }
 
 .cell.clickable {
   /* Style pour rendre la cellule explicitement cliquable */
   cursor: pointer;
+  position: relative;
 }
 .cell.clickable:hover {
-  box-shadow: 0 0 5px rgba(0, 0, 0, 0.3); /* Effet de survol pour les cellules cliquables */
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.3);
+}
+
+.cell.clickable::after {
+  content: "Clicka";
+  position: absolute;
+  bottom: 105%; /* Positionne la bulle au-dessus de la cellule */
+  left: 50%;
+  transform: translateX(-50%); /* Centre la bulle horizontalement */
+  background-color: darkviolet;
+  color: white;
+  padding: 3px 6px;
+  border-radius: 3px;
+  font-size: 0.7em; /* Ajuster si besoin */
+  white-space: nowrap; /* Empêche le texte de la bulle de passer à la ligne */
+  z-index: 10; /* S'assure que la bulle est au-dessus d'autres éléments de la cellule si besoin */
+  opacity: 0; /* Invisible par défaut */
+  visibility: hidden; /* Cachée par défaut */
+  pointer-events: none; /* Empêche la bulle d'intercepter les clics */
+  transition: opacity 0.2s ease, visibility 0.2s ease; /* Transition douce */
+}
+
+.cell.clickable:hover::after {
+  opacity: 1; /* Visible au survol */
+  visibility: visible;
 }
 
 .cellHalf {
@@ -151,7 +171,7 @@
 }
 
 .cell.filteredOut {
-  background-color: #e0e0e0; /* Grisé pour les cellules non concernées */
+  background-color: #f0e8e8; /* Grisé pour les cellules non concernées */
   border-color: #bdbdbd;
   color: #9e9e9e;
   cursor: not-allowed; /* Indique que la cellule n'est pas interactive */

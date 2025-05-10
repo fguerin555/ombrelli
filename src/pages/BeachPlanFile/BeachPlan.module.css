@@ -37,6 +37,14 @@
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
+.dateSelector input[type="date"] {
+  padding: 5px;
+  border: 1px solid #ccc;
+
+  font-size: 1rem;
+  border-radius: 5cqmax;
+}
+
 .dateSelector input[type="date"]:hover {
   cursor: pointer;
   background-color: violet;
@@ -50,13 +58,6 @@
   font-weight: bold;
   color: #333;
   font-family: "source-sans-pro.regular", Arial, sans-serif;
-}
-
-.dateSelector input[type="date"] {
-  padding: 5px;
-  border: 1px solid #ccc;
-  border-radius: 3px;
-  font-size: 1rem;
 }
 
 .my-button, /* Assure-toi que cette classe est utilisée dans ton JSX si besoin */

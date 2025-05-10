@@ -301,6 +301,7 @@ const ReservationModal = ({
     setCabError,
     currentResId
   ) => {
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(() => {
       if (!isOpen || !formDt || Object.keys(formDt).length === 0) {
         // Vérifie si formDt est initialisé
@@ -343,11 +344,10 @@ const ReservationModal = ({
         setCabError("");
       }
     }, [
-      isOpen,
       reqCabin,
       formDt?.startDate, // Optional chaining
       formDt?.endDate, // Optional chaining
-      findNextAvailableCabin,
+
       currentResId,
       setAssCabin,
       setCabError,
@@ -385,6 +385,7 @@ const ReservationModal = ({
     setConflictError,
     currentMode // 'editExisting', 'addHalfDay', 'view', 'loading'
   ) => {
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(() => {
       if (
         !isOpen ||
@@ -462,16 +463,15 @@ const ReservationModal = ({
         setConflictError("");
       }
     }, [
-      isOpen,
       currentMode,
-      cellCode,
+
       formDt?.startDate, // Optional chaining
       formDt?.endDate,
       formDt?.condition,
       formDt?.id,
-      allReservations,
+
       setConflictError,
-      isDualMode,
+
       formDt, // Ajout de formDt comme dépendance
     ]);
   };
@@ -748,11 +748,6 @@ const ReservationModal = ({
     if (!formDt || Object.keys(formDt).length === 0) {
       return <p>Caricamento dati modulo...</p>; // Ou un autre placeholder
     }
-
-    const isSaveDisabled =
-      isSaving ||
-      (reqCabin && !assCabin && !!cabErrorTxt) ||
-      !!umbConflictErrorTxt;
 
     const isImplicitlyNewSingle =
       formDt === formData &&
