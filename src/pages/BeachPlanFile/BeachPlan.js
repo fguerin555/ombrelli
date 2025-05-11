@@ -15,6 +15,8 @@ import {
   runTransaction,
   serverTimestamp,
 } from "firebase/firestore";
+import Query from "../QueryFile/Query"; // AJOUT: Importer le composant Query
+
 // import { buttonBaseClasses } from "@mui/material"; // Import inutilisé, peut être supprimé
 
 // --- Fonctions Utilitaires ---
@@ -670,7 +672,9 @@ export default function BeachPlan() {
     <>
       <div className={styles.controlsHeader}>
         <div className={styles.dateSelector}>
-          <label htmlFor="planDate">BEACH PLAN per il giorno :&nbsp; </label>
+          <label htmlFor="planDate">
+            Mappa spiaggia per il giorno :&nbsp;{" "}
+          </label>
           <input
             type="date"
             id="planDate"
@@ -711,7 +715,16 @@ export default function BeachPlan() {
           columns={columns}
         />
       )}
+      {/* === DÉBUT DE L'INTÉGRATION DE QUERY === */}
+      <section className={styles.queryIntegrationSection}>
+        {" "}
+        {/* Optionnel: un conteneur pour styler cette section */}
+        {/* Vous pouvez ajouter un titre ici si vous le souhaitez, par exemple : */}
+        {/* <h2>Recherche de disponibilité par période</h2> */}
+        <Query allReservations={allReservations} />{" "}
+        {/* AJOUT: Affichage du composant Query avec la prop */}
+      </section>
+      {/* === FIN DE L'INTÉGRATION DE QUERY === */}
     </> // FIX 2: Fermeture du Fragment React
   ); // Fermeture de la parenthèse du return
-  // FIX 1: L'accolade supplémentaire qui était ici a été supprimée
 }

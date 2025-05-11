@@ -1,13 +1,5 @@
 // /Users/fredericguerin/Desktop/ombrelli/src/pages/QueryFile/Query.js
 import React, { useState } from "react";
-import { db } from "../../firebase";
-import {
-  collection,
-  query,
-  where,
-  getDocs,
-  Timestamp,
-} from "firebase/firestore";
 import "../../Global.css";
 import styles from "./Query.module.css";
 
@@ -75,7 +67,7 @@ const getDatesInRange = (startDateStr, endDateStr) => {
   return dates;
 };
 
-const Query = () => {
+const Query = ({ allReservations }) => {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [condition, setCondition] = useState("all");
@@ -114,48 +106,63 @@ const Query = () => {
     });
 
     try {
-      const reservationsRef = collection(db, "reservations");
-      const q = query(
-        reservationsRef,
-        where("cellCode", "==", selectedParasol)
+      // Vérifier si allReservations est disponible et est un tableau
+      if (!Array.isArray(allReservations)) {
+        console.error(
+          "allReservations n'est pas un tableau ou est indéfini dans Query.js:",
+          allReservations
+        );
+        setError(
+          "Erreur interne: Données de réservation non disponibles pour la recherche."
+        );
+        setLoading(false);
+        return;
+      }
+
+      // Filtrer allReservations pour le parasol sélectionné
+      const reservationsForSelectedParasol = allReservations.filter(
+        (res) => res.cellCode === selectedParasol
       );
 
-      const querySnapshot = await getDocs(q);
       const fetchedReservations = [];
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
+      reservationsForSelectedParasol.forEach((res) => {
+        // Itérer sur les réservations filtrées
         let resStartDate, resEndDate;
         try {
-          resStartDate =
-            data.startDate instanceof Timestamp
-              ? data.startDate.toDate()
-              : new Date(data.startDate + "T00:00:00Z");
-          resEndDate =
-            data.endDate instanceof Timestamp
-              ? data.endDate.toDate()
-              : new Date(data.endDate + "T00:00:00Z");
+          // Les dates dans allReservations (après sanitization dans BeachPlan.js) sont des strings "YYYY-MM-DD"
+          // ou des chaînes vides. Il faut les convertir en objets Date pour la logique existante.
+          if (!res.startDate || !res.endDate) {
+            console.warn(
+              "Réservation avec dates manquantes ou invalides (Query.js):",
+              res.id,
+              res.startDate,
+              res.endDate
+            );
+            return; // Ignorer cette réservation si les dates sont manquantes
+          }
+          resStartDate = new Date(res.startDate + "T00:00:00Z"); // Convertir la string en Date
+          resEndDate = resEndDate = new Date(res.endDate + "T00:00:00Z"); // Convertir la string en Date
 
           if (isNaN(resStartDate.getTime()) || isNaN(resEndDate.getTime())) {
             console.warn(
-              "Dates invalides dans Firestore:",
-              doc.id,
-              data.startDate,
-              data.endDate
+              "Dates invalides après conversion (Query.js):",
+              res.id,
+              res.startDate, // string originale
+              res.endDate // string originale
             );
             return;
           }
 
           fetchedReservations.push({
-            id: doc.id,
-            ...data,
-            startDate: resStartDate,
-            endDate: resEndDate,
+            ...res, // Contient déjà id, nom, prenom, condition, etc.
+            startDate: resStartDate, // Objet Date
+            endDate: resEndDate, // Objet Date
           });
         } catch (conversionError) {
           console.error(
-            "Erreur conversion date Firestore:",
-            doc.id,
-            data,
+            "Erreur lors de la conversion des dates (Query.js):",
+            res.id,
+            res, // Affiche l'objet res complet pour le débogage
             conversionError
           );
         }
@@ -270,7 +277,7 @@ const Query = () => {
       setResults(dailyStatusList);
     } catch (err) {
       console.error("Erreur lors de la recherche Firestore:", err);
-      setError("Une erreur est survenue lors de la recherche.");
+      setError("Errore durante la ricerca nel database.");
       setResults(null);
     } finally {
       setLoading(false);
@@ -426,7 +433,7 @@ const Query = () => {
   return (
     <div className={styles.queryContainer}>
       <div className={styles.titre}>
-        <h1>Interrogazione Disponibilità</h1>
+        <h1>Ricerca per ombrellone e periodo</h1>
         <p>
           Doppio click su un ombrellone per definire il periodo della ricerca.
         </p>
@@ -470,28 +477,16 @@ const Query = () => {
           ) : (
             <ul className={styles.resultsList}>
               {results.map((item, index) => {
-                // Détermine si une ligne de séparation doit être affichée avant cet item
-                const showSeparator =
-                  index > 0 && item.date !== results[index - 1].date;
-
                 return (
                   <React.Fragment
                     key={`${item.date}-${item.periodDisplay}-${index}-group`}
                   >
-                    {showSeparator && (
-                      <li
-                        key={`${results[index - 1].date}-separator`}
-                        className={styles.dateSeparator}
-                      ></li>
-                    )}
                     <li
                       key={`${item.date}-${item.periodDisplay}-${index}-item`}
                     >
                       <div>
                         {formatDateSimple(item.date)}
-                        {item.status === "Prenotato"
-                          ? ` - ${item.periodDisplay}`
-                          : ""}{" "}
+
                         {item.status === "Prenotato" && item.customer ? (
                           <>
                             <strong className={styles.prenotato}>

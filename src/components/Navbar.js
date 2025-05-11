@@ -8,16 +8,14 @@ const Navbar = () => {
     <nav className={styles.navbar}>
       <ul className={styles.navbarLinks}>
         <li>
-          <Link to="/Beachplan">Beach Plan Day</Link>
+          <Link to="/Beachplan">Mappa spiaggia</Link>
+        </li>
+
+        <li>
+          <Link to="/beachplanperiod">Mappa planning</Link>
         </li>
         <li>
-          <Link to="/query">Query</Link>
-        </li>
-        <li>
-          <Link to="/beachplanperiod">Beach Plan Period</Link>
-        </li>
-        <li>
-          <Link to="/changeexchange">Change / Exchange</Link>
+          <Link to="/changeexchange">Cambio / Scambio</Link>
         </li>
         <li>
           <Link to="/testqueryname">TestQuery Name</Link>
@@ -25,11 +23,11 @@ const Navbar = () => {
         <li>
           <Link to="/testqueryplan">TestQuery Plan</Link>
         </li>
-        <li>
+        {/* <li>
           <Link to="/qrcodereader">QR CODE Reader</Link>
-        </li>
+        </li> */}
         <li>
-          <Link to="/scan-interne">Scanner Interne</Link>
+          <Link to="/scan-interne">Lettore QRCode</Link>
         </li>
       </ul>
     </nav>
