@@ -15,7 +15,8 @@ import {
   runTransaction,
   serverTimestamp,
 } from "firebase/firestore";
-import Query from "../QueryFile/Query"; // AJOUT: Importer le composant Query
+import Query from "../QueryFile/Query";
+import TestQueryPlan from "../TestQueryPlanFile/TestQueryPlan"; // Chemin corrigé et import ajouté
 
 // import { buttonBaseClasses } from "@mui/material"; // Import inutilisé, peut être supprimé
 
@@ -722,9 +723,19 @@ export default function BeachPlan() {
         {/* Vous pouvez ajouter un titre ici si vous le souhaitez, par exemple : */}
         {/* <h2>Recherche de disponibilité par période</h2> */}
         <Query allReservations={allReservations} />{" "}
-        {/* AJOUT: Affichage du composant Query avec la prop */}
+        {/* Affichage du composant Query avec la prop */}
       </section>
       {/* === FIN DE L'INTÉGRATION DE QUERY === */}
+
+      {/* === DÉBUT DE L'INTÉGRATION DE TESTQUERYPLAN === */}
+      <section className={styles.testQueryPlanIntegrationSection}>
+        {" "}
+        {/* Optionnel: un conteneur pour styler cette section */}
+        {/* Vous pouvez ajouter un titre ici si vous le souhaitez, par exemple : */}
+        {/* <h2>Visualisation des disponibilités par période</h2> */}
+        <TestQueryPlan /> {/* Affichage du composant TestQueryPlan */}
+      </section>
+      {/* === FIN DE L'INTÉGRATION DE TESTQUERYPLAN === */}
     </> // FIX 2: Fermeture du Fragment React
   ); // Fermeture de la parenthèse du return
 }

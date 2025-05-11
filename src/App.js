@@ -9,7 +9,7 @@ import QRCodeHandlerPage from "./pages/QRCodeHandlerPageFile/QRCodeHandlerPage";
 import BeachPlanPeriod from "./pages/BeachPlanPeriodFile/BeachPlanPeriod";
 import ChangeExchange from "./pages/ChangeExchangeFile/ChangeExchange";
 import TestQueryName from "./TestQueryName";
-import TestQueryPlan from "./TestQueryPlan";
+import TestQueryPlan from "./pages/TestQueryPlanFile/TestQueryPlan";
 import Navbar from "./components/Navbar";
 import InternalScannerPage from "./pages/InternalScannerPage/InternalScannerPage";
 

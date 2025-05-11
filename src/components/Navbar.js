@@ -18,11 +18,11 @@ const Navbar = () => {
           <Link to="/changeexchange">Cambio / Scambio</Link>
         </li>
         <li>
-          <Link to="/testqueryname">TestQuery Name</Link>
+          <Link to="/testqueryname">
+            Ricerca per Cognome/Nome/N°prenotazione
+          </Link>
         </li>
-        <li>
-          <Link to="/testqueryplan">TestQuery Plan</Link>
-        </li>
+
         {/* <li>
           <Link to="/qrcodereader">QR CODE Reader</Link>
         </li> */}

@@ -71,7 +71,7 @@
   border-radius: 7px;
   cursor: pointer;
 
-  background-color: #eab8f0a8 !important;
+  background-color: #df7ceaa8 !important;
   color: beige;
   box-shadow: 3px 3px 10px rgba(0, 0, 0, 0.3);
   border: none;
@@ -234,6 +234,13 @@
     padding: 20px;
     border-top: 2px solid #007bff; /* Une séparation visuelle */
     background-color: #f8f9fa; /* Un fond léger pour distinguer la section */
+  }
+
+  .testQueryPlanIntegrationSection {
+    margin-top: 40px; /* Espace au-dessus de cette nouvelle section */
+    padding: 20px;
+    border-top: 2px solid #28a745; /* Une couleur de bordure différente pour la distinguer */
+    background-color: #e9f5ee; /* Un fond légèrement différent */
   }
 }
 

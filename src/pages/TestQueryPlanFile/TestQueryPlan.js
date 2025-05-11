@@ -10,11 +10,11 @@ import {
   serverTimestamp, // Ajout de serverTimestamp
   setDoc, // Ajout de setDoc
 } from "firebase/firestore";
-import { db } from "./firebase"; // Assurez-vous que le chemin est correct
-import "./Global.css";
+import { db } from "../../firebase"; // Assurez-vous que le chemin est correct
+import "../../Global.css";
 import styles from "./TestQueryPlan.module.css";
-import ReservationModal from "./pages/BeachPlanFile/ReservationModal"; // Chemin confirmé
-import { getNextSerialNumber } from "./utils/bookingUtils/reservationUtils"; // Ajuste le chemin si nécessaire
+import ReservationModal from "../BeachPlanFile/ReservationModal"; // Chemin confirmé
+import { getNextSerialNumber } from "../../utils/bookingUtils/reservationUtils"; // Ajuste le chemin si nécessaire
 
 // --- Fonctions Utilitaires (similaires à BeachPlan) ---
 const getTodayString = () => {
@@ -748,7 +748,9 @@ const TestQueryPlan = () => {
     <div>
       <div className={styles.TestQueryPlanPage}>
         <div className={styles.Titre}>
-          <h1>Test Query Plan</h1>
+          <h1>
+            Mappa prenotati/liberi (mattina/pomeriggio/intero) per periodo
+          </h1>
         </div>
 
         <div className={styles.controlsHeader}>
