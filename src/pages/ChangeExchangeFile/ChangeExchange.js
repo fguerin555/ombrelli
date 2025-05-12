@@ -561,6 +561,7 @@ const ChangeExchange = () => {
   // Options pour le TouchBackend, notamment pour activer les événements souris pour le test
   const touchBackendOptions = {
     enableMouseEvents: true, // Permet de tester avec la souris sur desktop
+    delayTouchStart: 200,
   };
 
   return (
