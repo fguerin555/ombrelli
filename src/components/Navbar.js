@@ -18,9 +18,7 @@ const Navbar = () => {
           <Link to="/changeexchange">Cambio / Scambio</Link>
         </li>
         <li>
-          <Link to="/testqueryname">
-            Ricerca per Cognome/Nome/N°prenotazione
-          </Link>
+          <Link to="/testqueryname">Ricerca/Cognome/Nome/Prenot.</Link>
         </li>
 
         {/* <li>

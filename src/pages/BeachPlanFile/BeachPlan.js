@@ -238,28 +238,34 @@ export default function BeachPlan() {
   // --- LOGIQUE DE SAUVEGARDE (handleSaveReservation) ---
   const handleSaveReservation = async (formDataFromModal) => {
     setIsSaving(true);
-    const {
-      cellCode,
-      modifySingleDay,
-      targetDate,
-      targetDateCondition,
-      id: reservationId,
-      serialNumber: existingSerialNumber,
-      ...dataToSave
-    } = formDataFromModal;
+    try {
+      const {
+        cellCode,
+        modifySingleDay,
+        targetDate,
+        targetDateCondition,
+        id: reservationId,
+        serialNumber: existingSerialNumber,
+        ...dataToSave
+      } = formDataFromModal;
 
-    if (!cellCode) {
-      alert("Errore interno: Codice ombrellone mancante.");
-      setIsSaving(false);
-      return;
-    }
+      if (!cellCode) {
+        alert("Errore interno: Codice ombrellone mancante.");
+        throw new Error("Errore interno: Codice ombrellone mancante.");
+      }
 
-    // --- CAS 1: Modification d'un seul jour (SPLIT) ---
-    if (modifySingleDay && targetDate && targetDateCondition && reservationId) {
-      console.log(`Tentativo di split per ${cellCode} il ${targetDate}`);
-      let targetDaySerialNumber = null;
-      let afterSerialNumber = null;
-      try {
+      // --- CAS 1: Modification d'un seul jour (SPLIT) ---
+      if (
+        modifySingleDay &&
+        targetDate &&
+        targetDateCondition &&
+        reservationId
+      ) {
+        console.log(`Tentativo di split per ${cellCode} il ${targetDate}`);
+        let targetDaySerialNumber = null;
+        let afterSerialNumber = null;
+        // Le try/catch interne pour la transaction gère ses propres erreurs et les throw
+        // Si une erreur est levée ici, elle sera attrapée par le catch externe de handleSaveReservation
         targetDaySerialNumber = await getNextSerialNumber();
         const originalResCheck = allReservations.find(
           (res) => res.id === reservationId
@@ -277,9 +283,6 @@ export default function BeachPlan() {
             throw new Error("Prenotazione originale non trovata per lo split.");
           const originalData = originalDoc.data();
 
-          // --- Vérification Conflit (Simplifiée) ---
-          // TODO: Ajouter une vérification de conflit robuste ici pour le targetDate
-
           // 1. Créer résa jour cible
           const targetDayData = {
             ...originalData,
@@ -290,7 +293,7 @@ export default function BeachPlan() {
             serialNumber: targetDaySerialNumber,
             cellCode: cellCode,
             createdAt: originalData.createdAt || serverTimestamp(),
-            status: "active", // Assurer que le jour splitté a un statut
+            status: "active",
             modifiedAt: serverTimestamp(),
           };
           delete targetDayData.id;
@@ -300,10 +303,6 @@ export default function BeachPlan() {
             id: targetDayDocRef.id,
             ...targetDayData,
           });
-          console.log(
-            "Split: Creata prenotazione giorno target",
-            targetDayData.serialNumber
-          );
 
           // 2. Gérer période AVANT
           if (originalData.startDate < targetDate) {
@@ -315,14 +314,6 @@ export default function BeachPlan() {
               modifiedAt: serverTimestamp(),
             });
             updatesToOriginalForState.endDate = newEndDate;
-            console.log(
-              "Split: Aggiornata prenotazione originale (prima)",
-              originalData.serialNumber,
-              "nuova fine:",
-              newEndDate
-            );
-          } else {
-            console.log("Split: Giorno target è startDate originale.");
           }
 
           // 3. Gérer période APRÈS
@@ -341,42 +332,39 @@ export default function BeachPlan() {
               serialNumber: afterSerialNumber,
               cellCode: cellCode,
               createdAt: originalData.createdAt || serverTimestamp(),
-              status: "active", // Assurer que le jour splitté a un statut
+              status: "active",
               modifiedAt: serverTimestamp(),
             };
             delete afterData.id;
             const afterDocRef = doc(collection(db, "reservations"));
             transaction.set(afterDocRef, afterData);
             newReservationsForState.push({ id: afterDocRef.id, ...afterData });
-            console.log(
-              "Split: Creata prenotazione periodo dopo",
-              afterData.serialNumber,
-              "inizio:",
-              newStartDate
-            );
-          } else {
-            console.log("Split: Giorno target è endDate originale.");
           }
 
           // 4. Supprimer l'originale si couverte
           if (!updatesToOriginalForState.endDate) {
-            transaction.delete(originalDocRef);
-            updatesToOriginalForState.deleted = true;
-            console.log(
-              "Split: Prenotazione originale eliminata (remplacée/couverte).",
-              originalData.serialNumber
-            );
-          } else if (
-            originalData.endDate <= targetDate &&
-            updatesToOriginalForState.endDate
-          ) {
-            console.log(
-              "Split: Prenotazione originale modifiée (avant), pas de période après."
-            );
+            // Si la période AVANT n'a pas été mise à jour (donc le jour cible EST le début)
+            if (originalData.endDate === targetDate) {
+              // Et que le jour cible EST aussi la fin
+              transaction.delete(originalDocRef); // Alors l'original est complètement remplacé
+              updatesToOriginalForState.deleted = true;
+            }
+            // Si la période AVANT n'a pas été mise à jour, mais qu'il y a une période APRES,
+            // l'original est implicitement supprimé car couvert par AVANT (vide) + CIBLE + APRES.
+            // Cependant, la logique actuelle ne supprime que si !updatesToOriginalForState.endDate
+            // et originalData.endDate > targetDate (pour créer la période après).
+            // Il faut être prudent ici. Si originalData.startDate === targetDate et originalData.endDate > targetDate,
+            // alors l'original est remplacé par CIBLE + APRES.
+            else if (
+              originalData.startDate === targetDate &&
+              originalData.endDate > targetDate
+            ) {
+              transaction.delete(originalDocRef);
+              updatesToOriginalForState.deleted = true;
+            }
           }
         }); // --- Fin Transaction ---
 
-        // --- MàJ État Local ---
         setAllReservations((prev) => {
           let newState = [...prev];
           if (updatesToOriginalForState.deleted) {
@@ -405,88 +393,75 @@ export default function BeachPlan() {
           return newState;
         });
         console.log("Split completato con successo.");
-        handleCloseModal();
-      } catch (error) {
-        console.error("Errore durante lo split della prenotazione:", error);
-        alert(`Errore durante la modifica del giorno: ${error.message}`);
-      } finally {
-        setIsSaving(false);
-      }
+        handleCloseModal(); // Ferme le modal de BeachPlan
+      } else {
+        // --- CAS 2: Sauvegarde Normale (Nouvelle ou Mise à jour globale) ---
+        console.log(`Tentativo di salvataggio normale per ${cellCode}`);
+        let conflictFound = false;
+        let conflictMessage = "";
 
-      // --- CAS 2: Sauvegarde Normale (Nouvelle ou Mise à jour globale) ---
-    } else {
-      console.log(`Tentativo di salvataggio normale per ${cellCode}`);
-      let conflictFound = false;
-      let conflictMessage = "";
+        if (
+          dataToSave.startDate &&
+          dataToSave.endDate &&
+          dataToSave.startDate <= dataToSave.endDate
+        ) {
+          const potentialConflicts = allReservations.filter(
+            (res) =>
+              res.id !== reservationId &&
+              res.startDate &&
+              res.endDate &&
+              dataToSave.startDate <= res.endDate &&
+              dataToSave.endDate >= res.startDate &&
+              (res.cellCode === cellCode ||
+                (dataToSave.cabina &&
+                  res.cabina &&
+                  dataToSave.cabina === res.cabina))
+          );
 
-      if (
-        dataToSave.startDate &&
-        dataToSave.endDate &&
-        dataToSave.startDate <= dataToSave.endDate
-      ) {
-        const potentialConflicts = allReservations.filter(
-          (res) =>
-            res.id !== reservationId &&
-            res.startDate &&
-            res.endDate &&
-            dataToSave.startDate <= res.endDate &&
-            dataToSave.endDate >= res.startDate &&
-            (res.cellCode === cellCode ||
-              (dataToSave.cabina &&
-                res.cabina &&
-                dataToSave.cabina === res.cabina))
-        );
-
-        for (const existingRes of potentialConflicts) {
-          if (existingRes.cellCode === cellCode) {
-            // Conflit Ombrellone
+          for (const existingRes of potentialConflicts) {
+            if (existingRes.cellCode === cellCode) {
+              if (
+                dataToSave.condition === "jour entier" ||
+                existingRes.condition === "jour entier" ||
+                (dataToSave.condition === "matin" &&
+                  existingRes.condition === "matin") ||
+                (dataToSave.condition === "apres-midi" &&
+                  existingRes.condition === "apres-midi")
+              ) {
+                conflictFound = true;
+                conflictMessage = `Conflitto Ombrellone ${cellCode} rilevato (${
+                  existingRes.condition
+                }) con N° ${existingRes.serialNumber || existingRes.id} (${
+                  existingRes.startDate
+                } - ${existingRes.endDate}).`;
+                break;
+              }
+            }
             if (
-              dataToSave.condition === "jour entier" ||
-              existingRes.condition === "jour entier" ||
-              (dataToSave.condition === "matin" &&
-                existingRes.condition === "matin") ||
-              (dataToSave.condition === "apres-midi" &&
-                existingRes.condition === "apres-midi")
+              dataToSave.cabina &&
+              existingRes.cabina &&
+              dataToSave.cabina === existingRes.cabina
             ) {
               conflictFound = true;
-              conflictMessage = `Conflitto Ombrellone ${cellCode} rilevato (${
-                existingRes.condition
-              }) con N° ${existingRes.serialNumber || existingRes.id} (${
-                existingRes.startDate
-              } - ${existingRes.endDate}).`;
+              conflictMessage = `Conflitto Cabina ${
+                dataToSave.cabina
+              } rilevato con N° ${
+                existingRes.serialNumber || existingRes.id
+              } (${existingRes.startDate} - ${existingRes.endDate}).`;
               break;
             }
           }
-          if (
-            dataToSave.cabina &&
-            existingRes.cabina &&
-            dataToSave.cabina === existingRes.cabina
-          ) {
-            // Conflit Cabine
-            conflictFound = true;
-            conflictMessage = `Conflitto Cabina ${
-              dataToSave.cabina
-            } rilevato con N° ${existingRes.serialNumber || existingRes.id} (${
-              existingRes.startDate
-            } - ${existingRes.endDate}).`;
-            break;
-          }
+        } else if (dataToSave.startDate > dataToSave.endDate) {
+          conflictFound = true;
+          conflictMessage =
+            "La data di fine non può essere anteriore alla data di inizio.";
         }
-      } else if (dataToSave.startDate > dataToSave.endDate) {
-        conflictFound = true;
-        conflictMessage =
-          "La data di fine non può essere anteriore alla data di inizio.";
-      }
 
-      if (conflictFound) {
-        alert(conflictMessage);
-        setIsSaving(false);
-        return;
-      }
-      // --- Fin Vérification Conflit Globale ---
+        if (conflictFound) {
+          alert(conflictMessage);
+          throw new Error(conflictMessage); // Propager l'erreur
+        }
 
-      // --- Logique de sauvegarde Add/Set ---
-      try {
         let finalData = {
           ...dataToSave,
           cellCode,
@@ -494,21 +469,14 @@ export default function BeachPlan() {
         };
 
         if (!reservationId) {
-          // --- NOUVELLE réservation ---
           const newSerialNumber = await getNextSerialNumber();
           finalData = {
             ...finalData,
             serialNumber: newSerialNumber,
             createdAt: serverTimestamp(),
-            status: "active", // Assurer que le jour splitté a un statut
+            status: "active",
           };
           const docRef = await addDoc(reservationsCollectionRef, finalData);
-          console.log(
-            "Nuova prenotazione creata:",
-            docRef.id,
-            "SN:",
-            newSerialNumber
-          );
           setAllReservations((prev) => [
             ...prev,
             {
@@ -519,11 +487,9 @@ export default function BeachPlan() {
             },
           ]);
         } else {
-          // --- MISE À JOUR globale ---
           const docRef = doc(db, "reservations", reservationId);
-          finalData.serialNumber = existingSerialNumber; // Conserver SN existant
+          finalData.serialNumber = existingSerialNumber;
           await setDoc(docRef, finalData, { merge: true });
-          console.log("Prenotazione aggiornata:", reservationId);
           setAllReservations((prev) =>
             prev.map((res) =>
               res.id === reservationId
@@ -532,17 +498,21 @@ export default function BeachPlan() {
             )
           );
         }
-        handleCloseModal();
-      } catch (error) {
-        console.error("Errore durante il salvataggio:", error);
-        if (error.message === "Impossible de générer le numéro de série.") {
-          alert(`Errore critico: ${error.message} Contattare supporto.`);
-        } else {
-          alert(`Errore durante il salvataggio: ${error.message}`);
-        }
-      } finally {
-        setIsSaving(false);
+        handleCloseModal(); // Ferme le modal de BeachPlan
       }
+    } catch (error) {
+      console.error("Errore durante il salvataggio (BeachPlan):", error);
+      // L'alerte a peut-être déjà été affichée (ex: conflit, erreur de split)
+      // Si ce n'est pas une erreur déjà gérée par une alerte, on peut en afficher une générique
+      if (
+        !error.message.startsWith("Conflitto") &&
+        !error.message.includes("split")
+      ) {
+        alert(`Errore durante il salvataggio: ${error.message}`);
+      }
+      throw error; // TRÈS IMPORTANT: Renvoyer l'erreur pour que TestQueryPlan la reçoive
+    } finally {
+      setIsSaving(false);
     }
   }; // --- Fin handleSaveReservation ---
 
@@ -550,6 +520,7 @@ export default function BeachPlan() {
   const handleDeleteReservation = async (reservationIdToDelete) => {
     if (!reservationIdToDelete) {
       alert("Impossibile eliminare: ID prenotazione mancante.");
+      // On ne throw pas ici car c'est une validation interne, pas une erreur d'opération
       return;
     }
     const reservationToDelete = allReservations.find(
@@ -561,7 +532,11 @@ export default function BeachPlan() {
         } (N° ${reservationToDelete.serialNumber || "N/A"}) ?`
       : `Vuoi davvero cancellare questa prenotazione (ID: ${reservationIdToDelete}) ?`;
 
-    if (!window.confirm(confirmMessage)) return;
+    if (!window.confirm(confirmMessage)) {
+      // L'utilisateur a annulé, on ne fait rien et on ne throw pas d'erreur.
+      // La promesse sera résolue sans valeur, TestQueryPlan ne fermera pas son modal.
+      return;
+    }
 
     setIsSaving(true);
     try {
@@ -571,10 +546,11 @@ export default function BeachPlan() {
       setAllReservations((prev) =>
         prev.filter((res) => res.id !== reservationIdToDelete)
       );
-      handleCloseModal();
+      handleCloseModal(); // Ferme le modal de BeachPlan
     } catch (error) {
-      console.error("Errore durante l'eliminazione:", error);
+      console.error("Errore durante l'eliminazione (BeachPlan):", error);
       alert(`Errore durante l'eliminazione: ${error.message}`);
+      throw error; // TRÈS IMPORTANT: Renvoyer l'erreur
     } finally {
       setIsSaving(false);
     }
@@ -733,8 +709,13 @@ export default function BeachPlan() {
         {/* Optionnel: un conteneur pour styler cette section */}
         {/* Vous pouvez ajouter un titre ici si vous le souhaitez, par exemple : */}
         {/* <h2>Visualisation des disponibilités par période</h2> */}
-        <TestQueryPlan /> {/* Affichage du composant TestQueryPlan */}
+        <TestQueryPlan
+          allReservations={allReservations}
+          onSaveReservation={handleSaveReservation} // AJOUT: Passer la fonction de sauvegarde
+          onDeleteReservation={handleDeleteReservation} // AJOUT: Passer la fonction de suppression
+        />{" "}
       </section>
+
       {/* === FIN DE L'INTÉGRATION DE TESTQUERYPLAN === */}
     </> // FIX 2: Fermeture du Fragment React
   ); // Fermeture de la parenthèse du return
