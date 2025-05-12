@@ -231,6 +231,9 @@
 
 @media (max-width: 509px) {
   /* Pour smartphones */
+  .Titre h1 {
+    font-size: 1em;
+  }
   .controlsHeader {
     flex-direction: column;
     align-items: stretch;
