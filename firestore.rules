@@ -1,8 +1,32 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if true;  // Temporairement pour le développement
+
+    match /reservations/{reservationId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    match /feedback/{feedbackId} {
+      allow read: if true;
+      allow create: if request.auth != null
+                    && request.resource.data.authorName is string
+                    && request.resource.data.authorName.size() > 0 && request.resource.data.authorName.size() < 100
+                    && request.resource.data.comment is string
+                    && request.resource.data.comment.size() > 0 && request.resource.data.comment.size() < 1000
+                    && request.resource.data.createdAt == request.time
+                    && request.resource.data.lastActivityAt == request.time
+                    && request.resource.data.replies is list
+                    && request.resource.data.replies.size() == 0;
+      allow update: if request.auth != null && request.auth.uid == "TON_USER_ID_DEVELOPPEUR"
+                    && request.resource.data.authorName == resource.data.authorName
+                    && request.resource.data.comment == resource.data.comment
+                    && request.resource.data.createdAt == resource.data.createdAt
+                    && request.resource.data.lastActivityAt == request.time;
+    }
+
+    match /counters/{counterId} {
+      allow read, write: if request.auth != null;
     }
   }
 }

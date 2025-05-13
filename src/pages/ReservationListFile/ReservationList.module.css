@@ -92,7 +92,9 @@
   z-index: 10;
   white-space: nowrap; /* Empêche le texte des en-têtes de passer à la ligne */
 }
-
+.newDayRowStart td {
+  border-top: 2px solid #696767 !important; /* Bordure supérieure plus épaisse et plus foncée. !important pour assurer la priorité si besoin. */
+}
 /* Style pour les lignes réservées */
 .bookedRow {
   background-color: #e0f7fa; /* Bleu très clair */

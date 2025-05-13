@@ -43,6 +43,36 @@
   margin: 0 1em; /* Espacement entre les éléments de la liste */
 }
 
+/* Styles pour la section utilisateur et le bouton de déconnexion */
+.userSection {
+  display: flex;
+  align-items: center;
+  gap: 10px; /* Espace entre l'email et le bouton */
+  /* margin-left: auto;  */
+  padding-left: 20px; /* Un peu d'espace si les liens sont nombreux */
+}
+
+.userEmail {
+  font-size: 1.2rem;
+  color: #333;
+  margin-right: 10px;
+}
+
+.logoutButton {
+  padding: 8px 12px;
+  font-size: 0.9rem;
+  color: white;
+  background-color: #dc3545; /* Rouge pour déconnexion, par exemple */
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.logoutButton:hover {
+  background-color: #c82333; /* Rouge plus foncé au survol */
+}
+
 @media (max-width: 1224px) {
   .navbar {
     flex-direction: column;

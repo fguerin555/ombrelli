@@ -82,15 +82,22 @@ export default function BeachPlan() {
           nextNumber = 1;
           transaction.set(counterDocRef, { lastNumber: 1 });
         } else {
-          const lastNumber = counterDoc.data().lastNumber;
-          if (typeof lastNumber !== "number" || isNaN(lastNumber)) {
+          const data = counterDoc.data(); // Bonne vérification ici
+          if (
+            !data ||
+            typeof data.lastNumber !== "number" ||
+            isNaN(data.lastNumber)
+          ) {
+            // Plus robuste
             console.warn(
-              `Valeur 'lastNumber' invalide (${lastNumber}) dans ${counterDocRef.path}. Réinitialisation à 0 avant incrémentation.`
+              `Valeur 'lastNumber' invalide ou document vide (${
+                data ? data.lastNumber : "data undefined"
+              }) dans ${counterDocRef.path}. Réinitialisation à 1.`
             );
             nextNumber = 1;
             transaction.set(counterDocRef, { lastNumber: 1 });
           } else {
-            nextNumber = lastNumber + 1;
+            nextNumber = data.lastNumber + 1;
             transaction.update(counterDocRef, { lastNumber: nextNumber });
           }
         }

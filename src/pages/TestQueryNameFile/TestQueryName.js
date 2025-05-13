@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from "react";
 import { collection, getDocs } from "firebase/firestore";
-import { db } from "./firebase"; // Assure-toi que le chemin est correct
-import "./Global.css";
+import { db } from "../../firebase"; // Assure-toi que le chemin est correct
+import "../../Global.css";
 import styles from "./TestQueryName.module.css";
 
 const TestQueryName = () => {

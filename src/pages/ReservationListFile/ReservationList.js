@@ -1,4 +1,4 @@
-// src/pages/ReservationListFile/ReservationList.js
+// /Users/fredericguerin/Desktop/ombrelli/src/pages/ReservationListFile/ReservationList.js
 import React from "react";
 import styles from "./ReservationList.module.css"; // Assurez-vous d'avoir un fichier CSS
 
@@ -73,7 +73,8 @@ const ReservationList = ({
 
   const formatExtra = (code) => {
     if (code === "R") return "Regista";
-    if (code === "P") return "Poltrona";
+    if (code === "P") return "Poltrona"; // Note: 'P' n'était pas dans TestQueryName, mais peut être pertinent ici. Ajustez si besoin.
+    if (code === "T") return "Transat"; // Ajouté pour cohérence avec ChangeExchange et TestQueryName
     return "";
   };
 
@@ -133,7 +134,7 @@ const ReservationList = ({
                         return (
                           <tr
                             key={`${cellCode}-FD`}
-                            className={styles.bookedRow}
+                            className={`${styles.bookedRow} ${styles.newDayRowStart}`} // Ajout de newDayRowStart
                           >
                             <td>{cellCode}</td>
                             <td>Giorno Intero</td>
@@ -158,11 +159,11 @@ const ReservationList = ({
                         <React.Fragment key={`${cellCode}-Group`}>
                           <tr
                             key={`${cellCode}-M`}
-                            className={
+                            className={`${
                               morningDetails.serialNumber
                                 ? styles.bookedRow
                                 : styles.freeRow
-                            }
+                            } ${styles.newDayRowStart}`} // Ajout de newDayRowStart
                           >
                             <td>{cellCode}</td>
                             <td>Mattina</td>
@@ -187,10 +188,9 @@ const ReservationList = ({
                               afternoonDetails.serialNumber
                                 ? styles.bookedRow
                                 : styles.freeRow
-                            } ${styles.afternoonRow}`}
+                            } ${styles.afternoonRow}`} // Pas de newDayRowStart ici
                           >
-                            <td></td>{" "}
-                            {/* Cellule vide pour l'alignement, masquée par CSS si besoin */}
+                            <td></td> {/* Cellule vide pour l'alignement */}
                             <td>Pomeriggio</td>
                             <td>{afternoonDetails.nom}</td>
                             <td>{afternoonDetails.prenom}</td>

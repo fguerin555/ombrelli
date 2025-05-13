@@ -1,3 +1,4 @@
+// /Users/fredericguerin/Desktop/ombrelli/src/pages/ChangeExchangeFile/ChangeExchange.js
 import React, { useState, useEffect, useCallback } from "react";
 import { db } from "../../firebase"; // Ajuste le chemin si nécessaire
 import {
@@ -41,6 +42,11 @@ const formatDateSimple = (date) => {
   }
 };
 
+// --- Constantes pour le champ 'condition' ---
+const CONDITION_FULL_DAY = "jour entier";
+const CONDITION_MORNING = "matin"; // À vérifier/adapter
+const CONDITION_AFTERNOON = "apres-midi"; // À vérifier/adapter
+
 const ChangeExchangeContent = () => {
   // Renommé pour wrapper avec DndProvider plus tard
   const [reservations, setReservations] = useState([]);
@@ -50,6 +56,24 @@ const ChangeExchangeContent = () => {
   // --- États pour le filtre de date ---
   const [filterStartDate, setFilterStartDate] = useState("");
   const [filterEndDate, setFilterEndDate] = useState("");
+
+  // --- Fonction pour obtenir le style et le texte de la condition en italien ---
+  const getConditionStyleAndText = (condition) => {
+    switch (condition) {
+      case CONDITION_FULL_DAY:
+        return {
+          text: "Giorno Intero",
+          className: styles.conditionGiornoIntero,
+        };
+      case CONDITION_MORNING:
+        return { text: "Mattina", className: styles.conditionMattina };
+      case CONDITION_AFTERNOON:
+        return { text: "Pomeriggio", className: styles.conditionPomeriggio };
+      default:
+        // Retourne la condition originale ou "N/A" si elle est vide/nulle, sans classe spécifique
+        return { text: condition || "N/A", className: "" };
+    }
+  };
 
   // --- Récupération des réservations ---
   const fetchReservations = useCallback(async () => {
@@ -146,11 +170,6 @@ const ChangeExchangeContent = () => {
       alert("Errore durante spostamento dell'ombrellone"); // Message en italien
     }
   };
-
-  // --- Constantes pour le champ 'condition' ---
-  const CONDITION_FULL_DAY = "jour entier";
-  const CONDITION_MORNING = "matin"; // À vérifier/adapter
-  const CONDITION_AFTERNOON = "après-midi"; // À vérifier/adapter
 
   // --- Fonction pour vérifier les conflits de date ET de condition ---
   const checkConflict = (
@@ -388,6 +407,9 @@ const ChangeExchangeContent = () => {
   // --- Composant Cellule (intégrant useDrag et useDrop) ---
   const Cell = ({ cellCode }) => {
     const reservation = findReservationForCellInRange(cellCode);
+    const conditionInfo = reservation
+      ? getConditionStyleAndText(reservation.condition)
+      : { text: "N/A", className: "" };
 
     const [{ isDragging }, drag] = useDrag(
       () => ({
@@ -418,8 +440,12 @@ const ChangeExchangeContent = () => {
           if (item.reservationId && item.originalCellCode !== cellCode) {
             const targetReservation = findReservationForCellInRange(cellCode);
             if (!targetReservation) {
-              moveReservation(item.reservationId, cellCode);
+              // Vérifier le conflit avant de déplacer
+              if (!checkConflict(item.reservationData, cellCode, null)) {
+                moveReservation(item.reservationId, cellCode);
+              }
             } else {
+              // L'échange gère ses propres vérifications de conflit
               exchangeReservations(
                 item.reservationId,
                 targetReservation.id,
@@ -439,6 +465,7 @@ const ChangeExchangeContent = () => {
         moveReservation,
         exchangeReservations,
         findReservationForCellInRange,
+        checkConflict, // Ajout de checkConflict aux dépendances
       ]
     );
 
@@ -457,7 +484,7 @@ const ChangeExchangeContent = () => {
         }`}
         title={
           displayReservation
-            ? `Occupato da ${displayReservation.nom} ${displayReservation.prenom} (${displayReservation.condition})` // Message en italien
+            ? `Occupato da ${displayReservation.nom} ${displayReservation.prenom} (${conditionInfo.text})`
             : `Libero ${cellCode}` // Message en italien
         }
         style={{ opacity: isDragging ? 0.5 : 1 }}
@@ -484,11 +511,16 @@ const ChangeExchangeContent = () => {
         </div>
         <div className={styles.cellBottom}>
           {displayReservation ? (
-            <span className={styles.period}>
-              {formatDateSimple(displayReservation.startDate)} -{" "}
-              {formatDateSimple(displayReservation.endDate)}
-              <br />({displayReservation.condition || "N/A"})
-            </span>
+            <>
+              <span className={styles.period}>
+                {formatDateSimple(displayReservation.startDate)} -{" "}
+                {formatDateSimple(displayReservation.endDate)}
+              </span>
+              <br />
+              <span className={conditionInfo.className}>
+                ({conditionInfo.text})
+              </span>
+            </>
           ) : (
             <span>Libero</span> // Message en italien
           )}
@@ -561,7 +593,8 @@ const ChangeExchange = () => {
   // Options pour le TouchBackend, notamment pour activer les événements souris pour le test
   const touchBackendOptions = {
     enableMouseEvents: true, // Permet de tester avec la souris sur desktop
-    delayTouchStart: 200,
+    delayTouchStart: 200, // Délai en ms avant que le toucher ne déclenche le drag (pour éviter les drags accidentels en scrollant)
+    // Vous pouvez ajuster cette valeur (ex: 150, 250, 300) selon la sensibilité désirée.
   };
 
   return (

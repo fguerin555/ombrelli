@@ -64,7 +64,7 @@
 }
 .formGroup input[type="date"]:hover {
   background-color: rgba(250, 200, 251, 0.831);
-  border-color: goldenrod;
+  border-color: rgb(220, 164, 24);
   cursor: pointer;
 }
 
@@ -196,7 +196,7 @@
 }
 
 .reservedCell {
-  background-color: #fff3cd; /* Jaune pâle Bootstrap pour réservé */
+  background-color: #f9f0d2; /* Jaune pâle Bootstrap pour réservé */
   position: relative;
 }
 
@@ -224,7 +224,19 @@
   opacity: 1; /* Visible au survol */
   visibility: visible;
 }
-
+/* Nouvelles classes pour les couleurs des conditions */
+.conditionGiornoIntero {
+  color: red;
+  font-weight: bold;
+}
+.conditionMattina {
+  color: blue;
+  font-weight: bold;
+}
+.conditionPomeriggio {
+  color: orange;
+  font-weight: bold;
+}
 .freeCell {
   background-color: #d1e7dd; /* Vert pâle Bootstrap pour libre */
   align-items: center; /* Centre le contenu verticalement si libre */
