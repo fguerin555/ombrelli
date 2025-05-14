@@ -1,3 +1,4 @@
+// /Users/fredericguerin/Desktop/ombrelli/src/pages/BeachPlanPeriodFile/BeachPlanPeriod.js
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
@@ -29,9 +30,16 @@ import {
   serverTimestamp, // Ajout pour les dates de création/modif
 } from "firebase/firestore";
 import { db } from "../../firebase";
+import { useAuth } from "../../contexts/AuthContext"; // Importer useAuth
 
 // --- Constantes copiées ---
 const VALID_CABINS = "ABCDEFGHIJKLMNOPQRSTUWXYZ".split("");
+
+// !!! IMPORTANT : Remplacez ces placeholders par les VRAIS UID que vous avez mis dans vos règles Firestore !!!
+const ADMIN_UIDS = [
+  "TTbEHi8QRCTyMADYPt2N8yKB8Yg2",
+  "BmT4kbaXHjguZecqMnQGEJGnqwL2",
+]; // Exemple, à remplacer
 
 export default function BeachPlanPeriod() {
   // Utilisation de useMemo pour mémoriser 'resources'
@@ -113,6 +121,9 @@ export default function BeachPlanPeriod() {
   const [isSaving, setIsSaving] = useState(false);
   const [isNew, setIsNew] = useState(true);
   const [umbrellaConflictError, setUmbrellaConflictError] = useState(""); // Ajout état conflit ombrellone
+  const { currentUser } = useAuth(); // Récupérer l'utilisateur actuel
+  const isCurrentUserAdmin =
+    currentUser && ADMIN_UIDS.includes(currentUser.uid); // Déterminer si admin
 
   // --- Traitement des réservations pour FullCalendar ---
   const processReservationsToEvents = useCallback((reservations) => {
@@ -852,6 +863,15 @@ export default function BeachPlanPeriod() {
             size="small"
             fullWidth
           />
+          {!isCurrentUserAdmin && selectedOriginal && (
+            <Typography
+              color="error"
+              variant="body2"
+              sx={{ mt: 1, mb: 1, color: "orange", fontWeight: "bold" }}
+            >
+              Modalità sola lettura. Contattare l'amministratore per modifiche.
+            </Typography>
+          )}
           {/* Cognome */}
           <TextField
             margin="dense"
@@ -865,6 +885,7 @@ export default function BeachPlanPeriod() {
             }
             required
             fullWidth
+            disabled={!isCurrentUserAdmin}
           />
           {/* Nome */}
           <TextField
@@ -878,6 +899,7 @@ export default function BeachPlanPeriod() {
               })
             }
             fullWidth
+            disabled={!isCurrentUserAdmin}
           />
           {/* Data Inizio */}
           <TextField
@@ -898,6 +920,7 @@ export default function BeachPlanPeriod() {
             InputLabelProps={{ shrink: true }}
             required
             fullWidth
+            disabled={!isCurrentUserAdmin}
           />
           {/* Data Fine */}
           <TextField
@@ -912,6 +935,7 @@ export default function BeachPlanPeriod() {
             inputProps={{ min: formData.startDate }} // Min basé sur formData.startDate
             required
             fullWidth
+            disabled={!isCurrentUserAdmin}
           />
           {/* Lits */}
           <TextField
@@ -930,6 +954,7 @@ export default function BeachPlanPeriod() {
             inputProps={{ min: 0, max: 3, step: 1 }}
             required
             fullWidth
+            disabled={!isCurrentUserAdmin}
           />
           {/* Extra */}
           <TextField
@@ -948,6 +973,7 @@ export default function BeachPlanPeriod() {
             inputProps={{ maxLength: 1 }}
             placeholder="R / T"
             fullWidth
+            disabled={!isCurrentUserAdmin}
           />
           {/* Cabine */}
           <FormControlLabel
@@ -955,7 +981,7 @@ export default function BeachPlanPeriod() {
               <Checkbox
                 checked={requestCabin}
                 onChange={(e) => setRequestCabin(e.target.checked)}
-                disabled={isSaving}
+                disabled={isSaving || !isCurrentUserAdmin}
               />
             }
             label={`Richiedi Cabina ${
@@ -977,7 +1003,7 @@ export default function BeachPlanPeriod() {
               setFormData({ ...formData, condition: e.target.value })
             }
             required
-            disabled={isSaving} // Désactiver si sauvegarde en cours
+            disabled={isSaving || !isCurrentUserAdmin} // Désactiver si sauvegarde en cours ou pas admin
           >
             <MenuItem value="jour entier">Giorno Intero</MenuItem>
             <MenuItem value="matin">Mattina</MenuItem>
@@ -1013,7 +1039,7 @@ export default function BeachPlanPeriod() {
                 value={singleDayCondition}
                 onChange={(e) => setSingleDayCondition(e.target.value)}
                 size="small"
-                disabled={isSaving}
+                disabled={isSaving || !isCurrentUserAdmin}
               >
                 <MenuItem value={formData.condition || "jour entier"}>
                   -- Mantieni (
@@ -1041,11 +1067,16 @@ export default function BeachPlanPeriod() {
           )}
         </DialogContent>
         <DialogActions>
-          {selectedOriginal && (
-            <Button color="error" onClick={handleDelete} disabled={isSaving}>
-              Cancella
-            </Button>
-          )}
+          {selectedOriginal &&
+            isCurrentUserAdmin && ( // Afficher "Cancella" seulement si admin
+              <Button
+                color="error"
+                onClick={handleDelete}
+                disabled={isSaving || !isCurrentUserAdmin}
+              >
+                Cancella
+              </Button>
+            )}
           <Button onClick={resetForm} disabled={isSaving}>
             Annulla
           </Button>
@@ -1055,8 +1086,16 @@ export default function BeachPlanPeriod() {
             disabled={
               isSaving ||
               !!umbrellaConflictError ||
-              (requestCabin && !assignedCabin && !!cabinError)
+              (requestCabin && !assignedCabin && !!cabinError) ||
+              !isCurrentUserAdmin // Désactiver si pas admin
             }
+            // Cacher le bouton si pas admin ET on modifie une résa existante
+            style={{
+              display:
+                !isCurrentUserAdmin && selectedOriginal
+                  ? "none"
+                  : "inline-flex",
+            }}
           >
             {isSaving
               ? "Salvataggio..."
