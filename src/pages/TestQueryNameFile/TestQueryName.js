@@ -1,3 +1,4 @@
+// /Users/fredericguerin/Desktop/ombrelli/src/pages/TestQueryNameFile/TestQueryName.js
 import React, { useState, useCallback } from "react";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "../../firebase"; // Assure-toi que le chemin est correct
@@ -24,6 +25,12 @@ const TestQueryName = () => {
     } catch (e) {
       return dateString; // Retourne la chaîne originale en cas d'erreur
     }
+  };
+
+  // Fonction utilitaire pour capitaliser la première lettre et mettre le reste en minuscules
+  const capitalizeFirstLetterOnly = (string) => {
+    if (!string) return "";
+    return string.charAt(0).toUpperCase() + string.slice(1).toLowerCase();
   };
 
   // Fonction pour traduire et formater la condition pour l'affichage
@@ -142,14 +149,18 @@ const TestQueryName = () => {
             type="text"
             placeholder="Cognome..."
             value={searchCognome}
-            onChange={(e) => setSearchCognome(e.target.value)}
+            onChange={(e) =>
+              setSearchCognome(capitalizeFirstLetterOnly(e.target.value))
+            }
             className={styles.searchInput}
           />
           <input
             type="text"
             placeholder="Nome..."
             value={searchNome}
-            onChange={(e) => setSearchNome(e.target.value)}
+            onChange={(e) =>
+              setSearchNome(capitalizeFirstLetterOnly(e.target.value))
+            }
             className={styles.searchInput}
           />
           <input
