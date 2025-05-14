@@ -1,7 +1,9 @@
+// /Users/fredericguerin/Desktop/ombrelli/src/pages/TestQueryPlanFile/TestQueryPlan.js
 import React, { useState, useCallback, useMemo } from "react";
 import "../../Global.css";
 import styles from "./TestQueryPlan.module.css";
 import ReservationModal from "../BeachPlanFile/ReservationModal"; //
+import { useAuth } from "../../contexts/AuthContext"; // Importer useAuth
 
 // --- Fonctions Utilitaires (similaires à BeachPlan) ---
 const getTodayString = () => {
@@ -36,6 +38,12 @@ const allCellCodes = rows.flatMap((row) =>
   columns.map((col) => `${row}${col}`)
 );
 
+// !!! IMPORTANT : Remplacez ces placeholders par les VRAIS UID que vous avez mis dans vos règles Firestore !!!
+const ADMIN_UIDS = [
+  "TTbEHi8QRCTyMADYPt2N8yKB8Yg2",
+  "BmT4kbaXHjguZecqMnQGEJGnqwL2",
+]; // Exemple, à remplacer
+
 // Le composant accepte maintenant allReservations et les fonctions de sauvegarde/suppression en props
 const TestQueryPlan = ({
   allReservations, // Prop depuis BeachPlan.js
@@ -58,6 +66,11 @@ const TestQueryPlan = ({
   const [selectedCellForModal, setSelectedCellForModal] = useState(null);
   const [reservationToEdit, setReservationToEdit] = useState(null);
 
+  // --- Infos Utilisateur/Admin ---
+  const { currentUser } = useAuth(); // Récupérer l'utilisateur actuel
+  const isCurrentUserAdmin =
+    currentUser && ADMIN_UIDS.includes(currentUser.uid); // Déterminer si admin
+
   // --- Chargement initial des données ---
   // RETIRÉ - fetchReservations et le useEffect correspondant, car les données viennent des props
   // const fetchReservations = useCallback(async () => { ... }, []);
@@ -76,8 +89,24 @@ const TestQueryPlan = ({
     }
     allReservations.forEach((res) => {
       if (!res.cellCode || !res.startDate || !res.endDate) return;
-      let loopDateStr = res.startDate;
-      const stopDateStr = res.endDate;
+      // S'assurer que startDate et endDate sont des chaînes YYYY-MM-DD
+      const resStartDateStr =
+        res.startDate instanceof Date
+          ? res.startDate.toISOString().slice(0, 10)
+          : typeof res.startDate === "string"
+          ? res.startDate
+          : null;
+      const resEndDateStr =
+        res.endDate instanceof Date
+          ? res.endDate.toISOString().slice(0, 10)
+          : typeof res.endDate === "string"
+          ? res.endDate
+          : null;
+
+      if (!resStartDateStr || !resEndDateStr) return; // Ignorer si les dates ne sont pas valides
+
+      let loopDateStr = resStartDateStr;
+      const stopDateStr = resEndDateStr;
 
       // Boucle sur les dates en chaînes pour éviter les problèmes de fuseau horaire avec les objets Date
       while (loopDateStr <= stopDateStr) {
@@ -196,6 +225,7 @@ const TestQueryPlan = ({
         newCondition = "apres-midi";
       }
 
+      // startDate et endDate du filtre sont déjà des chaînes YYYY-MM-DD
       const newReservationPayload = {
         nom: "",
         prenom: "",
@@ -209,18 +239,33 @@ const TestQueryPlan = ({
         cabina: null,
       };
       setSelectedCellForModal(cellCode);
-      setReservationToEdit(newReservationPayload);
+      setReservationToEdit(newReservationPayload); // Dates sont déjà des strings YYYY-MM-DD
       setIsModalOpen(true);
       // console.log(`Ouverture modal pour NOUVELLE réservation sur ${cellCode}`);
     } else {
-      const reservationsForCellOnRefDate = allReservations.filter(
-        (res) =>
+      // Cas où l'on clique sur une cellule déjà réservée (selon les filtres)
+      const reservationsForCellOnRefDate = allReservations.filter((res) => {
+        // S'assurer que res.startDate et res.endDate sont des strings YYYY-MM-DD pour la comparaison
+        const resStartDateStr =
+          res.startDate instanceof Date
+            ? res.startDate.toISOString().slice(0, 10)
+            : typeof res.startDate === "string"
+            ? res.startDate
+            : null;
+        const resEndDateStr =
+          res.endDate instanceof Date
+            ? res.endDate.toISOString().slice(0, 10)
+            : typeof res.endDate === "string"
+            ? res.endDate
+            : null;
+        if (!resStartDateStr || !resEndDateStr) return false;
+
+        return (
           res.cellCode === cellCode &&
-          res.startDate &&
-          res.endDate &&
-          startDate >= res.startDate &&
-          startDate <= res.endDate
-      );
+          startDate >= resStartDateStr &&
+          startDate <= resEndDateStr
+        );
+      });
 
       const fullDayRes = reservationsForCellOnRefDate.find(
         (res) => res.condition === "jour entier"
@@ -233,27 +278,50 @@ const TestQueryPlan = ({
       );
 
       let dataForModalOnClick = null;
+
+      // Fonction pour s'assurer que les dates sont des strings YYYY-MM-DD
+      const formatReservationDates = (resData) => {
+        if (!resData) return null;
+        return {
+          ...resData,
+          startDate:
+            resData.startDate instanceof Date
+              ? resData.startDate.toISOString().slice(0, 10)
+              : typeof resData.startDate === "string"
+              ? resData.startDate
+              : null,
+          endDate:
+            resData.endDate instanceof Date
+              ? resData.endDate.toISOString().slice(0, 10)
+              : typeof resData.endDate === "string"
+              ? resData.endDate
+              : null,
+        };
+      };
+
       if (fullDayRes) {
-        dataForModalOnClick = { ...fullDayRes };
+        dataForModalOnClick = formatReservationDates(fullDayRes);
       } else if (morningResOnly && afternoonResOnly) {
         if (morningResOnly.id !== afternoonResOnly.id) {
           dataForModalOnClick = {
-            morning: { ...morningResOnly },
-            afternoon: { ...afternoonResOnly },
+            morning: formatReservationDates(morningResOnly),
+            afternoon: formatReservationDates(afternoonResOnly),
             type: "dual",
           };
         } else {
-          dataForModalOnClick = { ...morningResOnly };
+          // Si c'est la même résa qui couvre matin et aprem (ce qui ne devrait pas arriver si ce n'est pas 'jour entier')
+          // On prend la première trouvée.
+          dataForModalOnClick = formatReservationDates(morningResOnly);
         }
       } else if (morningResOnly) {
-        dataForModalOnClick = { ...morningResOnly };
+        dataForModalOnClick = formatReservationDates(morningResOnly);
       } else if (afternoonResOnly) {
-        dataForModalOnClick = { ...afternoonResOnly };
+        dataForModalOnClick = formatReservationDates(afternoonResOnly);
       }
 
       if (dataForModalOnClick) {
         setSelectedCellForModal(cellCode);
-        setReservationToEdit(dataForModalOnClick);
+        setReservationToEdit(dataForModalOnClick); // Les dates sont maintenant formatées
         setIsModalOpen(true);
         // console.log(
         //   `Ouverture modal pour ${cellCode} avec données:`,
@@ -526,9 +594,10 @@ const TestQueryPlan = ({
             onDelete={handleModalDeleteWrapper} // AJOUT: Utilise le wrapper pour la suppression
             cellCode={selectedCellForModal}
             allReservations={allReservations} // MODIFIÉ: Utilise la prop de BeachPlan
-            selectedDate={startDate}
+            selectedDate={startDate} // Utilise la date de début du filtre comme contexte pour le modal
             reservationData={reservationToEdit}
             isSaving={isModalSaving} // AJOUT: Utilise l'état de sauvegarde local du modal
+            isCurrentUserAdmin={isCurrentUserAdmin} // Passer le statut admin
           />
         )}
       </div>
