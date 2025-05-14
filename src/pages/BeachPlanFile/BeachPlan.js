@@ -16,9 +16,8 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import Query from "../QueryFile/Query";
-import TestQueryPlan from "../TestQueryPlanFile/TestQueryPlan"; // Chemin corrigé et import ajouté
-
-// import { buttonBaseClasses } from "@mui/material"; // Import inutilisé, peut être supprimé
+import TestQueryPlan from "../TestQueryPlanFile/TestQueryPlan";
+import { useAuth } from "../../contexts/AuthContext";
 
 // --- Fonctions Utilitaires ---
 const getTodayString = () => {
@@ -57,11 +56,18 @@ const columns = Array.from({ length: 36 }, (_, i) =>
 
 // --- Références Firestore ---
 const reservationsCollectionRef = collection(db, "reservations");
+
 const counterDocRef = doc(db, "counters", "reservationCounter");
+// !!! IMPORTANT : Remplace ces placeholders par les VRAIS UID que tu as mis dans tes règles Firestore !!!
+const ADMIN_UIDS = [
+  "TTbEHi8QRCTyMADYPt2N8yKB8Yg2",
+  "BmT4kbaXHjguZecqMnQGEJGnqwL2",
+];
 
 // --- Composant Principal ---
 export default function BeachPlan() {
   // --- États ---
+  const { currentUser } = useAuth();
   const [allReservations, setAllReservations] = useState([]);
   const [selectedDate, setSelectedDate] = useState(getTodayString());
   const [isLoading, setIsLoading] = useState(true);
@@ -70,7 +76,8 @@ export default function BeachPlan() {
   const [currentReservationData, setCurrentReservationData] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [showReservationList, setShowReservationList] = useState(false);
-
+  const isCurrentUserAdmin =
+    currentUser && ADMIN_UIDS.includes(currentUser.uid);
   // --- Fonction pour obtenir le prochain numéro de série (REINTEGREE + ROBUSTE) ---
   const getNextSerialNumber = useCallback(async () => {
     const yearPrefix = new Date().getFullYear().toString().slice(-2); // Ex: "25"
@@ -688,6 +695,7 @@ export default function BeachPlan() {
         isSaving={isSaving}
         selectedDate={selectedDate}
         allReservations={allReservations}
+        isCurrentUserAdmin={isCurrentUserAdmin} // <--- Passage de la prop ici !
       />
 
       {showReservationList && (

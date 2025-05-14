@@ -3,12 +3,20 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     match /reservations/{reservationId} {
+      
+      // Tout le monde peut lire les réservations.
       allow read: if true;
-      allow write: if request.auth != null;
+
+      // Seuls les administrateurs (UID listés ci-dessous) peuvent écrire (créer, modifier, supprimer) des réservations.
+      // Remplacez les placeholders ci-dessous par les VRAIS UID des administrateurs.
+      allow write: if request.auth != null && request.auth.uid in ["TTbEHi8QRCTyMADYPt2N8yKB8Yg2", "BmT4kbaXHjguZecqMnQGEJGnqwL2"];
     }
 
     match /feedback/{feedbackId} {
+      // Tout le monde peut lire les commentaires.
       allow read: if true;
+
+      // Tout utilisateur authentifié peut créer un nouveau commentaire.
       allow create: if request.auth != null
                     && request.resource.data.authorName is string
                     && request.resource.data.authorName.size() > 0 && request.resource.data.authorName.size() < 100
@@ -18,7 +26,10 @@ service cloud.firestore {
                     && request.resource.data.lastActivityAt == request.time
                     && request.resource.data.replies is list
                     && request.resource.data.replies.size() == 0;
-      allow update: if request.auth != null && request.auth.uid == "TON_USER_ID_DEVELOPPEUR"
+
+      // Tout utilisateur authentifié peut mettre à jour (répondre),
+      // à condition de ne pas altérer le commentaire original.
+      allow update: if request.auth != null
                     && request.resource.data.authorName == resource.data.authorName
                     && request.resource.data.comment == resource.data.comment
                     && request.resource.data.createdAt == resource.data.createdAt

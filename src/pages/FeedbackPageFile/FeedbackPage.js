@@ -26,8 +26,8 @@ const FeedbackPage = () => {
   // Pour stocker le texte des réponses en cours d'écriture
   const [replyTexts, setReplyTexts] = useState({});
 
-  // Simuler l'identification du développeur.
-  const DEVELOPER_NAME = "Frédéric (Dev)"; // Tu peux changer ça
+  // // Simuler l'identification du développeur.
+  // const DEVELOPER_NAME = "Frédéric (Dev)"; // Tu peux changer ça
 
   const fetchFeedback = useCallback(async () => {
     setIsLoading(true);
@@ -93,7 +93,7 @@ const FeedbackPage = () => {
       const feedbackDocRef = doc(db, "feedback", feedbackId);
       await updateDoc(feedbackDocRef, {
         replies: arrayUnion({
-          replierName: DEVELOPER_NAME,
+          replierName: currentUser.email,
           replyText: replyText.trim(),
           repliedAt: Timestamp.now(),
         }),

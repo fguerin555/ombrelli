@@ -64,6 +64,7 @@ const ReservationModal = ({
   isSaving,
   selectedDate,
   allReservations,
+  isCurrentUserAdmin, // Récupérer la nouvelle prop
 }) => {
   const todayString = getTodayString();
   const isDualMode = reservationData && reservationData.type === "dual";
@@ -771,6 +772,20 @@ const ReservationModal = ({
               N° Prenotazione: <strong>{formDt.serialNumber}</strong>
             </p>
           )}
+        {!isCurrentUserAdmin &&
+          formDt.id &&
+          currentFormMode !== "addHalfDay" && (
+            <p
+              className={styles.readOnlyMessage}
+              style={{
+                color: "orange",
+                fontWeight: "bold",
+                marginBottom: "10px",
+              }}
+            >
+              Modalità sola lettura. Contattare l'amministratore per modifiche.
+            </p>
+          )}
 
         <div className={styles.formGroup}>
           <label htmlFor={`condition-${periodLabel || "single"}`}>
@@ -785,7 +800,8 @@ const ReservationModal = ({
             disabled={
               (isDualMode &&
                 (periodLabel === "Matin" || periodLabel === "Après-midi")) ||
-              (formDt === formData && currentFormMode === "addHalfDay")
+              (formDt === formData && currentFormMode === "addHalfDay") ||
+              !isCurrentUserAdmin
             }
           >
             <option value="jour entier">Giorno Intero</option>
@@ -824,6 +840,7 @@ const ReservationModal = ({
               required
               autoComplete="family-name"
               type="text"
+              disabled={!isCurrentUserAdmin}
             />
           </div>
           <div className={styles.formGroup} style={{ flex: 1 }}>
@@ -836,6 +853,7 @@ const ReservationModal = ({
               required
               autoComplete="given-name"
               type="text"
+              disabled={!isCurrentUserAdmin}
             />
           </div>
         </div>
@@ -855,6 +873,7 @@ const ReservationModal = ({
               max="3"
               type="number"
               step="1"
+              disabled={!isCurrentUserAdmin}
             />
           </div>
           <div className={styles.formGroup} style={{ flex: 1 }}>
@@ -870,6 +889,7 @@ const ReservationModal = ({
               placeholder="R / T"
               style={{ textTransform: "uppercase" }}
               type="text"
+              disabled={!isCurrentUserAdmin}
             />
           </div>
         </div>
@@ -886,6 +906,7 @@ const ReservationModal = ({
               onChange={handleChangeFn}
               required
               type="date"
+              disabled={!isCurrentUserAdmin}
             />
           </div>
           <div className={styles.formGroup} style={{ flex: 1 }}>
@@ -900,6 +921,7 @@ const ReservationModal = ({
               required
               min={formDt.startDate || ""}
               type="date"
+              disabled={!isCurrentUserAdmin}
             />
           </div>
         </div>
@@ -931,6 +953,7 @@ const ReservationModal = ({
               cursor: "pointer",
               transform: "scale(1.2)",
             }}
+            disabled={!isCurrentUserAdmin}
           />
           {reqCabin && (
             <span
@@ -963,6 +986,7 @@ const ReservationModal = ({
                   name="singleDayCondition"
                   value={singleDayCondition}
                   onChange={handleChangeFn}
+                  disabled={!isCurrentUserAdmin}
                 >
                   <option value={formDt.condition || "jour entier"}>
                     -- Mantieni (
@@ -1025,14 +1049,16 @@ const ReservationModal = ({
                 "Matin"
               )}
               <div className={styles.buttonGroup}>
-                <button
-                  type="button"
-                  className={styles.deleteButton}
-                  onClick={handleDeleteMorning}
-                  disabled={isSaving || !formDataMorning.id}
-                >
-                  Elimina Mattina
-                </button>
+                {isCurrentUserAdmin && (
+                  <button
+                    type="button"
+                    className={styles.deleteButton}
+                    onClick={handleDeleteMorning}
+                    disabled={isSaving || !formDataMorning.id}
+                  >
+                    Elimina Mattina
+                  </button>
+                )}
                 <button
                   type="submit"
                   disabled={
@@ -1040,7 +1066,8 @@ const ReservationModal = ({
                     (requestCabinMorning &&
                       !assignedCabinMorning &&
                       !!cabinErrorMorning) ||
-                    !!umbrellaConflictErrorMorning
+                    !!umbrellaConflictErrorMorning ||
+                    !isCurrentUserAdmin
                   }
                 >
                   {isSaving ? "Salvataggio..." : "Salva Mattina"}
@@ -1062,14 +1089,16 @@ const ReservationModal = ({
                 "Après-midi"
               )}
               <div className={styles.buttonGroup}>
-                <button
-                  type="button"
-                  className={styles.deleteButton}
-                  onClick={handleDeleteAfternoon}
-                  disabled={isSaving || !formDataAfternoon.id}
-                >
-                  Elimina Pomeriggio
-                </button>
+                {isCurrentUserAdmin && (
+                  <button
+                    type="button"
+                    className={styles.deleteButton}
+                    onClick={handleDeleteAfternoon}
+                    disabled={isSaving || !formDataAfternoon.id}
+                  >
+                    Elimina Pomeriggio
+                  </button>
+                )}
                 <button
                   type="submit"
                   disabled={
@@ -1077,7 +1106,8 @@ const ReservationModal = ({
                     (requestCabinAfternoon &&
                       !assignedCabinAfternoon &&
                       !!cabinErrorAfternoon) ||
-                    !!umbrellaConflictErrorAfternoon
+                    !!umbrellaConflictErrorAfternoon ||
+                    !isCurrentUserAdmin
                   }
                 >
                   {isSaving ? "Salvataggio..." : "Salva Pomeriggio"}
@@ -1115,6 +1145,7 @@ const ReservationModal = ({
                   <button
                     onClick={handleAddHalfDayClick}
                     className={styles.choiceButton}
+                    disabled={!isCurrentUserAdmin} // Un non-admin ne peut pas ajouter
                   >
                     Aggiungi Nuova (
                     {freeHalfDay === "matin" ? "Mattina" : "Pomeriggio"})
@@ -1122,6 +1153,7 @@ const ReservationModal = ({
                   <button
                     onClick={handleEditExistingClick}
                     className={styles.choiceButton}
+                    // Un non-admin peut cliquer pour voir, mais les champs seront désactivés
                   >
                     Modifica Esistente (
                     {existingHalfDayCondition === "matin"
@@ -1157,8 +1189,11 @@ const ReservationModal = ({
                   <button type="button" onClick={onClose} disabled={isSaving}>
                     Esci
                   </button>
-                  {mode === "editExisting" &&
+                  {isCurrentUserAdmin &&
+                    mode === "editExisting" &&
                     !isNew &&
+                    // Condition pour ne pas afficher "Elimina" si on est en train de créer une nouvelle résa
+                    // en modifiant nom/prénom d'une existante (ce qui force une nouvelle création)
                     !(
                       mode === "editExisting" &&
                       reservationData &&
@@ -1182,8 +1217,16 @@ const ReservationModal = ({
                     disabled={
                       isSaving ||
                       (requestCabin && !assignedCabin && !!cabinError) ||
-                      !!umbrellaConflictError
+                      !!umbrellaConflictError ||
+                      !isCurrentUserAdmin
                     }
+                    style={{
+                      display:
+                        !isCurrentUserAdmin &&
+                        (mode === "view" || (mode === "editExisting" && !isNew))
+                          ? "none"
+                          : "inline-block",
+                    }}
                   >
                     {isSaving ? "Salvataggio..." : "Salva"}
                   </button>
