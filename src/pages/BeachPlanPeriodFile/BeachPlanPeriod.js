@@ -841,6 +841,7 @@ export default function BeachPlanPeriod() {
           events={processedEvents}
           selectable={true}
           select={handleDateSelect}
+          selectLongPressDelay={200}
           eventClick={handleEventClick}
           ref={calendarRef}
           initialDate="2025-04-01"
