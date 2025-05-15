@@ -1,5 +1,11 @@
 // /Users/fredericguerin/Desktop/ombrelli/src/pages/BeachPlanPeriodFile/BeachPlanPeriod.js
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+} from "react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import resourceTimelinePlugin from "@fullcalendar/resource-timeline";
@@ -42,6 +48,8 @@ const ADMIN_UIDS = [
 ]; // Exemple, à remplacer
 
 export default function BeachPlanPeriod() {
+  const calendarRef = useRef(null); // Référence pour FullCalendar
+
   // Utilisation de useMemo pour mémoriser 'resources'
   const resources = useMemo(() => {
     const resourcesArray = [];
@@ -120,10 +128,10 @@ export default function BeachPlanPeriod() {
   const [singleDayCondition, setSingleDayCondition] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isNew, setIsNew] = useState(true);
-  const [umbrellaConflictError, setUmbrellaConflictError] = useState(""); // Ajout état conflit ombrellone
-  const { currentUser } = useAuth(); // Récupérer l'utilisateur actuel
+  const [umbrellaConflictError, setUmbrellaConflictError] = useState("");
+  const { currentUser } = useAuth();
   const isCurrentUserAdmin =
-    currentUser && ADMIN_UIDS.includes(currentUser.uid); // Déterminer si admin
+    currentUser && ADMIN_UIDS.includes(currentUser.uid);
 
   // --- Traitement des réservations pour FullCalendar ---
   const processReservationsToEvents = useCallback((reservations) => {
@@ -144,11 +152,11 @@ export default function BeachPlanPeriod() {
       const endCal = addDays(endValid, 1);
       const bedsText = item.numBeds !== undefined ? `(${item.numBeds}L` : "";
       const extraText = item.registiPoltrona ? `+${item.registiPoltrona}` : "";
-      const cabinText = cabina ? `Cab: ${cabina}` : ""; // ajout du texte pour la cabine
+      const cabinText = cabina ? `Cab: ${cabina}` : "";
       const title =
         `${nom || ""} ${prenom || ""} ${bedsText}${extraText}${
           bedsText ? ")" : ""
-        }${cabinText}`.trim() || "N/A"; // Ajout de cabinText au titre
+        }${cabinText}`.trim() || "N/A";
       const common = {
         extendedProps: { originalId: id },
         start: startDate,
@@ -195,7 +203,7 @@ export default function BeachPlanPeriod() {
       console.error("Erreur génération SN:", error);
       throw new Error("Impossible de générer le numéro de série.");
     }
-  }, [counterDocRef]); // Ajout de counterDocRef aux dependances
+  }, [counterDocRef]);
 
   // --- Chargement Initial ---
   useEffect(() => {
@@ -210,7 +218,33 @@ export default function BeachPlanPeriod() {
         console.error("Erreur de chargement des réservations:", error);
       }
     })();
-  }, [processReservationsToEvents]); // Re-run si processReservationsToEvents change (ne devrait pas)
+  }, [processReservationsToEvents]);
+
+  // --- useEffect pour charger la dernière date vue depuis localStorage ---
+  useEffect(() => {
+    const lastViewedDate = localStorage.getItem("beachPlanLastViewedDate");
+    if (lastViewedDate && calendarRef.current) {
+      // Utiliser un setTimeout pour s'assurer que FullCalendar est pleinement initialisé
+      setTimeout(() => {
+        try {
+          const calendarApi = calendarRef.current.getApi();
+          if (calendarApi && typeof calendarApi.gotoDate === "function") {
+            calendarApi.gotoDate(lastViewedDate);
+            console.log(
+              "Initial load - Navigated to last viewed date:",
+              lastViewedDate
+            );
+          } else {
+            console.warn(
+              "gotoDate not available on calendarApi during initial load"
+            );
+          }
+        } catch (e) {
+          console.error("Erreur gotoDate au chargement initial:", e);
+        }
+      }, 100); // Un délai un peu plus long pour l'initialisation
+    }
+  }, []); // Tableau de dépendances vide pour ne s'exécuter qu'au montage
 
   // --- Logique Cabine ---
   const findNextAvailableCabin = useCallback(
@@ -238,12 +272,14 @@ export default function BeachPlanPeriod() {
   const handleDateSelect = (info) => {
     if (!info.resource?.id.match(/_(M|P)$/)) return;
     const clickedDateStr = info.startStr;
+    localStorage.setItem("beachPlanLastViewedDate", clickedDateStr);
+
     setSelectedResBase(info.resource.id.split("_")[0]);
-    setSelectedDate(clickedDateStr); // Date cliquée
+    setSelectedDate(clickedDateStr);
     setFormData({
       nom: "",
       prenom: "",
-      startDate: clickedDateStr, // Date de début = date cliquée
+      startDate: clickedDateStr,
       endDate: clickedDateStr,
       condition: info.resource.id.endsWith("_M") ? "matin" : "apres-midi",
       numBeds: 2,
@@ -259,7 +295,22 @@ export default function BeachPlanPeriod() {
     setUmbrellaConflictError("");
     setShowSingleDayOptions(false);
     setSingleDayCondition("");
-    console.log("handleDateSelect called");
+
+    if (calendarRef.current) {
+      try {
+        const calendarApi = calendarRef.current.getApi();
+        if (calendarApi && typeof calendarApi.gotoDate === "function") {
+          calendarApi.gotoDate(clickedDateStr);
+          // console.log("handleDateSelect - Navigated to:", clickedDateStr);
+        } else {
+          console.warn(
+            "gotoDate not available on calendarApi in handleDateSelect"
+          );
+        }
+      } catch (e) {
+        console.error("Erreur gotoDate dans handleDateSelect:", e);
+      }
+    }
     setOpen(true);
   };
 
@@ -268,14 +319,16 @@ export default function BeachPlanPeriod() {
       (r) => r.id === info.event.extendedProps.originalId
     );
     if (orig) {
-      const clickedDateStr = info.event.startStr; // Date de début de l'événement FC cliqué
+      const clickedDateStr = info.event.startStr;
+      localStorage.setItem("beachPlanLastViewedDate", clickedDateStr);
+
       setSelectedOriginal(orig);
       setSelectedResBase(orig.cellCode);
-      setSelectedDate(clickedDateStr); // Date cliquée (pour la logique split)
+      setSelectedDate(clickedDateStr);
       setFormData({
         nom: orig.nom || "",
         prenom: orig.prenom || "",
-        startDate: orig.startDate, // Dates originales de la réservation
+        startDate: orig.startDate,
         endDate: orig.endDate || orig.startDate,
         condition: orig.condition || "jour entier",
         numBeds: orig.numBeds === undefined ? 2 : orig.numBeds,
@@ -300,8 +353,22 @@ export default function BeachPlanPeriod() {
         shouldShowSplit ? orig.condition || "jour entier" : ""
       );
 
+      if (calendarRef.current) {
+        try {
+          const calendarApi = calendarRef.current.getApi();
+          if (calendarApi && typeof calendarApi.gotoDate === "function") {
+            calendarApi.gotoDate(clickedDateStr);
+            // console.log("handleEventClick - Navigated to:", clickedDateStr);
+          } else {
+            console.warn(
+              "gotoDate not available on calendarApi in handleEventClick"
+            );
+          }
+        } catch (e) {
+          console.error("Erreur gotoDate dans handleEventClick:", e);
+        }
+      }
       setOpen(true);
-      console.log("handleEventClick called");
     } else {
       console.warn("Original reservation not found for event:", info.event);
     }
@@ -336,7 +403,6 @@ export default function BeachPlanPeriod() {
     if (!open) return;
 
     if (requestCabin) {
-      // Utiliser formData.startDate et formData.endDate qui sont mis à jour par l'utilisateur
       if (
         formData.startDate &&
         formData.endDate &&
@@ -385,7 +451,7 @@ export default function BeachPlanPeriod() {
       setUmbrellaConflictError("");
       return;
     }
-    setUmbrellaConflictError(""); // Reset
+    setUmbrellaConflictError("");
 
     if (
       !selectedResBase ||
@@ -401,7 +467,6 @@ export default function BeachPlanPeriod() {
     const currentId = formData.id;
     const currentStart = formData.startDate;
     const currentEnd = formData.endDate;
-    // Utiliser la condition spécifique du jour si on est en train de splitter
     const currentCondition =
       showSingleDayOptions &&
       singleDayCondition &&
@@ -427,7 +492,7 @@ export default function BeachPlanPeriod() {
           existingCondition === "jour entier" ||
           currentCondition === existingCondition
         ) {
-          return true; // Conflit trouvé
+          return true;
         }
       }
       return false;
@@ -458,16 +523,15 @@ export default function BeachPlanPeriod() {
     selectedResBase,
     formData.startDate,
     formData.endDate,
-    formData.condition, // Condition globale
-    singleDayCondition, // Condition spécifique du jour (pour split)
-    showSingleDayOptions, // Pour savoir si on doit considérer singleDayCondition
+    formData.condition,
+    singleDayCondition,
+    showSingleDayOptions,
     formData.id,
     allReservations,
   ]);
 
   // --- Sauvegarde ---
   const handleSave = async () => {
-    // Validations
     if (!formData.nom) {
       alert("Cognome obbligatorio.");
       return;
@@ -509,13 +573,10 @@ export default function BeachPlanPeriod() {
       singleDayCondition &&
       singleDayCondition !== formData.condition;
     const currentResId = selectedOriginal?.id;
+    const dateToNavigateAfterSave = formData.startDate; // Capturer avant resetForm
 
     try {
-      // --- CAS 1: SPLIT ---
       if (isSplitting && currentResId) {
-        console.log(
-          `Tentativo di split per ${selectedResBase} il ${selectedDate}`
-        );
         let targetDaySerialNumber = null;
         let afterSerialNumber = null;
 
@@ -534,7 +595,6 @@ export default function BeachPlanPeriod() {
             throw new Error("Prenotazione originale non trovata.");
           const originalData = originalDoc.data();
 
-          // 1. Créer résa jour cible
           const targetDayData = {
             ...originalData,
             nom: formData.nom,
@@ -542,13 +602,13 @@ export default function BeachPlanPeriod() {
             numBeds: formData.numBeds,
             registiPoltrona: formData.registiPoltrona || "",
             cabina: requestCabin ? assignedCabin : null,
-            startDate: selectedDate, // Date cliquée
-            endDate: selectedDate, // Date cliquée
-            condition: singleDayCondition, // Nouvelle condition
+            startDate: selectedDate,
+            endDate: selectedDate,
+            condition: singleDayCondition,
             serialNumber: targetDaySerialNumber,
             cellCode: selectedResBase,
             createdAt: originalData.createdAt || serverTimestamp(),
-            status: "active", // Ajout du statut pour le jour cible du split
+            status: "active",
             modifiedAt: serverTimestamp(),
           };
           delete targetDayData.id;
@@ -558,12 +618,7 @@ export default function BeachPlanPeriod() {
             id: targetDayDocRef.id,
             ...targetDayData,
           });
-          console.log(
-            "Split: Creata prenotazione giorno target",
-            targetDaySerialNumber
-          );
 
-          // 2. Gérer période AVANT
           if (originalData.startDate < selectedDate) {
             const newEndDate = addDays(selectedDate, -1);
             if (!newEndDate)
@@ -573,18 +628,10 @@ export default function BeachPlanPeriod() {
               modifiedAt: serverTimestamp(),
             });
             updatesToOriginalForState.endDate = newEndDate;
-            console.log(
-              "Split: Aggiornata originale (prima)",
-              originalData.serialNumber,
-              "nuova fine:",
-              newEndDate
-            );
           } else {
-            updatesToOriginalForState.endDate = null; // Pas de période avant à garder
-            console.log("Split: Giorno target è startDate originale.");
+            updatesToOriginalForState.endDate = null;
           }
 
-          // 3. Gérer période APRÈS
           if (originalData.endDate > selectedDate) {
             if (!afterSerialNumber)
               throw new Error("SN mancante per periodo 'dopo'.");
@@ -598,35 +645,21 @@ export default function BeachPlanPeriod() {
               serialNumber: afterSerialNumber,
               cellCode: selectedResBase,
               createdAt: originalData.createdAt || serverTimestamp(),
-              status: "active", // Ajout du statut pour la période "après" le split
+              status: "active",
               modifiedAt: serverTimestamp(),
             };
             delete afterData.id;
             const afterDocRef = doc(collection(db, "reservations"));
             transaction.set(afterDocRef, afterData);
             newReservationsForState.push({ id: afterDocRef.id, ...afterData });
-            console.log(
-              "Split: Creata prenotazione periodo dopo",
-              afterData.serialNumber,
-              "inizio:",
-              newStartDate
-            );
-          } else {
-            console.log("Split: Giorno target è endDate originale.");
           }
 
-          // 4. Supprimer l'originale si elle n'a plus de période avant valide
           if (!updatesToOriginalForState.endDate) {
             transaction.delete(originalDocRef);
             updatesToOriginalForState.deleted = true;
-            console.log(
-              "Split: Prenotazione originale eliminata.",
-              originalData.serialNumber
-            );
           }
-        }); // --- Fin Transaction ---
+        });
 
-        // --- MàJ État Local ---
         setAllReservations((prev) => {
           let newState = [...prev];
           if (updatesToOriginalForState.deleted) {
@@ -652,18 +685,15 @@ export default function BeachPlanPeriod() {
               modifiedAt: new Date(),
             })),
           ];
-          const finalEvents = processReservationsToEvents(newState); // Recalculer les événements
-          setProcessedEvents(finalEvents); // Mettre à jour les événements affichés
-          return newState; // Retourner le nouvel état des réservations brutes
+          const finalEvents = processReservationsToEvents(newState);
+          setProcessedEvents(finalEvents);
+          return newState;
         });
-        console.log("Split completato.");
-
-        // --- CAS 2: SAUVEGARDE NORMALE (Add / Update global) ---
       } else {
         const payload = {
           nom: formData.nom,
           prenom: formData.prenom || "",
-          startDate: formData.startDate, // Utiliser les dates du formulaire
+          startDate: formData.startDate,
           endDate: formData.endDate,
           condition: formData.condition,
           cellCode: selectedResBase,
@@ -675,30 +705,19 @@ export default function BeachPlanPeriod() {
 
         let updatedReservations;
         if (currentResId) {
-          // Mise à jour globale
-          payload.serialNumber = formData.serialNumber; // Conserver SN
+          payload.serialNumber = formData.serialNumber;
           await updateDoc(doc(db, "reservations", currentResId), payload);
-          console.log("Prenotazione aggiornata:", currentResId);
-          // Mettre à jour l'état local
           updatedReservations = allReservations.map((res) =>
             res.id === currentResId
               ? { ...res, ...payload, modifiedAt: new Date() }
               : res
           );
         } else {
-          // Nouvelle réservation
           payload.serialNumber = await getNextSerialNumber();
           payload.createdAt = serverTimestamp();
-          payload.status = "active"; // Ajout du statut pour les nouvelles réservations
+          payload.status = "active";
           const docRef = await addDoc(collection(db, "reservations"), payload);
-          payload.id = docRef.id; // Ajouter l'ID pour la mise à jour de l'état local
-          console.log(
-            "Nuova prenotazione creata:",
-            payload.id,
-            "SN:",
-            payload.serialNumber
-          );
-          // Mettre à jour l'état local
+          payload.id = docRef.id;
           updatedReservations = [
             ...allReservations,
             {
@@ -710,24 +729,38 @@ export default function BeachPlanPeriod() {
           ];
         }
         setAllReservations(updatedReservations);
-        const finalEvents = processReservationsToEvents(updatedReservations); // Recalculer les événements
-        setProcessedEvents(finalEvents); // Mettre à jour les événements affichés
+        const finalEvents = processReservationsToEvents(updatedReservations);
+        setProcessedEvents(finalEvents);
       }
 
       resetForm();
-      if (calendarRef.current) {
-        const calendarApi = calendarRef.current.getApi();
-        if (
-          calendarApi &&
-          typeof calendarApi.scrollToDate === "function" &&
-          formData.startDate
-        ) {
-          setTimeout(() => {
-            console.log("Scrolling to:", formData.startDate);
-            calendarApi.scrollToDate(formData.startDate);
-          }, 2);
-        }
-      } // Fermer et réinitialiser le dialogue
+
+      // Naviguer après la sauvegarde et la réinitialisation du formulaire
+      if (calendarRef.current && dateToNavigateAfterSave) {
+        // Utiliser un setTimeout pour s'assurer que la modale est fermée et que le calendrier est prêt
+        localStorage.setItem(
+          "beachPlanLastViewedDate",
+          dateToNavigateAfterSave
+        );
+        setTimeout(() => {
+          try {
+            const calendarApi = calendarRef.current.getApi();
+            if (calendarApi && typeof calendarApi.gotoDate === "function") {
+              calendarApi.gotoDate(dateToNavigateAfterSave);
+              console.log(
+                "handleSave - Navigated to:",
+                dateToNavigateAfterSave
+              );
+            } else {
+              console.warn(
+                "gotoDate not available on calendarApi in handleSave"
+              );
+            }
+          } catch (e) {
+            console.error("Erreur gotoDate dans handleSave:", e);
+          }
+        }, 50); // Un délai pour s'assurer que la modale est bien fermée
+      }
     } catch (error) {
       console.error("Errore durante la sauvegarde:", error);
       alert(`Errore durante la sauvegarde: ${error.message}`);
@@ -747,14 +780,12 @@ export default function BeachPlanPeriod() {
       setIsSaving(true);
       try {
         await deleteDoc(doc(db, "reservations", selectedOriginal.id));
-        console.log("Prenotazione eliminata:", selectedOriginal.id);
-        // Mettre à jour l'état local
         const updatedReservations = allReservations.filter(
           (res) => res.id !== selectedOriginal.id
         );
         setAllReservations(updatedReservations);
-        const finalEvents = processReservationsToEvents(updatedReservations); // Recalculer les événements
-        setProcessedEvents(finalEvents); // Mettre à jour les événements affichés
+        const finalEvents = processReservationsToEvents(updatedReservations);
+        setProcessedEvents(finalEvents);
         resetForm();
       } catch (error) {
         console.error("Errore durante la suppression:", error);
@@ -767,7 +798,6 @@ export default function BeachPlanPeriod() {
 
   // --- Thème et Rendu ---
   const theme = useTheme();
-  const calendarRef = React.useRef(null);
   return (
     <Box sx={{ height: "90vh", overflow: "auto", border: "1px solid #ccc" }}>
       <Box
@@ -776,43 +806,38 @@ export default function BeachPlanPeriod() {
             position: "sticky",
             top: 0,
             zIndex: 1090,
-            backgroundColor: theme.palette.background.paper, // Fond pour sticky header
+            backgroundColor: theme.palette.background.paper,
           },
           "& .fc-scrollgrid-section-sticky > th": {
-            // Cibler les TH directement
-            backgroundColor: theme.palette.background.paper, // Assurer le fond
+            backgroundColor: theme.palette.background.paper,
             overflow: "visible !important",
           },
           "& .fc-scrollgrid-section-body .fc-scroller, & .fc-scrollgrid-section-body .fc-scroller-harness":
             {
               overflow: "auto hidden !important",
             },
-          // Style pour le titre de la ressource (Ombrelli)
           "& .fc-col-header-cell.fc-resource": {
             position: "sticky",
             left: 0,
-            zIndex: 1091, // Au dessus des headers de date
+            zIndex: 1091,
             backgroundColor: theme.palette.background.paper,
           },
-          // Style pour les cellules de ressources dans le corps
           "& .fc-datagrid-cell.fc-resource": {
             position: "sticky",
             left: 0,
-            zIndex: 1089, // En dessous des headers
+            zIndex: 1089,
             backgroundColor: theme.palette.background.paper,
-            borderRight: `1px solid ${theme.palette.divider}`, // Ligne de séparation
+            borderRight: `1px solid ${theme.palette.divider}`,
           },
-          // Styles pour le curseur et la bulle sur les événements
           "& .fc-event": {
             cursor: "pointer",
-            position: "relative", // Pour positionner la bulle
+            position: "relative",
           },
           "& .fc-event::after": {
             content: '"Clicka"',
             position: "absolute",
-            bottom: "105%", // Au-dessus de l'événement
+            bottom: "105%",
             left: "5%",
-            // transform: "none",
             transform: "translateX(-50%)",
             backgroundColor: "darkviolet",
             color: "white",
@@ -820,10 +845,10 @@ export default function BeachPlanPeriod() {
             borderRadius: "3px",
             fontSize: "0.7em",
             whiteSpace: "nowrap",
-            zIndex: 2000, // S'assurer qu'elle est au-dessus
+            zIndex: 2000,
             opacity: 0,
             visibility: "hidden",
-            pointerEvents: "none", // Pour ne pas interférer avec le clic sur l'événement
+            pointerEvents: "none",
             transition: "opacity 0.2s ease, visibility 0.2s ease",
           },
           "& .fc-event:hover::after": {
@@ -833,9 +858,11 @@ export default function BeachPlanPeriod() {
         }}
       >
         <FullCalendar
+          ref={calendarRef}
           plugins={[dayGridPlugin, resourceTimelinePlugin, interactionPlugin]}
           headerToolbar={false}
           initialView="resourceTimeline"
+          initialDate="2025-04-01" // Date de démarrage fixe
           visibleRange={{ start: "2025-04-01", end: "2025-12-02" }}
           resources={resources}
           events={processedEvents}
@@ -843,8 +870,6 @@ export default function BeachPlanPeriod() {
           select={handleDateSelect}
           selectLongPressDelay={200}
           eventClick={handleEventClick}
-          ref={calendarRef}
-          initialDate="2025-04-01"
           locale={itLocale}
           resourceAreaHeaderContent="Ombrelli"
           slotDuration={{ days: 1 }}
@@ -856,11 +881,10 @@ export default function BeachPlanPeriod() {
           }}
           displayEventTime={false}
           height="auto"
-          resourceAreaWidth="100px" // Ajuster si nécessaire
+          resourceAreaWidth="100px"
         />
       </Box>
 
-      {/* --- Dialogue --- */}
       <Dialog open={open} onClose={resetForm} fullWidth maxWidth="xs">
         <DialogTitle>
           {selectedOriginal
@@ -870,7 +894,6 @@ export default function BeachPlanPeriod() {
               )})`}
         </DialogTitle>
         <DialogContent>
-          {/* Numéro de série */}
           <TextField
             margin="dense"
             label="N° Prenotazione"
@@ -889,7 +912,6 @@ export default function BeachPlanPeriod() {
               Modalità sola lettura. Contattare l'amministratore per modifiche.
             </Typography>
           )}
-          {/* Cognome */}
           <TextField
             margin="dense"
             label="Cognome"
@@ -904,7 +926,6 @@ export default function BeachPlanPeriod() {
             fullWidth
             disabled={!isCurrentUserAdmin}
           />
-          {/* Nome */}
           <TextField
             margin="dense"
             label="Nome"
@@ -918,18 +939,16 @@ export default function BeachPlanPeriod() {
             fullWidth
             disabled={!isCurrentUserAdmin}
           />
-          {/* Data Inizio */}
           <TextField
             margin="dense"
             label="Data Inizio"
             type="date"
-            value={formData.startDate} // Utiliser formData.startDate
+            value={formData.startDate}
             onChange={(e) => {
               const newStartDate = e.target.value;
               setFormData((prev) => ({
                 ...prev,
                 startDate: newStartDate,
-                // Ajuster endDate si elle devient antérieure à startDate
                 endDate:
                   prev.endDate < newStartDate ? newStartDate : prev.endDate,
               }));
@@ -939,7 +958,6 @@ export default function BeachPlanPeriod() {
             fullWidth
             disabled={!isCurrentUserAdmin}
           />
-          {/* Data Fine */}
           <TextField
             margin="dense"
             label="Data Fine"
@@ -949,12 +967,11 @@ export default function BeachPlanPeriod() {
               setFormData({ ...formData, endDate: e.target.value })
             }
             InputLabelProps={{ shrink: true }}
-            inputProps={{ min: formData.startDate }} // Min basé sur formData.startDate
+            inputProps={{ min: formData.startDate }}
             required
             fullWidth
             disabled={!isCurrentUserAdmin}
           />
-          {/* Lits */}
           <TextField
             margin="dense"
             label="N° lettini (0-3)"
@@ -973,7 +990,6 @@ export default function BeachPlanPeriod() {
             fullWidth
             disabled={!isCurrentUserAdmin}
           />
-          {/* Extra */}
           <TextField
             margin="dense"
             label="+ Regista (R) / Transat (T)"
@@ -992,7 +1008,6 @@ export default function BeachPlanPeriod() {
             fullWidth
             disabled={!isCurrentUserAdmin}
           />
-          {/* Cabine */}
           <FormControlLabel
             control={
               <Checkbox
@@ -1009,7 +1024,6 @@ export default function BeachPlanPeriod() {
                 : ""
             }`}
           />
-          {/* Condition */}
           <TextField
             select
             fullWidth
@@ -1020,14 +1034,13 @@ export default function BeachPlanPeriod() {
               setFormData({ ...formData, condition: e.target.value })
             }
             required
-            disabled={isSaving || !isCurrentUserAdmin} // Désactiver si sauvegarde en cours ou pas admin
+            disabled={isSaving || !isCurrentUserAdmin}
           >
             <MenuItem value="jour entier">Giorno Intero</MenuItem>
             <MenuItem value="matin">Mattina</MenuItem>
             <MenuItem value="apres-midi">Pomeriggio</MenuItem>
           </TextField>
 
-          {/* Erreur Conflit Ombrellone */}
           {umbrellaConflictError && (
             <Typography
               color="error"
@@ -1039,7 +1052,6 @@ export default function BeachPlanPeriod() {
             </Typography>
           )}
 
-          {/* Section Split */}
           {showSingleDayOptions && (
             <Box
               sx={{ border: "1px dashed grey", p: 1.5, mt: 2, borderRadius: 1 }}
@@ -1084,16 +1096,15 @@ export default function BeachPlanPeriod() {
           )}
         </DialogContent>
         <DialogActions>
-          {selectedOriginal &&
-            isCurrentUserAdmin && ( // Afficher "Cancella" seulement si admin
-              <Button
-                color="error"
-                onClick={handleDelete}
-                disabled={isSaving || !isCurrentUserAdmin}
-              >
-                Cancella
-              </Button>
-            )}
+          {selectedOriginal && isCurrentUserAdmin && (
+            <Button
+              color="error"
+              onClick={handleDelete}
+              disabled={isSaving || !isCurrentUserAdmin}
+            >
+              Cancella
+            </Button>
+          )}
           <Button onClick={resetForm} disabled={isSaving}>
             Annulla
           </Button>
@@ -1104,9 +1115,8 @@ export default function BeachPlanPeriod() {
               isSaving ||
               !!umbrellaConflictError ||
               (requestCabin && !assignedCabin && !!cabinError) ||
-              !isCurrentUserAdmin // Désactiver si pas admin
+              !isCurrentUserAdmin
             }
-            // Cacher le bouton si pas admin ET on modifie une résa existante
             style={{
               display:
                 !isCurrentUserAdmin && selectedOriginal
