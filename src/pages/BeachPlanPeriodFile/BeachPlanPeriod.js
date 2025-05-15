@@ -259,6 +259,7 @@ export default function BeachPlanPeriod() {
     setUmbrellaConflictError("");
     setShowSingleDayOptions(false);
     setSingleDayCondition("");
+    console.log("handleDateSelect called");
     setOpen(true);
   };
 
@@ -300,6 +301,7 @@ export default function BeachPlanPeriod() {
       );
 
       setOpen(true);
+      console.log("handleEventClick called");
     } else {
       console.warn("Original reservation not found for event:", info.event);
     }
@@ -712,7 +714,20 @@ export default function BeachPlanPeriod() {
         setProcessedEvents(finalEvents); // Mettre à jour les événements affichés
       }
 
-      resetForm(); // Fermer et réinitialiser le dialogue
+      resetForm();
+      if (calendarRef.current) {
+        const calendarApi = calendarRef.current.getApi();
+        if (
+          calendarApi &&
+          typeof calendarApi.scrollToDate === "function" &&
+          formData.startDate
+        ) {
+          setTimeout(() => {
+            console.log("Scrolling to:", formData.startDate);
+            calendarApi.scrollToDate(formData.startDate);
+          }, 2);
+        }
+      } // Fermer et réinitialiser le dialogue
     } catch (error) {
       console.error("Errore durante la sauvegarde:", error);
       alert(`Errore durante la sauvegarde: ${error.message}`);
@@ -752,7 +767,7 @@ export default function BeachPlanPeriod() {
 
   // --- Thème et Rendu ---
   const theme = useTheme();
-
+  const calendarRef = React.useRef(null);
   return (
     <Box sx={{ height: "90vh", overflow: "auto", border: "1px solid #ccc" }}>
       <Box
@@ -827,6 +842,7 @@ export default function BeachPlanPeriod() {
           selectable={true}
           select={handleDateSelect}
           eventClick={handleEventClick}
+          ref={calendarRef}
           initialDate="2025-04-01"
           locale={itLocale}
           resourceAreaHeaderContent="Ombrelli"
