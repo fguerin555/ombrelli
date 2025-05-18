@@ -1,0 +1,184 @@
+.listingContainer {
+  padding: 20px;
+  font-family: Arial, sans-serif;
+  max-width: 1200px;
+  margin: 20px auto;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.listingHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.listingHeader h2 {
+  color: #333;
+  margin: 0;
+}
+
+.listingHeader h2 + .totalCount {
+  /* Cible le p après le h2 */
+  font-size: 0.9em;
+  color: #666;
+  margin-top: 5px;
+}
+
+.sortControls {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.sortControls label {
+  font-weight: bold;
+  color: #555;
+}
+
+.sortControls select,
+.sortControls button {
+  padding: 8px 12px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background-color: white;
+  cursor: pointer;
+}
+
+.sortControls button:hover {
+  background-color: #f0f0f0;
+}
+
+.reservationsTable {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+}
+
+.reservationsTable th,
+.reservationsTable td {
+  border: 1px solid #ddd;
+  padding: 10px;
+  text-align: left;
+}
+
+.reservationsTable th {
+  background-color: #e9ecef;
+  cursor: pointer;
+  user-select: none; /* Pour éviter la sélection de texte en cliquant */
+}
+
+.reservationsTable th:hover {
+  background-color: #dcdcdc;
+}
+
+.loading,
+.error {
+  text-align: center;
+  padding: 20px;
+  font-size: 1.2em;
+  color: #777;
+}
+
+.error {
+  color: red;
+}
+
+.actionButtons {
+  margin-bottom: 20px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap; /* Pour que les boutons passent à la ligne sur petits écrans */
+}
+
+.actionButtons button {
+  padding: 10px 15px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 0.9em;
+}
+
+.printButton {
+  background-color: #007bff;
+  color: white;
+}
+.printButton:hover {
+  background-color: #0056b3;
+}
+
+.pdfButton {
+  background-color: #28a745;
+  color: white;
+}
+.pdfButton:hover {
+  background-color: #1e7e34;
+}
+
+.copyButton {
+  background-color: #ffc107;
+  color: black;
+}
+.copyButton:hover {
+  background-color: #d39e00;
+}
+
+/* Styles pour l'impression */
+@media print {
+  body * {
+    visibility: hidden; /* Cache tout par défaut */
+  }
+  .listingContainer,
+  .listingContainer * {
+    visibility: visible; /* Rend visible le conteneur du listing et son contenu */
+  }
+  .listingContainer {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 10px; /* Un peu de marge pour l'impression */
+    box-shadow: none;
+    border: none;
+    font-size: 10pt; /* Ajuster la taille de police globale pour l'impression */
+  }
+
+  .listingHeader,
+  .actionButtons,
+  .sortControls,
+  nav, /* Si vous avez une navbar globale */
+  header, /* Si vous avez un header global */
+  footer /* Si vous avez un footer global */ {
+    display: none !important; /* Cache les éléments non nécessaires à l'impression */
+  }
+
+  .reservationsTable {
+    margin-top: 0;
+  }
+
+  .reservationsTable th,
+  .reservationsTable td {
+    font-size: 8pt; /* Réduire la taille pour l'impression si besoin */
+    padding: 5px;
+    border: 1px solid #ccc; /* Assurer que les bordures sont visibles */
+  }
+  .reservationsTable th {
+    background-color: #f2f2f2 !important; /* Forcer un fond clair pour les en-têtes */
+    color: black !important; /* Assurer que le texte est noir */
+    -webkit-print-color-adjust: exact; /* Forcer l'impression des couleurs de fond sur Chrome/Safari */
+    print-color-adjust: exact; /* Standard */
+  }
+  /* Éviter les sauts de page à l'intérieur des lignes du tableau */
+  tr {
+    page-break-inside: avoid;
+  }
+  /* Permettre les sauts de page avant les groupes de lignes si nécessaire */
+  thead,
+  tfoot {
+    display: table-header-group; /* Répéter l'en-tête sur chaque page */
+  }
+}

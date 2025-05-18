@@ -19,6 +19,7 @@ import LoginPage from "./pages/LoginPageFile/LoginPage";
 
 import Navbar from "./components/Navbar";
 import ProtectedRoute from "./components/ProtectedRoute";
+import Listing from "./pages/ListingFile/Listing";
 
 const App = () => {
   return (
@@ -44,6 +45,7 @@ const App = () => {
               <Route path="/scan-interne" element={<InternalScannerPage />} />
               <Route path="/qr-scan-resultat" element={<QRCodeHandlerPage />} />
               <Route path="/feedbackpage" element={<FeedbackPage />} />
+              <Route path="/listing" element={<Listing />} />
             </Route>
           </Routes>
         </div>

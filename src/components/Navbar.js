@@ -31,6 +31,8 @@ const Navbar = () => {
 
   console.log("Navbar - currentUser au chargement initial:", currentUser);
 
+  const DEV_EMAIL = "satorapenter@gmail.com";
+
   return (
     <nav className={styles.navbar}>
       {currentUser && (
@@ -64,6 +66,11 @@ const Navbar = () => {
             <li>
               <Link to="/feedbackpage">Commenti</Link>
             </li>
+            {currentUser && currentUser.email === DEV_EMAIL && (
+              <li>
+                <Link to="/listing">Listing (Dev)</Link>
+              </li>
+            )}
             {/* Section utilisateur et déconnexion */}
             <li className={styles.userSection}>
               <span className={styles.userEmail}>{currentUser.email}</span>
