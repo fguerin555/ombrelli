@@ -2,54 +2,59 @@
   width: 100%;
   display: flex;
   box-sizing: border-box;
-  justify-content: flex-start; /* Déplacer les éléments vers la gauche */
+  justify-content: flex-start; /* Sur desktop, les éléments commencent à gauche */
   align-items: center;
   padding: 1em 2em;
   background: linear-gradient(160deg, #eab8f0, #f5d97ea3);
+  position: relative; /* Nécessaire pour positionner le menu mobile en absolu */
+  z-index: 100; /* S'assurer que la navbar est au-dessus des autres éléments */
+}
+
+.hamburger {
+  display: none; /* Caché par défaut sur desktop */
+  font-size: 2rem;
+  color: #411a04;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  z-index: 1001; /* Pour être au-dessus du menu déroulant s'il y a un chevauchement */
 }
 
 .navbarLinks {
   font-family: "source-sans-pro.regular", Arial, sans-serif;
   list-style: none;
-  display: flex; /* Utilisation de flexbox pour l'alignement */
-  justify-content: center;
+  display: flex;
   align-items: center;
   gap: 1em;
   margin: 0;
   padding: 0;
   width: 100%;
-  max-width: 90%;
-  justify-content: space-around;
-  /* Déplacer les liens de navigation vers la droite */
+  max-width: 90%; /* Limite la largeur sur les grands écrans */
+  justify-content: space-around; /* Espace les liens sur desktop */
 }
 
 .navbarLinks li {
-  display: inline;
+  display: inline; /* Les éléments de liste sont en ligne sur desktop */
 }
 
 .navbarLinks a {
   text-decoration: none;
   color: #411a04;
-
   font-size: 1.5rem;
   transition: color 0.3s ease;
+  padding: 0.5em 0; /* Ajout de padding pour une meilleure zone cliquable */
 }
 
 .navbarLinks a:hover {
-  color: #fff; /* Exemple de changement de couleur au survol */
-}
-
-.navMenu li {
-  margin: 0 1em; /* Espacement entre les éléments de la liste */
+  color: #fff;
 }
 
 /* Styles pour la section utilisateur et le bouton de déconnexion */
 .userSection {
   display: flex;
   align-items: center;
-  gap: 10px; /* Espace entre l'email et le bouton */
-  /* margin-left: auto;  */
-  padding-left: 20px; /* Un peu d'espace si les liens sont nombreux */
+  gap: 10px;
+  padding-left: 20px;
 }
 
 .userEmail {
@@ -62,7 +67,7 @@
   padding: 8px 12px;
   font-size: 0.9rem;
   color: white;
-  background-color: #dc3545; /* Rouge pour déconnexion, par exemple */
+  background-color: #dc3545;
   border: none;
   border-radius: 4px;
   cursor: pointer;
@@ -70,28 +75,99 @@
 }
 
 .logoutButton:hover {
-  background-color: #c82333; /* Rouge plus foncé au survol */
+  background-color: #c82333;
 }
 
+/* Styles pour mobile - Hamburger Menu */
 @media (max-width: 1224px) {
   .navbar {
+    justify-content: space-between; /* Espace pour le hamburger et le titre/logo (si existant) */
+    /* Les styles précédents pour .navbar en mobile étaient :
     flex-direction: column;
-    align-items: flex-start; /* Correction de la syntaxe */
-    display: flex;
     justify-content: center;
     align-items: center;
+    Si vous préférez que le hamburger soit centré et seul en haut, remettez ces lignes
+    et ajustez le positionnement de .navbarLinks.open en conséquence.
+    Pour l'instant, on garde une ligne pour le hamburger. */
   }
-  .navbarLinks {
-    flex-direction: column;
-    gap: 10px;
-  }
-  @media (max-width: 509px) {
-    .navbar {
-      padding: 0.5em 1em;
-    }
 
-    .navbarLinks a {
-      font-size: 1rem;
-    }
+  .hamburger {
+    display: block; /* Afficher le hamburger sur mobile */
   }
+
+  .navbarLinks {
+    display: none; /* Cacher les liens par défaut sur mobile */
+    flex-direction: column;
+    position: absolute;
+    top: 100%; /* Se positionne juste en dessous de la barre de navigation */
+    left: 0;
+    right: 0;
+    background: linear-gradient(
+      160deg,
+      #eab8f0,
+      #f5d97ea3
+    ); /* Même fond que la navbar */
+    padding: 1em 0;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+    max-width: 100%; /* Prend toute la largeur */
+    gap: 15px; /* Espace entre les liens dans le menu déroulant */
+    align-items: center; /* Centre les éléments de la liste */
+  }
+
+  .navbarLinks.open {
+    display: flex; /* Afficher le menu quand il est ouvert */
+  }
+
+  .navbarLinks li {
+    display: block; /* Chaque lien prend toute la largeur */
+    width: 100%;
+    text-align: center;
+  }
+
+  .navbarLinks a {
+    display: block; /* Pour que le padding s'applique correctement et la zone cliquable soit grande */
+    width: 100%;
+  }
+
+  .userSection {
+    flex-direction: column; /* Empiler email et bouton déconnexion */
+    align-items: center;
+    padding-left: 0;
+    gap: 15px; /* Espace entre email et bouton */
+    margin-top: 10px; /* Un peu d'espace au-dessus de la section utilisateur */
+  }
+
+  .userEmail {
+    margin-right: 0;
+    font-size: 1.1rem; /* Ajustement optionnel pour mobile */
+  }
+}
+
+@media (max-width: 509px) {
+  .navbar {
+    padding: 0.5em 1em;
+  }
+
+  .hamburger {
+    font-size: 1.8rem; /* Icône hamburger un peu plus petite */
+  }
+
+  .navbarLinks a {
+    font-size: 1.2rem; /* Liens un peu plus petits pour très petits écrans */
+  }
+
+  .userEmail {
+    font-size: 1rem;
+  }
+
+  .logoutButton {
+    font-size: 0.8rem;
+    padding: 6px 10px;
+  }
+}
+
+/* Style inutilisé .navMenu li, conservé au cas où */
+.navMenu li {
+  margin: 0 1em;
 }
