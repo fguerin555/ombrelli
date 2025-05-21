@@ -48,6 +48,10 @@
 .navbarLinks a:hover {
   color: #fff;
 }
+.navbarLinks.open {
+  display: flex;
+  z-index: 100000 !important;
+}
 
 /* Styles pour la section utilisateur et le bouton de déconnexion */
 .userSection {
@@ -81,14 +85,8 @@
 /* Styles pour mobile - Hamburger Menu */
 @media (max-width: 1224px) {
   .navbar {
-    justify-content: space-between; /* Espace pour le hamburger et le titre/logo (si existant) */
-    /* Les styles précédents pour .navbar en mobile étaient :
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    Si vous préférez que le hamburger soit centré et seul en haut, remettez ces lignes
-    et ajustez le positionnement de .navbarLinks.open en conséquence.
-    Pour l'instant, on garde une ligne pour le hamburger. */
+    justify-content: space-between;
+    background: linear-gradient(160deg, #eab8f0, #f5d97e) !important;
   }
 
   .hamburger {
@@ -102,11 +100,7 @@
     top: 100%; /* Se positionne juste en dessous de la barre de navigation */
     left: 0;
     right: 0;
-    background: linear-gradient(
-      160deg,
-      #eab8f0,
-      #f5d97ea3
-    ); /* Même fond que la navbar */
+    background: linear-gradient(160deg, #eab8f0, #f5d97e) !important;
     padding: 1em 0;
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
     z-index: 1000;
@@ -116,7 +110,8 @@
   }
 
   .navbarLinks.open {
-    display: flex; /* Afficher le menu quand il est ouvert */
+    display: flex;
+    z-index: 100000 !important;
   }
 
   .navbarLinks li {

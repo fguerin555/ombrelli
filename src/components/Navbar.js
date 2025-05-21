@@ -29,6 +29,8 @@ const Navbar = () => {
     setIsMenuOpen(false);
   }, [location]);
 
+  // Ce console.log peut être utile pour le développement,
+  // mais vous pourriez envisager de le supprimer pour la production.
   console.log("Navbar - currentUser au chargement initial:", currentUser);
 
   const DEV_EMAIL = "satorapenter@gmail.com";
@@ -74,6 +76,9 @@ const Navbar = () => {
             {/* Section utilisateur et déconnexion */}
             <li className={styles.userSection}>
               <span className={styles.userEmail}>{currentUser.email}</span>
+              {/* Vérification redondante de currentUser.email ici, 
+                  car toute cette section est déjà conditionnée par currentUser.
+                  Cependant, cela ne cause pas de problème. */}
               {currentUser.email && (
                 <button onClick={handleLogout} className={styles.logoutButton}>
                   <span> Déconnexion </span>
