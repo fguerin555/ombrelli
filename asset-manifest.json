@@ -1,7 +1,7 @@
 {
   "files": {
-    "main.css": "/ombrelli/static/css/main.ba23a211.css",
-    "main.js": "/ombrelli/static/js/main.1306a2a2.js",
+    "main.css": "/ombrelli/static/css/main.44ab217f.css",
+    "main.js": "/ombrelli/static/js/main.d7fd8d5a.js",
     "static/js/239.93697ccf.chunk.js": "/ombrelli/static/js/239.93697ccf.chunk.js",
     "static/js/977.2412b592.chunk.js": "/ombrelli/static/js/977.2412b592.chunk.js",
     "static/js/732.8542cb1a.chunk.js": "/ombrelli/static/js/732.8542cb1a.chunk.js",
@@ -17,14 +17,14 @@
     "static/media/source-sans-pro.regular.ttf": "/ombrelli/static/media/source-sans-pro.regular.358e8828cd2fc97c7e74.ttf",
     "static/media/JosefinSans-Medium.ttf": "/ombrelli/static/media/JosefinSans-Medium.45a5738c27c1bbbecc0c.ttf",
     "index.html": "/ombrelli/index.html",
-    "main.ba23a211.css.map": "/ombrelli/static/css/main.ba23a211.css.map",
-    "main.1306a2a2.js.map": "/ombrelli/static/js/main.1306a2a2.js.map",
+    "main.44ab217f.css.map": "/ombrelli/static/css/main.44ab217f.css.map",
+    "main.d7fd8d5a.js.map": "/ombrelli/static/js/main.d7fd8d5a.js.map",
     "239.93697ccf.chunk.js.map": "/ombrelli/static/js/239.93697ccf.chunk.js.map",
     "977.2412b592.chunk.js.map": "/ombrelli/static/js/977.2412b592.chunk.js.map",
     "732.8542cb1a.chunk.js.map": "/ombrelli/static/js/732.8542cb1a.chunk.js.map"
   },
   "entrypoints": [
-    "static/css/main.ba23a211.css",
-    "static/js/main.1306a2a2.js"
+    "static/css/main.44ab217f.css",
+    "static/js/main.d7fd8d5a.js"
   ]
 }
